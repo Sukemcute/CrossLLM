@@ -1,0 +1,24 @@
+You are a smart contract security analyst. Analyze the following Solidity source code of a cross-chain bridge contract.
+
+Extract the following information in JSON format:
+
+1. **entities**: All contract entities (router, token, governance, proxy, external dependencies)
+   - For each: name, type, chain (source/destination), address if available
+
+2. **functions**: All public/external functions classified by role
+   - Roles: deposit, withdrawal, relay_processing, mint, burn, emergency_pause, admin
+   - For each: name, role, parameters, modifiers, state_changes
+
+3. **asset_flows**: Asset flow paths for each state-changing function
+   - For each: source, sink, token, conditions
+
+4. **guards**: Conditional guards protecting critical operations
+   - Types: access_control, signature_verification, nonce_validation, timelock, multisig
+   - For each: function, guard_type, description
+
+Source code:
+{source_code}
+
+Contract name: {contract_name}
+
+Output ONLY valid JSON matching the schema above.

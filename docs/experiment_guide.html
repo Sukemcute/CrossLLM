@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>H&#x1b0;&#x1edb;ng D&#x1eab;n Th&#x1ef1;c Nghi&#x1ec7;m&colon; CrossShield</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
+<link href="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.css" rel="stylesheet" type="text/css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <h1 id="hướng-dẫn-thực-nghiệm-crossshield">Hướng Dẫn Thực Nghiệm: CrossShield</h1>
+<h2 id="mục-lục">Mục Lục</h2>
+<ol>
+<li><a href="#1-t%E1%BB%95ng-quan">Tổng Quan</a></li>
+<li><a href="#2-y%C3%AAu-c%E1%BA%A7u-ph%E1%BA%A7n-c%E1%BB%A9ng-v%C3%A0-ph%E1%BA%A7n-m%E1%BB%81m">Yêu Cầu Phần Cứng và Phần Mềm</a></li>
+<li><a href="#3-c%C3%A0i-%C4%91%E1%BA%B7t-m%C3%B4i-tr%C6%B0%E1%BB%9Dng">Cài Đặt Môi Trường</a></li>
+<li><a href="#4-x%C3%A2y-d%E1%BB%B1ng-b%E1%BB%99-d%E1%BB%AF-li%E1%BB%87u-benchmark">Xây Dựng Bộ Dữ Liệu Benchmark</a></li>
+<li><a href="#5-tri%E1%BB%83n-khai-module-1-tr%C3%ADch-xu%E1%BA%A5t-ng%E1%BB%AF-ngh%C4%A9a-b%E1%BA%B1ng-llm">Triển Khai Module 1: Trích Xuất Ngữ Nghĩa bằng LLM</a></li>
+<li><a href="#6-tri%E1%BB%83n-khai-module-2-sinh-k%E1%BB%8Bch-b%E1%BA%A3n-t%E1%BA%A5n-c%C3%B4ng-b%E1%BA%B1ng-rag">Triển Khai Module 2: Sinh Kịch Bản Tấn Công bằng RAG</a></li>
+<li><a href="#7-tri%E1%BB%83n-khai-module-3-fuzzing-%C4%91a-chu%E1%BB%97i-%C4%91%E1%BB%93ng-b%E1%BB%99">Triển Khai Module 3: Fuzzing Đa Chuỗi Đồng Bộ</a></li>
+<li><a href="#8-ch%E1%BA%A1y-th%E1%BB%B1c-nghi%E1%BB%87m-v%C3%A0-thu-th%E1%BA%ADp-k%E1%BA%BFt-qu%E1%BA%A3">Chạy Thực Nghiệm và Thu Thập Kết Quả</a></li>
+<li><a href="#9-%C4%91%C3%A1nh-gi%C3%A1-k%E1%BA%BFt-qu%E1%BA%A3">Đánh Giá Kết Quả</a></li>
+<li><a href="#10-x%E1%BB%AD-l%C3%BD-s%E1%BB%B1-c%E1%BB%91-th%C6%B0%E1%BB%9Dng-g%E1%BA%B7p">Xử Lý Sự Cố Thường Gặp</a></li>
+<li><a href="#11-c%C3%A1c-b%C6%B0%E1%BB%9Bc-ti%E1%BA%BFp-theo">Các Bước Tiếp Theo</a></li>
+</ol>
+<hr>
+<h2 id="1-tổng-quan">1. Tổng Quan</h2>
+<p>CrossShield là framework phát hiện lỗ hổng chủ động cho các cầu nối (bridge) liên chuỗi blockchain, kết hợp ba thành phần chính:</p>
+<ul>
+<li><strong>Module 1</strong>: Trích xuất ngữ nghĩa giao thức bằng LLM, tạo đồ thị chuyển đổi nguyên tử (ATG) cùng tập bất biến.</li>
+<li><strong>Module 2</strong>: Sinh kịch bản tấn công dựa trên RAG (Retrieval-Augmented Generation) từ cơ sở tri thức 51 vụ hack.</li>
+<li><strong>Module 3</strong>: Fuzzing đa chuỗi đồng bộ với hai EVM instance song song và mock relay.</li>
+</ul>
+<p>Mục tiêu thực nghiệm: đánh giá CrossShield trên 12 vụ exploit thực tế đã tái dựng, so sánh với 4 baseline (ItyFuzz, SmartAxe, GPTScan, XScope).</p>
+<hr>
+<h2 id="2-yêu-cầu-phần-cứng-và-phần-mềm">2. Yêu Cầu Phần Cứng và Phần Mềm</h2>
+<h3 id="21-phần-cứng-tối-thiểu">2.1 Phần Cứng Tối Thiểu</h3>
+<table>
+<thead>
+<tr>
+<th>Thành Phần</th>
+<th>Yêu Cầu Tối Thiểu</th>
+<th>Khuyến Nghị</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CPU</td>
+<td>8 cores</td>
+<td>32+ cores (AMD EPYC hoặc tương đương)</td>
+</tr>
+<tr>
+<td>RAM</td>
+<td>32 GB</td>
+<td>128+ GB</td>
+</tr>
+<tr>
+<td>Ổ cứng</td>
+<td>100 GB SSD</td>
+<td>500 GB NVMe SSD</td>
+</tr>
+<tr>
+<td>GPU</td>
+<td>Không bắt buộc</td>
+<td>NVIDIA GPU hỗ trợ CUDA (cho embedding)</td>
+</tr>
+<tr>
+<td>Mạng</td>
+<td>Kết nối internet ổn định</td>
+<td>Băng thông cao cho fork blockchain</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-phần-mềm">2.2 Phần Mềm</h3>
+<table>
+<thead>
+<tr>
+<th>Phần Mềm</th>
+<th>Phiên Bản</th>
+<th>Mục Đích</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ubuntu</td>
+<td>22.04 LTS</td>
+<td>Hệ điều hành</td>
+</tr>
+<tr>
+<td>Python</td>
+<td>3.10+</td>
+<td>Orchestration, LLM tích hợp, RAG pipeline</td>
+</tr>
+<tr>
+<td>Rust</td>
+<td>1.75+</td>
+<td>Dual-EVM fuzzing engine</td>
+</tr>
+<tr>
+<td>Foundry (Anvil)</td>
+<td>Latest</td>
+<td>Fork blockchain cục bộ</td>
+</tr>
+<tr>
+<td>Node.js</td>
+<td>18+</td>
+<td>Công cụ hỗ trợ</td>
+</tr>
+<tr>
+<td>Docker</td>
+<td>24+</td>
+<td>Cô lập môi trường (tùy chọn)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-api-keys-và-dịch-vụ">2.3 API Keys và Dịch Vụ</h3>
+<ul>
+<li><strong>OpenAI API Key</strong> (GPT-4): Dùng cho Module 1 và Module 2.</li>
+<li><strong>Etherscan API Key</strong>: Lấy mã nguồn hợp đồng thông minh đã verify.</li>
+<li><strong>Alchemy/Infura RPC Endpoint</strong>: Truy cập archive node để fork blockchain state.</li>
+</ul>
+<hr>
+<h2 id="3-cài-đặt-môi-trường">3. Cài Đặt Môi Trường</h2>
+<h3 id="31-thiết-lập-cơ-bản">3.1 Thiết Lập Cơ Bản</h3>
+<pre><code class="language-bash"><span class="hljs-comment"># Tạo thư mục dự án</span>
+<span class="hljs-built_in">mkdir</span> -p ~/CrossShield &amp;&amp; <span class="hljs-built_in">cd</span> ~/CrossShield
+
+<span class="hljs-comment"># Tạo môi trường ảo Python</span>
+python3 -m venv .venv
+<span class="hljs-built_in">source</span> .venv/bin/activate
+
+<span class="hljs-comment"># Cài đặt các thư viện Python cần thiết</span>
+pip install openai faiss-cpu sentence-transformers web3 \
+    python-dotenv requests pydantic rich tqdm
+
+<span class="hljs-comment"># Cài đặt Rust (nếu chưa có)</span>
+curl --proto <span class="hljs-string">&#x27;=https&#x27;</span> --tlsv1.2 -sSf https://sh.rustup.rs | sh
+<span class="hljs-built_in">source</span> <span class="hljs-string">&quot;<span class="hljs-variable">$HOME</span>/.cargo/env&quot;</span>
+
+<span class="hljs-comment"># Cài đặt Foundry</span>
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+</code></pre>
+<h3 id="32-cấu-hình-api-keys">3.2 Cấu Hình API Keys</h3>
+<p>Tạo file <code>.env</code> trong thư mục gốc:</p>
+<pre><code class="language-bash"><span class="hljs-comment"># .env</span>
+OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
+ETHERSCAN_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxx
+ETH_RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
+BSC_RPC_URL=https://bsc-dataseed.binance.org/
+</code></pre>
+<h3 id="33-cấu-trúc-thư-mục-dự-án">3.3 Cấu Trúc Thư Mục Dự Án</h3>
+<pre><code>CrossShield/
+├── .env
+├── src/
+│   ├── module1_semantic/       # Module 1: Trích xuất ngữ nghĩa
+│   │   ├── extractor.py        # LLM semantic extractor
+│   │   ├── atg_builder.py      # ATG constructor
+│   │   ├── invariant_synth.py  # Invariant synthesizer
+│   │   └── prompts/            # Prompt templates
+│   ├── module2_rag/            # Module 2: RAG attack generation
+│   │   ├── knowledge_base.py   # Exploit KB management
+│   │   ├── embedder.py         # Sentence embedding
+│   │   ├── scenario_gen.py     # Attack scenario generator
+│   │   └── data/               # 51 exploit records (JSON)
+│   ├── module3_fuzzing/        # Module 3: Dual-chain fuzzer (Rust)
+│   │   ├── Cargo.toml
+│   │   ├── src/
+│   │   │   ├── main.rs
+│   │   │   ├── dual_evm.rs     # Dual EVM manager
+│   │   │   ├── mock_relay.rs   # Mock relay
+│   │   │   ├── snapshot.rs     # Synchronized snapshots
+│   │   │   ├── mutator.rs      # ATG-aware mutation
+│   │   │   └── checker.rs      # Invariant checker
+│   │   └── build.rs
+│   └── orchestrator.py         # Pipeline điều phối
+├── benchmarks/                 # Benchmark dữ liệu
+│   ├── polynetwork/
+│   ├── wormhole/
+│   ├── ronin/
+│   ├── nomad/
+│   └── ...
+├── results/                    # Kết quả thực nghiệm
+└── scripts/                    # Script tiện ích
+    ├── setup_benchmark.sh
+    └── run_experiments.sh
+</code></pre>
+<hr>
+<h2 id="4-xây-dựng-bộ-dữ-liệu-benchmark">4. Xây Dựng Bộ Dữ Liệu Benchmark</h2>
+<h3 id="41-danh-sách-12-exploit-cần-tái-dựng">4.1 Danh Sách 12 Exploit Cần Tái Dựng</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Incident</th>
+<th>Chuỗi Nguồn</th>
+<th>Chuỗi Đích</th>
+<th>Block Fork</th>
+<th>Hướng Tấn Công</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>PolyNetwork (2021)</td>
+<td>Ethereum</td>
+<td>BSC/Polygon</td>
+<td>12996658</td>
+<td>Src Chain</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Wormhole (2022)</td>
+<td>Solana</td>
+<td>Ethereum</td>
+<td>14268080</td>
+<td>Dst Chain</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Ronin Network (2022)</td>
+<td>Ethereum</td>
+<td>Ronin</td>
+<td>14442835</td>
+<td>Off-chain</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Nomad (2022)</td>
+<td>Ethereum</td>
+<td>Moonbeam</td>
+<td>15259100</td>
+<td>Dst Chain</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Harmony Horizon (2022)</td>
+<td>Ethereum</td>
+<td>Harmony</td>
+<td>15000000</td>
+<td>Off-chain</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Multichain (2023)</td>
+<td>Ethereum</td>
+<td>Fantom</td>
+<td>17700000</td>
+<td>Off-chain</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Socket Gateway (2024)</td>
+<td>Ethereum</td>
+<td>-</td>
+<td>19100000</td>
+<td>Src Chain</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Orbit Bridge (2024)</td>
+<td>Ethereum</td>
+<td>Orbit</td>
+<td>18900000</td>
+<td>Off-chain</td>
+</tr>
+<tr>
+<td>9</td>
+<td>GemPad (2024)</td>
+<td>BSC</td>
+<td>-</td>
+<td>44500000</td>
+<td>Dst Chain</td>
+</tr>
+<tr>
+<td>10</td>
+<td>FEGtoken (2024)</td>
+<td>Ethereum</td>
+<td>BSC</td>
+<td>21500000</td>
+<td>Off-chain</td>
+</tr>
+<tr>
+<td>11</td>
+<td>pGALA (2022)</td>
+<td>BSC</td>
+<td>-</td>
+<td>22700000</td>
+<td>Src Chain</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Qubit Finance (2022)</td>
+<td>Ethereum</td>
+<td>BSC</td>
+<td>14180000</td>
+<td>Dst Chain</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42-quy-trình-tái-dựng-exploit">4.2 Quy Trình Tái Dựng Exploit</h3>
+<p>Với mỗi exploit, thực hiện các bước sau:</p>
+<pre><code class="language-bash"><span class="hljs-comment"># Bước 1: Tạo thư mục cho mỗi benchmark</span>
+<span class="hljs-built_in">mkdir</span> -p benchmarks/nomad &amp;&amp; <span class="hljs-built_in">cd</span> benchmarks/nomad
+
+<span class="hljs-comment"># Bước 2: Fork blockchain state tại block trước vụ hack</span>
+<span class="hljs-comment"># Sử dụng Anvil để tạo local fork</span>
+anvil --fork-url <span class="hljs-variable">$ETH_RPC_URL</span> --fork-block-number 15259100 \
+      --port 8545 &amp;
+
+<span class="hljs-comment"># Bước 3: Tải mã nguồn hợp đồng bridge từ Etherscan</span>
+python3 scripts/fetch_contracts.py \
+    --address 0x... \
+    --etherscan-key <span class="hljs-variable">$ETHERSCAN_API_KEY</span> \
+    --output benchmarks/nomad/contracts/
+
+<span class="hljs-comment"># Bước 4: Xác minh exploit bằng cách replay giao dịch gốc</span>
+cast run &lt;EXPLOIT_TX_HASH&gt; --rpc-url http://localhost:8545
+
+<span class="hljs-comment"># Bước 5: Lưu metadata</span>
+<span class="hljs-built_in">cat</span> &gt; benchmarks/nomad/meta.json &lt;&lt;<span class="hljs-string">EOF
+{
+    &quot;name&quot;: &quot;Nomad Bridge&quot;,
+    &quot;attack_date&quot;: &quot;2022-08-01&quot;,
+    &quot;loss_usd&quot;: 190000000,
+    &quot;attack_stage&quot;: &quot;dst_chain&quot;,
+    &quot;vulnerability&quot;: &quot;improper_initialization&quot;,
+    &quot;source_chain&quot;: &quot;ethereum&quot;,
+    &quot;dest_chain&quot;: &quot;moonbeam&quot;,
+    &quot;fork_block&quot;: 15259100,
+    &quot;contracts&quot;: {
+        &quot;router&quot;: &quot;0xB92336759...&quot;,
+        &quot;token&quot;: &quot;0x...&quot;
+    }
+}
+EOF</span>
+</code></pre>
+<h3 id="43-lưu-ý-quan-trọng">4.3 Lưu Ý Quan Trọng</h3>
+<ul>
+<li><strong>Wormhole</strong>: Vụ hack xảy ra trên Solana (không phải EVM). Cần mô phỏng phần Ethereum side của bridge. Tái dựng bằng cách giả lập guardian signature verification trên EVM.</li>
+<li><strong>Ronin</strong>: Tấn công off-chain (chiếm đa số validator keys). Tái dựng bằng mock relay với validator set bị compromised.</li>
+<li>Đảm bảo archive node RPC hỗ trợ truy vấn ở block cũ.</li>
+</ul>
+<hr>
+<h2 id="5-triển-khai-module-1-trích-xuất-ngữ-nghĩa-bằng-llm">5. Triển Khai Module 1: Trích Xuất Ngữ Nghĩa bằng LLM</h2>
+<h3 id="51-thiết-kế-prompt-template">5.1 Thiết Kế Prompt Template</h3>
+<p>Tạo file <code>src/module1_semantic/prompts/extract_entities.txt</code>:</p>
+<pre><code>You are analyzing a cross-chain bridge smart contract. Given the Solidity source code below, extract:
+
+1. ENTITIES: List all contracts, accounts, and roles (router, token contract, governance, proxy, relay).
+2. FUNCTIONS: For each public/external function, classify its role: deposit, withdrawal, relay_message, mint, burn, pause, admin.
+3. ASSET FLOWS: For each state-changing function, trace token balance changes (source -&gt; sink).
+4. GUARDS: List all access control checks, signature verifications, nonce validations, timelocks.
+
+Output as JSON following this schema:
+{
+  &quot;entities&quot;: [...],
+  &quot;functions&quot;: [...],
+  &quot;asset_flows&quot;: [...],
+  &quot;guards&quot;: [...]
+}
+
+Source code:
+{CONTRACT_SOURCE}
+</code></pre>
+<h3 id="52-xây-dựng-atg-từ-kết-quả-llm">5.2 Xây Dựng ATG từ Kết Quả LLM</h3>
+<pre><code class="language-python"><span class="hljs-comment"># src/module1_semantic/atg_builder.py (phác thảo)</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ATGNode</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, node_id, node_type, chain, address</span>):
+        self.node_id = node_id
+        self.node_type = node_type  <span class="hljs-comment"># user, contract, relay</span>
+        self.chain = chain          <span class="hljs-comment"># source, destination, offchain</span>
+        self.address = address
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ATGEdge</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, src, dst, label, conditions</span>):
+        self.src = src
+        self.dst = dst
+        self.label = label  <span class="hljs-comment"># lock, unlock, mint, burn, relay, verify</span>
+        self.conditions = conditions  <span class="hljs-comment"># list of guard predicates</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ATG</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self</span>):
+        self.nodes = {}
+        self.edges = []
+        self.invariants = []
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">build_from_llm_output</span>(<span class="hljs-params">self, llm_json</span>):
+        <span class="hljs-comment"># Parse entities -&gt; nodes</span>
+        <span class="hljs-keyword">for</span> entity <span class="hljs-keyword">in</span> llm_json[<span class="hljs-string">&quot;entities&quot;</span>]:
+            node = ATGNode(
+                node_id=entity[<span class="hljs-string">&quot;id&quot;</span>],
+                node_type=entity[<span class="hljs-string">&quot;type&quot;</span>],
+                chain=entity[<span class="hljs-string">&quot;chain&quot;</span>],
+                address=entity[<span class="hljs-string">&quot;address&quot;</span>]
+            )
+            self.nodes[node.node_id] = node
+
+        <span class="hljs-comment"># Parse asset_flows -&gt; edges</span>
+        <span class="hljs-keyword">for</span> flow <span class="hljs-keyword">in</span> llm_json[<span class="hljs-string">&quot;asset_flows&quot;</span>]:
+            edge = ATGEdge(
+                src=flow[<span class="hljs-string">&quot;from&quot;</span>],
+                dst=flow[<span class="hljs-string">&quot;to&quot;</span>],
+                label=flow[<span class="hljs-string">&quot;operation&quot;</span>],
+                conditions=flow.get(<span class="hljs-string">&quot;guards&quot;</span>, [])
+            )
+            self.edges.append(edge)
+</code></pre>
+<h3 id="53-sinh-bất-biến-invariant-synthesis">5.3 Sinh Bất Biến (Invariant Synthesis)</h3>
+<p>LLM sinh ra các bất biến dạng assertion Solidity. Ví dụ:</p>
+<pre><code class="language-solidity">// Asset Conservation Invariant
+function checkAssetConservation() public view returns (bool) {
+    uint256 totalLocked = bridgeRouter.totalLocked();
+    uint256 totalMinted = destinationToken.totalSupply()
+                          - destinationToken.initialSupply();
+    return totalLocked == totalMinted;
+}
+
+// Authorization Invariant
+function checkAuthorization(bytes32 txHash) public view returns (bool) {
+    return bridgeRouter.processedDeposits(txHash) == true;
+}
+</code></pre>
+<p>Bước xác thực: chạy các invariant trên trace giao dịch hợp lệ. Loại bỏ invariant nào bị vi phạm bởi giao dịch bình thường.</p>
+<hr>
+<h2 id="6-triển-khai-module-2-sinh-kịch-bản-tấn-công-bằng-rag">6. Triển Khai Module 2: Sinh Kịch Bản Tấn Công bằng RAG</h2>
+<h3 id="61-xây-dựng-cơ-sở-tri-thức">6.1 Xây Dựng Cơ Sở Tri Thức</h3>
+<p>Mỗi vụ exploit được mã hóa thành JSON:</p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;nomad_2022&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;bridge&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Nomad&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;date&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2022-08-01&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;loss_usd&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">190000000</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;chains&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">&quot;ethereum&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-string">&quot;moonbeam&quot;</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;vulnerability_class&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;improper_initialization&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;attack_stage&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;dst_chain&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;attack_trace&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+        <span class="hljs-string">&quot;Attacker identifies Replica contract initialized with 0x00 as trusted root&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-string">&quot;Attacker crafts message with valid proof against 0x00 root&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-string">&quot;Attacker calls process() on destination to mint tokens without valid lock on source&quot;</span>
+    <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;root_cause&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Replica.initialize() set confirmAt[0x00]=1 allowing any message to pass verification&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h3 id="62-embedding-và-vector-database">6.2 Embedding và Vector Database</h3>
+<pre><code class="language-python"><span class="hljs-comment"># src/module2_rag/embedder.py</span>
+
+<span class="hljs-keyword">from</span> sentence_transformers <span class="hljs-keyword">import</span> SentenceTransformer
+<span class="hljs-keyword">import</span> faiss
+<span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ExploitKnowledgeBase</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, data_dir=<span class="hljs-string">&quot;src/module2_rag/data/&quot;</span></span>):
+        self.model = SentenceTransformer(<span class="hljs-string">&#x27;all-MiniLM-L6-v2&#x27;</span>)
+        self.exploits = self._load_exploits(data_dir)
+        self.index, self.embeddings = self._build_index()
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">_load_exploits</span>(<span class="hljs-params">self, data_dir</span>):
+        exploits = []
+        <span class="hljs-keyword">for</span> filepath <span class="hljs-keyword">in</span> <span class="hljs-built_in">sorted</span>(Path(data_dir).glob(<span class="hljs-string">&quot;*.json&quot;</span>)):
+            <span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(filepath) <span class="hljs-keyword">as</span> f:
+                exploits.append(json.load(f))
+        <span class="hljs-keyword">return</span> exploits
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">_build_index</span>(<span class="hljs-params">self</span>):
+        texts = [self._exploit_to_text(e) <span class="hljs-keyword">for</span> e <span class="hljs-keyword">in</span> self.exploits]
+        embeddings = self.model.encode(texts, normalize_embeddings=<span class="hljs-literal">True</span>)
+        dim = embeddings.shape[<span class="hljs-number">1</span>]
+        index = faiss.IndexFlatIP(dim)  <span class="hljs-comment"># Inner product = cosine similarity khi đã normalize</span>
+        index.add(embeddings.astype(np.float32))
+        <span class="hljs-keyword">return</span> index, embeddings
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">retrieve</span>(<span class="hljs-params">self, query, k=<span class="hljs-number">5</span></span>):
+        query_emb = self.model.encode([query], normalize_embeddings=<span class="hljs-literal">True</span>)
+        scores, indices = self.index.search(query_emb.astype(np.float32), k)
+        <span class="hljs-keyword">return</span> [(self.exploits[i], scores[<span class="hljs-number">0</span>][j]) <span class="hljs-keyword">for</span> j, i <span class="hljs-keyword">in</span> <span class="hljs-built_in">enumerate</span>(indices[<span class="hljs-number">0</span>])]
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">_exploit_to_text</span>(<span class="hljs-params">self, exploit</span>):
+        <span class="hljs-keyword">return</span> (<span class="hljs-string">f&quot;Bridge: <span class="hljs-subst">{exploit[<span class="hljs-string">&#x27;bridge&#x27;</span>]}</span>. &quot;</span>
+                <span class="hljs-string">f&quot;Vulnerability: <span class="hljs-subst">{exploit[<span class="hljs-string">&#x27;vulnerability_class&#x27;</span>]}</span>. &quot;</span>
+                <span class="hljs-string">f&quot;Stage: <span class="hljs-subst">{exploit[<span class="hljs-string">&#x27;attack_stage&#x27;</span>]}</span>. &quot;</span>
+                <span class="hljs-string">f&quot;Trace: <span class="hljs-subst">{<span class="hljs-string">&#x27; &#x27;</span>.join(exploit[<span class="hljs-string">&#x27;attack_trace&#x27;</span>])}</span>. &quot;</span>
+                <span class="hljs-string">f&quot;Root cause: <span class="hljs-subst">{exploit[<span class="hljs-string">&#x27;root_cause&#x27;</span>]}</span>&quot;</span>)
+</code></pre>
+<h3 id="63-sinh-kịch-bản">6.3 Sinh Kịch Bản</h3>
+<p>Prompt cho LLM sinh kịch bản tấn công:</p>
+<pre><code>You are a security researcher analyzing a cross-chain bridge for vulnerabilities.
+
+BRIDGE PROTOCOL (ATG):
+{ATG_DESCRIPTION}
+
+TARGET INVARIANT:
+{INVARIANT_DESCRIPTION}
+
+SIMILAR HISTORICAL EXPLOITS:
+{RETRIEVED_EXPLOITS}
+
+Generate a concrete attack scenario that a rational adversary would use to violate the target invariant. Output as a sequence of actions:
+[
+    {&quot;step&quot;: 1, &quot;chain&quot;: &quot;source|relay|destination&quot;, &quot;contract&quot;: &quot;...&quot;, &quot;function&quot;: &quot;...&quot;, &quot;params&quot;: {...}, &quot;description&quot;: &quot;...&quot;},
+    ...
+]
+
+Also define semantic waypoints (intermediate states that indicate progress toward the exploit):
+[
+    {&quot;waypoint&quot;: 1, &quot;predicate&quot;: &quot;...&quot;, &quot;description&quot;: &quot;...&quot;},
+    ...
+]
+</code></pre>
+<hr>
+<h2 id="7-triển-khai-module-3-fuzzing-đa-chuỗi-đồng-bộ">7. Triển Khai Module 3: Fuzzing Đa Chuỗi Đồng Bộ</h2>
+<h3 id="71-kiến-trúc-dual-evm">7.1 Kiến Trúc Dual-EVM</h3>
+<p>Engine fuzzing được viết bằng Rust sử dụng thư viện <code>revm</code> (Rust EVM):</p>
+<pre><code class="language-toml"><span class="hljs-comment"># module3_fuzzing/Cargo.toml</span>
+<span class="hljs-section">[dependencies]</span>
+<span class="hljs-attr">revm</span> = { version = <span class="hljs-string">&quot;8&quot;</span>, features = [<span class="hljs-string">&quot;std&quot;</span>, <span class="hljs-string">&quot;ethersdb&quot;</span>] }
+<span class="hljs-attr">alloy-primitives</span> = <span class="hljs-string">&quot;0.7&quot;</span>
+<span class="hljs-attr">alloy-provider</span> = <span class="hljs-string">&quot;0.1&quot;</span>
+<span class="hljs-attr">serde</span> = { version = <span class="hljs-string">&quot;1&quot;</span>, features = [<span class="hljs-string">&quot;derive&quot;</span>] }
+<span class="hljs-attr">serde_json</span> = <span class="hljs-string">&quot;1&quot;</span>
+<span class="hljs-attr">rand</span> = <span class="hljs-string">&quot;0.8&quot;</span>
+</code></pre>
+<h3 id="72-quản-lý-snapshot-đồng-bộ">7.2 Quản Lý Snapshot Đồng Bộ</h3>
+<p>Khái niệm quan trọng: snapshot toàn cục bao gồm ba thành phần:</p>
+<pre><code>GlobalSnapshot = (StateEVM_S, StateEVM_D, StateRelay)
+</code></pre>
+<p>Khi tạo snapshot, cả ba thành phần được capture đồng thời.
+Khi khôi phục snapshot, cả ba được restore đồng thời.</p>
+<pre><code class="language-rust"><span class="hljs-comment">// Pseudocode cho snapshot management</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">GlobalSnapshot</span> {
+    evm_s_state: EvmState,
+    evm_d_state: EvmState,
+    relay_state: RelayState,
+    timestamp: <span class="hljs-type">u64</span>,
+}
+
+<span class="hljs-keyword">impl</span> <span class="hljs-title class_">DualEvmManager</span> {
+    <span class="hljs-keyword">fn</span> <span class="hljs-title function_">capture_snapshot</span>(&amp;<span class="hljs-keyword">self</span>) <span class="hljs-punctuation">-&gt;</span> GlobalSnapshot {
+        GlobalSnapshot {
+            evm_s_state: <span class="hljs-keyword">self</span>.evm_s.<span class="hljs-title function_ invoke__">snapshot</span>(),
+            evm_d_state: <span class="hljs-keyword">self</span>.evm_d.<span class="hljs-title function_ invoke__">snapshot</span>(),
+            relay_state: <span class="hljs-keyword">self</span>.relay.<span class="hljs-title function_ invoke__">snapshot</span>(),
+            timestamp: std::time::SystemTime::<span class="hljs-title function_ invoke__">now</span>()
+                .<span class="hljs-title function_ invoke__">duration_since</span>(UNIX_EPOCH)
+                .<span class="hljs-title function_ invoke__">unwrap</span>()
+                .<span class="hljs-title function_ invoke__">as_secs</span>(),
+        }
+    }
+
+    <span class="hljs-keyword">fn</span> <span class="hljs-title function_">restore_snapshot</span>(&amp;<span class="hljs-keyword">mut</span> <span class="hljs-keyword">self</span>, snap: &amp;GlobalSnapshot) {
+        <span class="hljs-keyword">self</span>.evm_s.<span class="hljs-title function_ invoke__">restore</span>(&amp;snap.evm_s_state);
+        <span class="hljs-keyword">self</span>.evm_d.<span class="hljs-title function_ invoke__">restore</span>(&amp;snap.evm_d_state);
+        <span class="hljs-keyword">self</span>.relay.<span class="hljs-title function_ invoke__">restore</span>(&amp;snap.relay_state);
+    }
+}
+</code></pre>
+<h3 id="73-mock-relay">7.3 Mock Relay</h3>
+<p>Mock relay hỗ trợ 4 chế độ hoạt động:</p>
+<table>
+<thead>
+<tr>
+<th>Chế Độ</th>
+<th>Mô Tả</th>
+<th>Mô Phỏng Tấn Công</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Faithful</td>
+<td>Relay tin nhắn chính xác</td>
+<td>Bình thường</td>
+</tr>
+<tr>
+<td>Delayed</td>
+<td>Trì hoãn relay <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>δ</mi></mrow><annotation encoding="application/x-tex">\delta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.03785em;">δ</span></span></span></span> blocks</td>
+<td>Timing attack</td>
+</tr>
+<tr>
+<td>Tampered</td>
+<td>Sửa đổi nội dung tin nhắn</td>
+<td>Forgery attack</td>
+</tr>
+<tr>
+<td>Replayed</td>
+<td>Phát lại tin nhắn đã tiêu thụ</td>
+<td>Replay attack</td>
+</tr>
+</tbody>
+</table>
+<h3 id="74-hàm-thưởng-waypoint">7.4 Hàm Thưởng Waypoint</h3>
+<pre><code class="language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">reward_function</span>(<span class="hljs-params">state, waypoints, invariants, alpha=<span class="hljs-number">0.3</span>, beta=<span class="hljs-number">0.4</span>, gamma=<span class="hljs-number">0.3</span></span>):
+    <span class="hljs-string">&quot;&quot;&quot;
+    R(sigma) = alpha * cov(sigma) + beta * sum(waypoints_reached) + gamma * inv_dist(sigma)
+    &quot;&quot;&quot;</span>
+    <span class="hljs-comment"># Độ phủ code (basic blocks mới trên cả hai EVM)</span>
+    coverage_reward = count_new_basic_blocks(state) / total_basic_blocks
+
+    <span class="hljs-comment"># Waypoints đã đạt</span>
+    waypoint_reward = <span class="hljs-built_in">sum</span>(
+        <span class="hljs-number">1</span> <span class="hljs-keyword">for</span> wp <span class="hljs-keyword">in</span> waypoints <span class="hljs-keyword">if</span> wp.evaluate(state)
+    ) / <span class="hljs-built_in">len</span>(waypoints)
+
+    <span class="hljs-comment"># Khoảng cách đến vi phạm bất biến (0 = vi phạm, 1 = xa nhất)</span>
+    inv_distances = [inv.distance(state) <span class="hljs-keyword">for</span> inv <span class="hljs-keyword">in</span> invariants]
+    inv_reward = <span class="hljs-number">1.0</span> - <span class="hljs-built_in">min</span>(inv_distances) <span class="hljs-keyword">if</span> inv_distances <span class="hljs-keyword">else</span> <span class="hljs-number">0</span>
+
+    <span class="hljs-keyword">return</span> alpha * coverage_reward + beta * waypoint_reward + gamma * inv_reward
+</code></pre>
+<hr>
+<h2 id="8-chạy-thực-nghiệm-và-thu-thập-kết-quả">8. Chạy Thực Nghiệm và Thu Thập Kết Quả</h2>
+<h3 id="81-pipeline-chạy-đầy-đủ">8.1 Pipeline Chạy Đầy Đủ</h3>
+<pre><code class="language-bash"><span class="hljs-comment"># Chạy toàn bộ pipeline cho một benchmark</span>
+python3 src/orchestrator.py \
+    --benchmark benchmarks/nomad/ \
+    --time-budget 600 \
+    --runs 5 \
+    --rag-k 5 \
+    --beta 0.4 \
+    --output results/nomad/
+
+<span class="hljs-comment"># Chạy tất cả 12 benchmarks</span>
+<span class="hljs-keyword">for</span> bench <span class="hljs-keyword">in</span> benchmarks/*/; <span class="hljs-keyword">do</span>
+    name=$(<span class="hljs-built_in">basename</span> <span class="hljs-string">&quot;<span class="hljs-variable">$bench</span>&quot;</span>)
+    <span class="hljs-built_in">echo</span> <span class="hljs-string">&quot;Running benchmark: <span class="hljs-variable">$name</span>&quot;</span>
+    python3 src/orchestrator.py \
+        --benchmark <span class="hljs-string">&quot;<span class="hljs-variable">$bench</span>&quot;</span> \
+        --time-budget 600 \
+        --runs 5 \
+        --output <span class="hljs-string">&quot;results/<span class="hljs-variable">$name</span>/&quot;</span>
+<span class="hljs-keyword">done</span>
+</code></pre>
+<h3 id="82-chạy-baselines">8.2 Chạy Baselines</h3>
+<pre><code class="language-bash"><span class="hljs-comment"># ItyFuzz</span>
+ityfuzz evm -t benchmarks/nomad/contracts/ --<span class="hljs-built_in">timeout</span> 600
+
+<span class="hljs-comment"># SmartAxe (cần cài đặt riêng)</span>
+smartaxe analyze --contracts benchmarks/nomad/contracts/ \
+    --output results/nomad/smartaxe/
+
+<span class="hljs-comment"># GPTScan</span>
+gptscan --<span class="hljs-built_in">source</span> benchmarks/nomad/contracts/ \
+    --output results/nomad/gptscan/
+
+<span class="hljs-comment"># XScope</span>
+xscope detect --tx-logs benchmarks/nomad/logs/ \
+    --output results/nomad/xscope/
+</code></pre>
+<h3 id="83-thu-thập-metrics">8.3 Thu Thập Metrics</h3>
+<p>Script thu thập kết quả:</p>
+<pre><code class="language-python"><span class="hljs-comment"># scripts/collect_results.py</span>
+<span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">collect_metrics</span>(<span class="hljs-params">results_dir</span>):
+    metrics = {}
+    <span class="hljs-keyword">for</span> bench_dir <span class="hljs-keyword">in</span> <span class="hljs-built_in">sorted</span>(Path(results_dir).iterdir()):
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> bench_dir.is_dir():
+            <span class="hljs-keyword">continue</span>
+        name = bench_dir.name
+        runs = []
+        <span class="hljs-keyword">for</span> run_file <span class="hljs-keyword">in</span> <span class="hljs-built_in">sorted</span>(bench_dir.glob(<span class="hljs-string">&quot;run_*.json&quot;</span>)):
+            <span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(run_file) <span class="hljs-keyword">as</span> f:
+                runs.append(json.load(f))
+
+        <span class="hljs-comment"># Tính metrics trung bình qua 5 runs</span>
+        detected = <span class="hljs-built_in">any</span>(r[<span class="hljs-string">&quot;vulnerability_found&quot;</span>] <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> runs)
+        tte_values = [r[<span class="hljs-string">&quot;time_to_exploit&quot;</span>] <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> runs <span class="hljs-keyword">if</span> r[<span class="hljs-string">&quot;vulnerability_found&quot;</span>]]
+        median_tte = <span class="hljs-built_in">sorted</span>(tte_values)[<span class="hljs-built_in">len</span>(tte_values)//<span class="hljs-number">2</span>] <span class="hljs-keyword">if</span> tte_values <span class="hljs-keyword">else</span> <span class="hljs-literal">None</span>
+        fpr = <span class="hljs-built_in">sum</span>(r[<span class="hljs-string">&quot;false_positives&quot;</span>] <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> runs) / <span class="hljs-built_in">max</span>(<span class="hljs-built_in">sum</span>(r[<span class="hljs-string">&quot;total_reports&quot;</span>] <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> runs), <span class="hljs-number">1</span>)
+
+        metrics[name] = {
+            <span class="hljs-string">&quot;detected&quot;</span>: detected,
+            <span class="hljs-string">&quot;median_tte&quot;</span>: median_tte,
+            <span class="hljs-string">&quot;fpr&quot;</span>: fpr,
+            <span class="hljs-string">&quot;xcc&quot;</span>: <span class="hljs-built_in">sum</span>(r[<span class="hljs-string">&quot;cross_chain_coverage&quot;</span>] <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> runs) / <span class="hljs-built_in">len</span>(runs)
+        }
+    <span class="hljs-keyword">return</span> metrics
+</code></pre>
+<hr>
+<h2 id="9-đánh-giá-kết-quả">9. Đánh Giá Kết Quả</h2>
+<h3 id="91-metrics-chính">9.1 Metrics Chính</h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Ý Nghĩa</th>
+<th>Cách Tính</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Discovery Rate (DR)</td>
+<td>Tỷ lệ lỗ hổng phát hiện được</td>
+<td>Số lỗ hổng found / 12</td>
+</tr>
+<tr>
+<td>Time-to-Exploit (TTE)</td>
+<td>Thời gian từ bắt đầu fuzzing đến khi tìm thấy violation</td>
+<td>Trung vị qua 5 runs (giây)</td>
+</tr>
+<tr>
+<td>False Positive Rate (FPR)</td>
+<td>Tỷ lệ cảnh báo sai</td>
+<td>Báo cáo sai / Tổng báo cáo</td>
+</tr>
+<tr>
+<td>Cross-Chain Coverage (XCC)</td>
+<td>Tỷ lệ đường đi liên chuỗi đã khám phá</td>
+<td>Paths exercised / Total ATG paths</td>
+</tr>
+</tbody>
+</table>
+<h3 id="92-kết-quả-kỳ-vọng">9.2 Kết Quả Kỳ Vọng</h3>
+<p>Dựa trên thiết kế của framework:</p>
+<ul>
+<li><strong>CrossShield</strong>: DR kỳ vọng 90%+ (11-12/12), TTE trung vị 30-60s</li>
+<li><strong>ItyFuzz</strong>: DR kỳ vọng 35-45% (chỉ các lỗ single-chain), TTE rất nhanh (sub-second cho lỗ đơn giản)</li>
+<li><strong>SmartAxe</strong>: DR kỳ vọng 30-35% (chỉ lỗ phát hiện qua static analysis)</li>
+<li><strong>GPTScan</strong>: DR kỳ vọng 30-35% (chỉ logic bugs trên single contract)</li>
+<li><strong>XScope</strong>: DR kỳ vọng 35-45% (chỉ các pattern đã biết)</li>
+</ul>
+<h3 id="93-ablation-study">9.3 Ablation Study</h3>
+<p>Chạy 3 biến thể để đánh giá đóng góp từng module:</p>
+<pre><code class="language-bash"><span class="hljs-comment"># Bỏ Module 1 (dùng invariants tổng quát thay vì LLM-extracted)</span>
+python3 src/orchestrator.py --benchmark benchmarks/nomad/ \
+    --ablation no_semantic --output results/ablation/no_se/
+
+<span class="hljs-comment"># Bỏ Module 2 (dùng seed ngẫu nhiên thay vì RAG)</span>
+python3 src/orchestrator.py --benchmark benchmarks/nomad/ \
+    --ablation no_rag --output results/ablation/no_rag/
+
+<span class="hljs-comment"># Bỏ đồng bộ hóa (chạy hai EVM độc lập)</span>
+python3 src/orchestrator.py --benchmark benchmarks/nomad/ \
+    --ablation no_sync --output results/ablation/no_sync/
+</code></pre>
+<h3 id="94-parameter-sensitivity">9.4 Parameter Sensitivity</h3>
+<p>Thay đổi từng tham số một, giữ cố định các tham số khác:</p>
+<pre><code class="language-bash"><span class="hljs-comment"># Thay đổi k (số exploit retrieved)</span>
+<span class="hljs-keyword">for</span> k <span class="hljs-keyword">in</span> 1 3 5 7 10; <span class="hljs-keyword">do</span>
+    python3 src/orchestrator.py --rag-k <span class="hljs-variable">$k</span> --output results/sensitivity/k_<span class="hljs-variable">$k</span>/
+<span class="hljs-keyword">done</span>
+
+<span class="hljs-comment"># Thay đổi beta (trọng số waypoint)</span>
+<span class="hljs-keyword">for</span> beta <span class="hljs-keyword">in</span> 0.1 0.2 0.3 0.4 0.5 0.6 0.7; <span class="hljs-keyword">do</span>
+    python3 src/orchestrator.py --beta <span class="hljs-variable">$beta</span> --output results/sensitivity/beta_<span class="hljs-variable">$beta</span>/
+<span class="hljs-keyword">done</span>
+
+<span class="hljs-comment"># Thay đổi time budget</span>
+<span class="hljs-keyword">for</span> t <span class="hljs-keyword">in</span> 60 120 300 600; <span class="hljs-keyword">do</span>
+    python3 src/orchestrator.py --time-budget <span class="hljs-variable">$t</span> --output results/sensitivity/time_<span class="hljs-variable">$t</span>/
+<span class="hljs-keyword">done</span>
+</code></pre>
+<hr>
+<h2 id="10-xử-lý-sự-cố-thường-gặp">10. Xử Lý Sự Cố Thường Gặp</h2>
+<h3 id="101-fork-blockchain-thất-bại">10.1 Fork Blockchain Thất Bại</h3>
+<p><strong>Triệu chứng</strong>: Anvil báo lỗi &quot;failed to fetch block&quot; hoặc &quot;rate limit exceeded&quot;.</p>
+<p><strong>Giải pháp</strong>:</p>
+<ul>
+<li>Sử dụng Alchemy/Infura archive node (không phải full node thường).</li>
+<li>Giảm tần suất request: thêm <code>--fork-retry-backoff 3000</code>.</li>
+<li>Xác minh block number có tồn tại trên chain target.</li>
+</ul>
+<h3 id="102-llm-trả-về-json-không-hợp-lệ">10.2 LLM Trả Về JSON Không Hợp Lệ</h3>
+<p><strong>Triệu chứng</strong>: Parse error khi xử lý output từ GPT-4.</p>
+<p><strong>Giải pháp</strong>:</p>
+<ul>
+<li>Thêm instruction &quot;Output ONLY valid JSON, no markdown fences&quot; vào prompt.</li>
+<li>Sử dụng <code>json_mode</code> response format của OpenAI API.</li>
+<li>Implement retry logic (tối đa 3 lần) với temperature giảm dần.</li>
+</ul>
+<h3 id="103-dual-evm-hết-ram">10.3 Dual-EVM Hết RAM</h3>
+<p><strong>Triệu chứng</strong>: Out-of-memory khi chạy hai EVM instance song song.</p>
+<p><strong>Giải pháp</strong>:</p>
+<ul>
+<li>Tăng RAM (128GB+ khuyến nghị).</li>
+<li>Giới hạn số snapshot tối đa (<code>--max-snapshots 1000</code>).</li>
+<li>Sử dụng differential snapshots thay vì full state copies.</li>
+</ul>
+<h3 id="104-invariant-bị-vi-phạm-bởi-giao-dịch-hợp-lệ-false-positive">10.4 Invariant Bị Vi Phạm Bởi Giao Dịch Hợp Lệ (False Positive)</h3>
+<p><strong>Giải pháp</strong>:</p>
+<ul>
+<li>Chạy invariant validation trước trên 100+ giao dịch bình thường.</li>
+<li>Thu hẹp phạm vi invariant (ví dụ: chỉ kiểm tra balance conservation cho token cụ thể).</li>
+<li>Tăng threshold cho invariant distance metric.</li>
+</ul>
+<h3 id="105-thời-gian-chạy-quá-lâu">10.5 Thời Gian Chạy Quá Lâu</h3>
+<p><strong>Giải pháp</strong>:</p>
+<ul>
+<li>Giảm <code>--time-budget</code> cho phase exploration ban đầu.</li>
+<li>Tăng <code>--beta</code> để tập trung vào waypoints thay vì coverage chung.</li>
+<li>Sử dụng GPU cho embedding computation.</li>
+</ul>
+<hr>
+<h2 id="11-các-bước-tiếp-theo">11. Các Bước Tiếp Theo</h2>
+<h3 id="111-để-hoàn-thiện-bài-báo">11.1 Để Hoàn Thiện Bài Báo</h3>
+<ol>
+<li><strong>Triển khai đầy đủ</strong>: Viết code cho cả 3 modules theo phác thảo trên.</li>
+<li><strong>Xây dựng 51 exploit records</strong>: Dựa trên dữ liệu từ BridgeGuard/BridgeShield (Wu et al., 2025).</li>
+<li><strong>Chạy thực nghiệm</strong>: 12 benchmarks x 5 runs x 5 tools = 300 lần chạy.</li>
+<li><strong>Phân tích kết quả</strong>: Tạo bảng, biểu đồ theo format trong paper.</li>
+<li><strong>Viết case study</strong>: Chọn 2-3 vụ exploit tiêu biểu để phân tích chi tiết.</li>
+</ol>
+<h3 id="112-thứ-tự-ưu-tiên-triển-khai">11.2 Thứ Tự Ưu Tiên Triển Khai</h3>
+<ol>
+<li><strong>Ưu tiên 1</strong>: Module 3 (Dual-EVM fuzzing engine) vì đây là core contribution.</li>
+<li><strong>Ưu tiên 2</strong>: Module 1 (Semantic extraction) cần thiết cho invariant generation.</li>
+<li><strong>Ưu tiên 3</strong>: Module 2 (RAG) có thể thay tạm bằng manual scenario seeds.</li>
+</ol>
+<h3 id="113-mở-rộng-tiềm-năng">11.3 Mở Rộng Tiềm Năng</h3>
+<ul>
+<li>Hỗ trợ non-EVM chains (Solana, Cosmos) qua adapter layer.</li>
+<li>Tích hợp formal verification cho invariants.</li>
+<li>Real-time monitoring mode cho production bridges.</li>
+<li>Feedback loop: lỗ hổng mới phát hiện tự động update knowledge base.</li>
+</ul>
+<h3 id="114-tài-liệu-tham-khảo-kỹ-thuật">11.4 Tài Liệu Tham Khảo Kỹ Thuật</h3>
+<ul>
+<li><code>revm</code> docs: <a href="https://github.com/bluealloy/revm">https://github.com/bluealloy/revm</a></li>
+<li>Foundry docs: <a href="https://book.getfoundry.sh/">https://book.getfoundry.sh/</a></li>
+<li>ItyFuzz source: <a href="https://github.com/fuzzland/ityfuzz">https://github.com/fuzzland/ityfuzz</a></li>
+<li>BridgeShield source: <a href="https://github.com/Connector-Tool/BridgeShield">https://github.com/Connector-Tool/BridgeShield</a></li>
+<li>FAISS docs: <a href="https://github.com/facebookresearch/faiss">https://github.com/facebookresearch/faiss</a></li>
+</ul>
+<hr>
+<p><em>Tài liệu này được biên soạn cho nhóm nghiên cứu. Cập nhật lần cuối: Tháng 3/2026.</em></p>
+
+            <script async src="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.js"></script>
+            
+        </body>
+        </html>

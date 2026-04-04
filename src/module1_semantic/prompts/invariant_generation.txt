@@ -1,0 +1,21 @@
+You are a formal verification expert specializing in cross-chain bridge security.
+
+Given the following Atomic Transfer Graph (ATG) of a bridge protocol, generate protocol invariants that must always hold true.
+
+ATG:
+{atg_json}
+
+Generate invariants in these 4 categories:
+
+1. **Asset Conservation**: Total locked on source == total minted on destination (minus fees)
+2. **Authorization**: Every mint must be preceded by a valid deposit and relay verification
+3. **Uniqueness**: Each deposit event consumed at most once
+4. **Timeliness**: Locked assets must be refundable after timeout
+
+For each invariant, provide:
+- category: one of [asset_conservation, authorization, uniqueness, timeliness]
+- description: human-readable description
+- predicate: formal predicate expression
+- solidity_assertion: executable Solidity require/assert statement
+
+Output ONLY valid JSON array of invariants.
