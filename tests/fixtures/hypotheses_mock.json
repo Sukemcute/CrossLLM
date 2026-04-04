@@ -1,0 +1,105 @@
+{
+  "bridge_name": "nomad",
+  "scenarios": [
+    {
+      "scenario_id": "s1_zero_root_bypass",
+      "target_invariant": "inv_root_validation",
+      "vulnerability_class": "fake_deposit",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "destination",
+          "contract": "replica",
+          "function": "process",
+          "params": {"message": "0x000000000000000000000000000000000000000000000000000000000000000000"},
+          "description": "Submit message with zero merkle root to Replica"
+        },
+        {
+          "step": 2,
+          "chain": "destination",
+          "contract": "bridge_router",
+          "function": "handle",
+          "params": {"amount": "100000000000000000000"},
+          "description": "Bridge router processes the accepted message and mints tokens"
+        }
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "replica.acceptableRoot(bytes32(0)) == true",
+          "description": "Zero root is accepted by Replica (the bug)"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "bridgeRouter.totalMinted() > sourceRouter.totalLocked()",
+          "description": "More tokens minted than locked — invariant violated"
+        }
+      ],
+      "retrieved_exploits": ["nomad_2022"]
+    },
+    {
+      "scenario_id": "s2_replay_attack",
+      "target_invariant": "inv_uniqueness",
+      "vulnerability_class": "replay",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "source",
+          "contract": "source_router",
+          "function": "dispatch",
+          "params": {"amount": "1000000000000000000", "destination": "6648936"},
+          "description": "Legitimate deposit on source chain"
+        },
+        {
+          "step": 2,
+          "chain": "relay",
+          "action": "faithful",
+          "params": {},
+          "description": "Relay message faithfully to destination"
+        },
+        {
+          "step": 3,
+          "chain": "destination",
+          "contract": "replica",
+          "function": "proveAndProcess",
+          "params": {},
+          "description": "First process — legitimate"
+        },
+        {
+          "step": 4,
+          "chain": "relay",
+          "action": "replay",
+          "params": {"replay_index": 0},
+          "description": "Replay the same message"
+        },
+        {
+          "step": 5,
+          "chain": "destination",
+          "contract": "replica",
+          "function": "proveAndProcess",
+          "params": {},
+          "description": "Second process — replay attack"
+        }
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 3,
+          "predicate": "bridgeRouter.totalMinted() == 1000000000000000000",
+          "description": "First mint successful"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 5,
+          "predicate": "bridgeRouter.totalMinted() == 2000000000000000000",
+          "description": "Double mint — replay succeeded"
+        }
+      ],
+      "retrieved_exploits": ["nomad_2022", "multichain_2023"]
+    }
+  ]
+}

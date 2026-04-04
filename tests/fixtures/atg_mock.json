@@ -1,0 +1,53 @@
+{
+  "bridge_name": "nomad",
+  "version": "1.0",
+  "nodes": [
+    {"node_id": "user_a", "node_type": "user", "chain": "source", "address": "0xAttacker", "functions": []},
+    {"node_id": "source_router", "node_type": "contract", "chain": "source", "address": "0xB92336759618F55bd0F8313bd843604592E27bd8", "functions": ["dispatch", "update"]},
+    {"node_id": "replica", "node_type": "contract", "chain": "destination", "address": "0x5D94309E5a0090b165FA4181519701637B6DAEBA", "functions": ["process", "prove", "proveAndProcess"]},
+    {"node_id": "bridge_router", "node_type": "contract", "chain": "destination", "address": "0xD3dfD3eDe74E0DCEBC1AA685e151332857efCe2d", "functions": ["handle", "send"]},
+    {"node_id": "relay", "node_type": "relay", "chain": "offchain", "address": "", "functions": ["relay_message"]},
+    {"node_id": "user_b", "node_type": "user", "chain": "destination", "address": "0xRecipient", "functions": []}
+  ],
+  "edges": [
+    {"edge_id": "e1", "src": "user_a", "dst": "source_router", "label": "lock", "token": "WETH", "conditions": ["amount > 0"], "function_signature": "dispatch(uint32,bytes32,uint256,bytes)"},
+    {"edge_id": "e2", "src": "source_router", "dst": "relay", "label": "relay", "token": "", "conditions": ["event Dispatch emitted"], "function_signature": ""},
+    {"edge_id": "e3", "src": "relay", "dst": "replica", "label": "verify", "token": "", "conditions": ["valid merkle proof"], "function_signature": "proveAndProcess(bytes,bytes,uint256)"},
+    {"edge_id": "e4", "src": "replica", "dst": "bridge_router", "label": "mint", "token": "WETH", "conditions": ["acceptableRoot[root] == true"], "function_signature": "handle(uint32,uint32,bytes32,bytes)"},
+    {"edge_id": "e5", "src": "bridge_router", "dst": "user_b", "label": "unlock", "token": "WETH", "conditions": ["amount <= balance"], "function_signature": "transfer(address,uint256)"}
+  ],
+  "invariants": [
+    {
+      "invariant_id": "inv_asset_conservation",
+      "category": "asset_conservation",
+      "description": "Total locked on source must equal total minted on destination minus fees",
+      "predicate": "sum(locked) - fee == sum(minted)",
+      "solidity_assertion": "require(sourceRouter.totalLocked() == bridgeRouter.totalMinted(), 'Balance mismatch')",
+      "related_edges": ["e1", "e4"]
+    },
+    {
+      "invariant_id": "inv_authorization",
+      "category": "authorization",
+      "description": "Every mint must be preceded by a valid deposit and relay verification",
+      "predicate": "forall mint: exists lock, relay such that lock < relay < mint",
+      "solidity_assertion": "require(replica.messages(messageHash) == true, 'Unauthorized mint')",
+      "related_edges": ["e1", "e2", "e3", "e4"]
+    },
+    {
+      "invariant_id": "inv_uniqueness",
+      "category": "uniqueness",
+      "description": "Each message can only be processed once",
+      "predicate": "forall msg_i, msg_j: i != j implies nonce(msg_i) != nonce(msg_j)",
+      "solidity_assertion": "require(!replica.processedMessages(messageHash), 'Replay detected')",
+      "related_edges": ["e3"]
+    },
+    {
+      "invariant_id": "inv_root_validation",
+      "category": "authorization",
+      "description": "Replica must only accept messages with valid merkle roots",
+      "predicate": "acceptableRoot[root] == true AND root != 0x0",
+      "solidity_assertion": "require(replica.acceptableRoot(root) && root != bytes32(0), 'Invalid root')",
+      "related_edges": ["e3", "e4"]
+    }
+  ]
+}
