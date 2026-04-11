@@ -424,4 +424,154 @@ main                    ← production, luôn chạy được
 
 ---
 
+---
+
+## Source Code Tham khảo từ Các Bài báo
+
+> Danh sách tất cả repo công khai liên quan đến project, phân loại theo mức độ tái sử dụng.
+
+### Nhóm 1: TÁI SỬ DỤNG TRỰC TIẾP — Dependency hoặc đọc code để implement
+
+| # | Tool | GitHub | Ngôn ngữ | Stars | Dùng cho |
+|---|------|--------|----------|-------|----------|
+| 1 | **ItyFuzz** | https://github.com/fuzzland/ityfuzz | Rust | ~1.100 | **Module 3.** Nền tảng snapshot fuzzing. Đọc kỹ `src/evm/`, `src/state_input.rs`, `src/scheduler.rs`, `src/fuzzer.rs` để hiểu cách quản lý snapshot, waypoint, state corpus. BridgeSentry mở rộng từ kiến trúc này sang Dual-EVM. |
+| 2 | **revm** | https://github.com/bluealloy/revm | Rust | ~2.200 | **Module 3.** EVM backend — dependency trực tiếp trong Cargo.toml. Mỗi revm instance = 1 chain giả lập. Đọc `crates/revm/` (core) + `crates/primitives/` (types). |
+| 3 | **Slither** | https://github.com/crytic/slither | Python | ~6.200 | **Module 1.** Dùng SlithIR để parse Solidity AST, trích xuất control-flow/data-flow graph. Bổ trợ LLM extraction: parse code trước → gửi cấu trúc cho LLM thay vì raw code. `pip install slither-analyzer` |
+| 4 | **GPTScan** | https://github.com/GPTScan/GPTScan | Java/Python | ~100 | **Module 1+2.** Tham khảo prompt engineering: cách chia function → role classification, cách kết hợp LLM + static matching + confirmation. Pipeline rất giống Module 1. |
+| 5 | **Foundry** | https://github.com/foundry-rs/foundry | Rust | ~10.300 | **Benchmarks.** anvil fork blockchain, forge compile/test, cast tương tác contract. Dependency cho toàn project. |
+| 6 | **FAISS** | https://github.com/facebookresearch/faiss | C++/Python | ~39.700 | **Module 2.** Vector similarity search cho RAG knowledge base. `pip install faiss-cpu` |
+| 7 | **sentence-transformers** | https://github.com/UKPLab/sentence-transformers | Python | ~18.500 | **Module 2.** Encode exploit descriptions thành embeddings. Model: `all-MiniLM-L6-v2`. `pip install sentence-transformers` |
+
+### Nhóm 2: THAM KHẢO KIẾN TRÚC — Đọc code để học cách triển khai
+
+| # | Tool | GitHub | Dùng để tham khảo |
+|---|------|--------|-------------------|
+| 8 | **CTLC Implementation** | https://github.com/hn-rg/CTLC-Implementation | Solidity/JS. **Module 1** — Implementation chính thức của paper ATG. Cách định nghĩa nodes, edges, conditions trong smart contract. Tham khảo cấu trúc đồ thị. |
+| 9 | **BridgeShield** | https://github.com/Connector-Tool/BridgeShield | Python. Heterogeneous graph neural network cho cross-chain anomaly detection. Tham khảo cách xây đồ thị hành vi liên chuỗi (xBHG). |
+| 10 | **Connector** | https://github.com/Connector-Tool/Connector | Python. Logic match deposit-withdrawal liên chuỗi + multi-chain data crawling (Ethereum, BSC, Polygon). Tham khảo cho benchmark data collection. |
+| 11 | **VulSEye** | https://github.com/SCFuzzing/Vulseye | Python. Directed graybox fuzzing — tham khảo code/state distance metrics, vulnerability-directed seed scheduling. Liên quan trực tiếp tới `checker.rs` (invariant distance). |
+| 12 | **SmartAxe** (dataset) | https://github.com/InPlusLab/FSE24-SmartAxe | Dataset 88 cross-chain vulnerabilities đã label. **Dùng cho Module 2 knowledge base + benchmark evaluation.** Download dataset CCV. |
+| 13 | **XScope** (data) | https://github.com/Xscope-Tool/Cross-Chain-Attacks | Danh mục 16 cuộc tấn công cross-chain có mô tả chi tiết. Dùng bổ sung knowledge base Module 2. |
+| 14 | **ALBA Protocol** | https://github.com/ALBA-blockchain/ALBA-Protocol | Solidity. Bridge mẫu LN↔Ethereum. Có thể dùng làm sample bridge đơn giản để test pipeline. |
+| 15 | **Verite** (data) | https://github.com/wtdcode/verite | Paper + dataset + slides. Tham khảo profit-oriented oracle design cho reward function. |
+| 16 | **CrossGuard** | https://github.com/ghazi1987/CrossGuard | Minimal (dataset). Tham khảo paper: adversarial LLM roles, chain-based prompting cho seed generation. |
+
+### Nhóm 3: KHÔNG CÓ SOURCE — Chỉ đọc paper, tự implement
+
+| # | Tool | Paper Venue | Tham khảo gì |
+|---|------|-------------|-------------|
+| 17 | **BridgeGuard** | IEEE TDSC 2025 | Symbolic dataflow analysis cho bridge router → tham khảo methodology cho Module 1 |
+| 18 | **SmartShot** | FSE 2025 | Mutable snapshot + symbolic taint → tham khảo cho `snapshot.rs` |
+| 19 | **Midas** | ISSTA 2024 | Profit-driven fuzzing + differential analysis → tham khảo reward function |
+| 20 | **SCVHunter** | ICSE 2024 | GNN trên đồ thị ngữ nghĩa → tham khảo graph construction methodology |
+
+---
+
+## Tái sử dụng Code Cụ thể Cho Từng Module
+
+### Module 1 (Semantic Extraction) — Member A cần đọc
+
+```
+PHẢI ĐỌC:
+├── GPTScan/GPTScan                   → Prompt templates phân tích Solidity
+│     Đọc: prompt files, matching pipeline
+│     Học: cách chia function → role, cách format output cho LLM
+│
+├── crytic/slither                    → Parse Solidity AST
+│     Dùng: pip install slither-analyzer
+│     Đọc: slither/core/declarations/ (function, variable extraction)
+│     Học: cách lấy state variables, function signatures, modifiers
+│
+└── hn-rg/CTLC-Implementation        → Cấu trúc ATG trong code
+      Đọc: contracts/ (Solidity), test/ (JavaScript)
+      Học: cách node/edge/condition được encode trong implementation
+```
+
+### Module 2 (RAG) — Member A cần đọc
+
+```
+PHẢI ĐỌC:
+├── InPlusLab/FSE24-SmartAxe          → Dataset 88 CCV
+│     Dùng: download → chuyển thành exploit JSON records
+│     Đây là nguồn dữ liệu chính cho knowledge base
+│
+├── Xscope-Tool/Cross-Chain-Attacks   → 16 cuộc tấn công chi tiết
+│     Dùng: bổ sung knowledge base
+│
+NÊN ĐỌC:
+├── Connector-Tool/Connector          → Cross-chain tx matching
+│     Tham khảo: cách crawl + match deposit↔withdrawal liên chuỗi
+│
+└── Connector-Tool/BridgeShield       → Graph construction
+      Tham khảo: cách xây heterogeneous graph từ tx data
+```
+
+### Module 3 (Dual-EVM Fuzzer) — Member B cần đọc
+
+```
+PHẢI ĐỌC (1 tuần trước khi code):
+├── fuzzland/ityfuzz                  → QUAN TRỌNG NHẤT
+│     src/evm/                        → Cách wrap revm, execute tx
+│     src/evm/onchain/                → Cách fork on-chain state
+│     src/state_input.rs              → State corpus management
+│     src/scheduler.rs                → Seed scheduling (power schedule)
+│     src/fuzzer.rs                   → Main fuzzing loop
+│     src/oracle.rs                   → Cách check invariant violations
+│     Học: snapshot cách lưu/restore, waypoint cách dẫn hướng
+│
+├── bluealloy/revm                    → EVM backend API
+│     crates/revm/src/                → Core EVM logic
+│     examples/                       → Cách khởi tạo, fork state, execute tx
+│     Học: Evm::builder(), Database trait, execute_transaction()
+│
+NÊN ĐỌC:
+├── SCFuzzing/Vulseye                 → Distance metrics
+│     Đọc: directed fuzzing logic
+│     Học: code distance + state distance cho inv_dist() trong checker.rs
+│
+└── foundry-rs/foundry
+      crates/anvil/                   → Cách fork blockchain state
+      Học: cách Anvil dùng revm internally
+```
+
+---
+
+## Hành động Cụ thể — Clone Repos Tham khảo
+
+```bash
+# Tạo thư mục references (NGOÀI project, không commit)
+cd ~ && mkdir -p references && cd references
+
+# === MEMBER B: ĐỌC TRƯỚC KHI CODE (Tuần 1) ===
+git clone https://github.com/fuzzland/ityfuzz.git          # 1 tuần đọc Rust code
+
+# === MEMBER A: ĐỌC TRƯỚC KHI CODE (Tuần 1) ===
+git clone https://github.com/GPTScan/GPTScan.git           # 2-3 ngày đọc prompts
+git clone https://github.com/hn-rg/CTLC-Implementation.git # 1 ngày đọc ATG
+
+# === CẢ HAI: DỮ LIỆU CHO KNOWLEDGE BASE ===
+git clone https://github.com/InPlusLab/FSE24-SmartAxe.git  # Dataset 88 CCV
+git clone https://github.com/Xscope-Tool/Cross-Chain-Attacks.git  # 16 attacks
+
+# === NÊN ĐỌC KHI CÓ THỜI GIAN ===
+git clone https://github.com/Connector-Tool/BridgeShield.git
+git clone https://github.com/Connector-Tool/Connector.git
+git clone https://github.com/SCFuzzing/Vulseye.git
+```
+
+### Thứ tự Ưu tiên Đọc Code
+
+| Ưu tiên | Ai | Repo | Thời gian | Mục đích |
+|---------|-----|------|-----------|----------|
+| 1 | B | **ItyFuzz** | 5-7 ngày | Hiểu snapshot fuzzing, state corpus, waypoint — nền tảng Module 3 |
+| 2 | A | **GPTScan** | 2-3 ngày | Hiểu LLM + static analysis pipeline — nền tảng Module 1 |
+| 3 | A | **CTLC-Implementation** | 1 ngày | Hiểu ATG formalism trong code thật |
+| 4 | A | **SmartAxe dataset** | 1-2 ngày | Download + chuyển đổi → exploit JSON records |
+| 5 | B | **revm examples** | 2-3 ngày | Hiểu API fork + execute |
+| 6 | A | **XScope attacks** | 0.5 ngày | Bổ sung knowledge base |
+| 7 | B | **VulSEye** | 1 ngày | Tham khảo distance metrics |
+| 8 | Cả hai | **BridgeShield + Connector** | 1 ngày mỗi cái | Hiểu cross-chain graph construction |
+
+---
+
 *Kế hoạch này sẽ được cập nhật mỗi tuần trong buổi sync giữa hai thành viên.*
