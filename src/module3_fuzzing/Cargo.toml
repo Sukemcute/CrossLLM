@@ -5,9 +5,8 @@ edition = "2021"
 description = "Synchronized Dual-Chain Fuzzing Engine for BridgeSentry"
 
 [dependencies]
-revm = { version = "20", features = ["std", "serde"] }
-alloy-primitives = "1"
-alloy-provider = "1"
+revm = { version = "9", default-features = false, features = ["std", "serde"] }
+alloy-primitives = "0.6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 rand = "0.8"
