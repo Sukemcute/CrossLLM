@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bridgesentry.local/schemas/invariants.schema.json",
+  "title": "BridgeInvariant",
+  "description": "Single protocol invariant (embedded in atg.json or validated standalone). Module 1 output; consumed by Module 2 + 3.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "invariant_id",
+    "category",
+    "description",
+    "predicate",
+    "solidity_assertion",
+    "related_edges"
+  ],
+  "properties": {
+    "invariant_id": {
+      "type": "string",
+      "description": "Stable identifier referenced by hypotheses.target_invariant"
+    },
+    "category": {
+      "type": "string",
+      "description": "e.g. asset_conservation, authorization, uniqueness, timeliness"
+    },
+    "description": { "type": "string" },
+    "predicate": {
+      "type": "string",
+      "description": "Human/LLM-readable predicate over global bridge state"
+    },
+    "solidity_assertion": {
+      "type": "string",
+      "description": "Executable-style assertion text for checker / codegen"
+    },
+    "related_edges": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "ATG edge_id values this invariant depends on"
+    }
+  }
+}

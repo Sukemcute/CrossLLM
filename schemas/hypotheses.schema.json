@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bridgesentry.local/schemas/hypotheses.schema.json",
+  "title": "AttackHypotheses",
+  "description": "Scenarios from Module 2; consumed by Module 3. Aligns with types::HypothesesFile.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["bridge_name", "scenarios"],
+  "properties": {
+    "bridge_name": { "type": "string" },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/scenario" }
+    }
+  },
+  "$defs": {
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenario_id",
+        "target_invariant",
+        "vulnerability_class",
+        "confidence",
+        "actions",
+        "waypoints",
+        "retrieved_exploits"
+      ],
+      "properties": {
+        "scenario_id": { "type": "string" },
+        "target_invariant": {
+          "type": "string",
+          "description": "Must match an invariant_id from atg.json"
+        },
+        "vulnerability_class": { "type": "string" },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/action" }
+        },
+        "waypoints": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/waypoint" }
+        },
+        "retrieved_exploits": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "IDs from Module 2 knowledge base"
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step", "chain", "params", "description"],
+      "properties": {
+        "step": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "chain": {
+          "type": "string",
+          "description": "source | destination | relay (or project-specific labels)"
+        },
+        "contract": {
+          "type": "string",
+          "description": "ATG node_id when calling a contract"
+        },
+        "function": {
+          "type": "string",
+          "description": "Function name on the contract"
+        },
+        "action": {
+          "type": "string",
+          "description": "Relay mode when chain targets relay: faithful, tamper, replay, delay, ..."
+        },
+        "params": {
+          "type": "object",
+          "description": "Call or relay parameters; values are JSON (string/number/object)",
+          "additionalProperties": true
+        },
+        "description": { "type": "string" }
+      }
+    },
+    "waypoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["waypoint_id", "after_step", "predicate", "description"],
+      "properties": {
+        "waypoint_id": { "type": "string" },
+        "after_step": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "predicate": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    }
+  }
+}

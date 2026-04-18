@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bridgesentry.local/schemas/atg.schema.json",
+  "title": "AssetTransferGraph",
+  "description": "ATG output from Module 1; input to Module 2 (RAG) and Module 3 (fuzzer). Aligns with bridgesentry-fuzzer types::AtgGraph.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["bridge_name", "version", "nodes", "edges", "invariants"],
+  "properties": {
+    "bridge_name": { "type": "string" },
+    "version": { "type": "string" },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/atgNode" }
+    },
+    "edges": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/atgEdge" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/invariant" }
+    }
+  },
+  "$defs": {
+    "invariant": {
+      "title": "BridgeInvariant",
+      "description": "Same shape as invariants.schema.json (keep in sync).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "invariant_id",
+        "category",
+        "description",
+        "predicate",
+        "solidity_assertion",
+        "related_edges"
+      ],
+      "properties": {
+        "invariant_id": {
+          "type": "string",
+          "description": "Stable identifier referenced by hypotheses.target_invariant"
+        },
+        "category": {
+          "type": "string",
+          "description": "e.g. asset_conservation, authorization, uniqueness, timeliness"
+        },
+        "description": { "type": "string" },
+        "predicate": {
+          "type": "string",
+          "description": "Human/LLM-readable predicate over global bridge state"
+        },
+        "solidity_assertion": {
+          "type": "string",
+          "description": "Executable-style assertion text for checker / codegen"
+        },
+        "related_edges": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "ATG edge_id values this invariant depends on"
+        }
+      }
+    },
+    "atgNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_id", "node_type", "chain", "address", "functions"],
+      "properties": {
+        "node_id": {
+          "type": "string",
+          "description": "Referenced by hypotheses.actions[].contract and edges src/dst"
+        },
+        "node_type": {
+          "type": "string",
+          "description": "e.g. contract, user, relay"
+        },
+        "chain": {
+          "type": "string",
+          "description": "Logical chain label: source, destination, offchain, etc."
+        },
+        "address": {
+          "type": "string",
+          "description": "Hex address on chain or empty for off-chain relay"
+        },
+        "functions": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "atgEdge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "edge_id",
+        "src",
+        "dst",
+        "label",
+        "token",
+        "conditions",
+        "function_signature"
+      ],
+      "properties": {
+        "edge_id": { "type": "string" },
+        "src": { "type": "string" },
+        "dst": { "type": "string" },
+        "label": { "type": "string" },
+        "token": { "type": "string" },
+        "conditions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "function_signature": { "type": "string" }
+      }
+    }
+  }
+}

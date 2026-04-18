@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bridgesentry.local/schemas/results.schema.json",
+  "title": "FuzzingResults",
+  "description": "Module 3 fuzzer output; consumed by orchestrator. Primary schema ownership: Member B (Rust types::FuzzingResults).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "bridge_name",
+    "run_id",
+    "time_budget_s",
+    "violations",
+    "coverage",
+    "stats"
+  ],
+  "properties": {
+    "bridge_name": { "type": "string" },
+    "run_id": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "time_budget_s": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "violations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/violation" }
+    },
+    "coverage": { "$ref": "#/$defs/coverage" },
+    "stats": { "$ref": "#/$defs/fuzzingStats" }
+  },
+  "$defs": {
+    "violation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "invariant_id",
+        "detected_at_s",
+        "trigger_scenario",
+        "trigger_trace",
+        "state_diff"
+      ],
+      "properties": {
+        "invariant_id": { "type": "string" },
+        "detected_at_s": { "type": "number" },
+        "trigger_scenario": { "type": "string" },
+        "trigger_trace": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tx hashes or step labels"
+        },
+        "state_diff": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Key-value state delta for reporting"
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["xcc_atg", "basic_blocks_source", "basic_blocks_dest"],
+      "properties": {
+        "xcc_atg": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Cross-chain coverage vs ATG"
+        },
+        "basic_blocks_source": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "basic_blocks_dest": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "fuzzingStats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_iterations",
+        "snapshots_captured",
+        "mutations_applied"
+      ],
+      "properties": {
+        "total_iterations": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "snapshots_captured": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mutations_applied": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}
