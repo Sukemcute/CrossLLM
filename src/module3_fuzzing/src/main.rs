@@ -5,6 +5,8 @@
 
 pub mod types;
 pub mod config;
+// Dual-EVM API is consumed by the fuzz loop (Phase 3); keep module warning-free until wired.
+#[allow(dead_code)]
 mod dual_evm;
 mod mock_relay;
 mod snapshot;
