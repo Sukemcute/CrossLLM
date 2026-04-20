@@ -188,6 +188,42 @@ impl ChainVm {
             .map_err(|e| format!("db.basic: {e:?}"))?;
         Ok(acc.map(|a| a.balance).unwrap_or(U256::ZERO))
     }
+
+    fn capture_vm_snapshot(&self) -> ChainVmSnapshot {
+        ChainVmSnapshot {
+            db: self.db.clone(),
+            fork_block: self.fork_block.clone(),
+            spec_id: self.spec_id,
+            chain_id: self.chain_id,
+            block_number: self.block_number,
+        }
+    }
+
+    fn restore_vm_snapshot(&mut self, s: ChainVmSnapshot) {
+        self.db = s.db;
+        self.fork_block = s.fork_block;
+        self.spec_id = s.spec_id;
+        self.chain_id = s.chain_id;
+        self.block_number = s.block_number;
+    }
+}
+
+/// Cloned chain VM state for synchronized dual-EVM snapshot/restore (full CacheDB copy).
+#[derive(Clone)]
+pub struct ChainVmSnapshot {
+    db: CacheDB<EthersDB<Provider<Http>>>,
+    fork_block: BlockEnv,
+    spec_id: SpecId,
+    chain_id: u64,
+    block_number: u64,
+}
+
+/// Snapshot of both forks plus tracked addresses (paper: \(S_{\text{EVM}_S}, S_{\text{EVM}_D}\) metadata).
+#[derive(Clone)]
+pub struct DualEvmSnapshot {
+    pub source: ChainVmSnapshot,
+    pub dest: ChainVmSnapshot,
+    pub tracked: Vec<Address>,
 }
 
 /// Dual-EVM environment containing source and destination chain instances.
@@ -314,6 +350,22 @@ impl DualEvm {
                 message_count: 0,
             },
         }
+    }
+
+    /// Capture both chain DBs and tracked addresses (ItyFuzz-style full clone, not differential).
+    pub fn capture_snapshot(&self) -> DualEvmSnapshot {
+        DualEvmSnapshot {
+            source: self.source.capture_vm_snapshot(),
+            dest: self.dest.capture_vm_snapshot(),
+            tracked: self.tracked.clone(),
+        }
+    }
+
+    /// Restore from a prior [`DualEvm::capture_snapshot`].
+    pub fn restore_snapshot(&mut self, s: DualEvmSnapshot) {
+        self.source.restore_vm_snapshot(s.source);
+        self.dest.restore_vm_snapshot(s.dest);
+        self.tracked = s.tracked;
     }
 }
 
@@ -522,5 +574,29 @@ mod tests {
         assert_eq!(gs.source_state.block_number, 15259100);
         assert_eq!(gs.dest_state.block_number, 15259100);
         assert!(gs.dest_state.balances.contains_key("0x5d94309e5a0090b165fa4181519701637b6daeba"));
+    }
+
+    /// Snapshot capture/restore on a real fork (archive RPC). Run with `ETH_RPC_URL` + `--ignored`.
+    #[test]
+    #[ignore = "needs ETH_RPC_URL with archive access"]
+    fn snapshot_restore_preserves_tracked_balances() {
+        let rpc = std::env::var("ETH_RPC_URL")
+            .or_else(|_| std::env::var("SOURCE_RPC_URL"))
+            .expect("set ETH_RPC_URL");
+        let mut dual = DualEvm::new(&rpc, &rpc, 15259100, 15259100).expect("dual evm");
+        dual.set_tracked_addresses(vec![nomad_replica_address()]);
+        let snap = dual.capture_snapshot();
+        let b_before = dual
+            .dest_balance(nomad_replica_address())
+            .expect("balance");
+        let mut payload = vec![0u8; 40];
+        payload[..20].copy_from_slice(default_caller().as_slice());
+        payload[20..40].copy_from_slice(nomad_replica_address().as_slice());
+        let _ = dual.execute_on_dest(&payload);
+        dual.restore_snapshot(snap);
+        let b_after = dual
+            .dest_balance(nomad_replica_address())
+            .expect("balance");
+        assert_eq!(b_before, b_after);
     }
 }
