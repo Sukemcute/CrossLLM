@@ -10,7 +10,7 @@
 |------------|-----------|
 | Tài liệu / Paper | Hoàn chỉnh (paper.tex, docs, guide) |
 | Python (Module 1+2) | Skeleton — class/method signatures, `raise NotImplementedError` |
-| Rust (Module 3) | **Đã có phần lõi:** `types.rs`, `config.rs` + CLI (`bridgesentry-fuzzer`), `dual_evm.rs` (revm, fork 2 RPC, execute, thu `GlobalState`), test PoC fork (RPC, `#[ignore]`). **Chưa:** `snapshot.rs`, `mock_relay.rs`, `mutator.rs`, `checker.rs` (vẫn `todo!()`), `main.rs` chưa vòng fuzz (chỉ load config). |
+| Rust (Module 3) | **Đã có:** `types.rs`, `config.rs` + CLI (gồm `--r-threshold`, `--max-corpus`, `--max-snapshots`, `--no-dynamic-snapshots`), `dual_evm.rs` (fork/execute + `capture_snapshot`/`restore_snapshot`), `mock_relay.rs`, `snapshot.rs` (SnapshotPool, shared-prefix `select_for_seed`), `mutator.rs`, `checker.rs` (+ `set_reward_weights` decay), `scenario_sim.rs` (+ `evaluate_waypoints`), `fuzz_loop.rs` (Alg. 1: corpus, chọn seed theo trọng số $R$, pool động), `main.rs` gọi `fuzz_loop::run` → `results.json`. |
 | Benchmarks | `benchmarks/README.md` có bảng 12 exploit (fork block, hướng tấn công). **Chưa** có đủ 12 thư mục benchmark đầy đủ (`metadata.json`, `contracts/`, `exploit_trace.json`, `mapping.json` theo từng bridge). |
 | JSON schemas giao tiếp | **Đã định nghĩa:** `schemas/*.schema.json` (ATG, hypotheses, invariants, results) + `schemas/README.md`; mock fixtures trong `tests/fixtures/`. Cần **đồng bộ với Member A** (Python) trước khi coi Phase 0 schema là đóng băng. |
 | Dữ liệu 51 exploit | Chưa có nội dung record (`src/module2_rag/data/` gần như trống ngoài README) |
@@ -284,12 +284,12 @@ benchmarks/*/                  ← A: contracts + exploit_trace, B: mapping + fo
 
 | Tuần | File | Công việc | Test |
 |------|------|-----------|------|
-| 5-6 | `mock_relay.rs` | 4 chế độ relay: Faithful, Delayed, Tampered, Replayed. Message queue + processed set. | Test mỗi mode riêng |
+| 5-6 | ✅ `mock_relay.rs` | 4 chế độ relay: Faithful, Delayed, Tampered, Replayed. Message queue + processed set. | Test mỗi mode riêng |
 | 6 | ✅ `config.rs` | Parse CLI args, đọc JSON config (atg.json, hypotheses.json paths, time budget). | Parse example config thành công |
-| 7 | `mutator.rs` | Mutation nhận biết ATG: reorder actions, substitute params (boundary/zero), insert adjacent actions, switch relay mode, advance timestamps. | Mutate seed → output khác nhưng structurally valid |
-| 7 | `checker.rs` | Evaluate invariant assertions. Branch distance heuristic cho boolean invariants. Reward function R(σ) = α·cov + β·waypoints + γ·inv_dist. | Feed violated state → `violated: true`. Feed normal → clean. |
+| 7 | ✅ `mutator.rs` | Mutation nhận biết ATG: reorder actions, substitute params (boundary/zero), insert adjacent actions, switch relay mode, advance timestamps. | Mutate seed → output khác nhưng structurally valid |
+| 7 | ✅ `checker.rs` | Evaluate invariant assertions. Branch distance heuristic cho boolean invariants. Reward function R(σ) = α·cov + β·waypoints + γ·inv_dist. | Feed violated state → `violated: true`. Feed normal → clean. |
 
-**Milestone tuần 7:** Fuzzer loop chạy được: đọc JSON → mutate → execute trên Dual-EVM → check invariants → output results.
+**Milestone tuần 7:** ✅ Fuzzer loop chạy được: đọc JSON → mutate → execute (Dual-EVM khi có RPC + block; không thì mô phỏng trace) → `scenario_sim` tổng hợp state cho oracle → check invariants → ghi `results.json`.
 
 ---
 
@@ -395,10 +395,10 @@ benchmarks/*/                  ← A: contracts + exploit_trace, B: mapping + fo
 | 1 | Schemas + Nomad contracts + mock fixtures | ✅ Schemas + revm PoC + Cargo fix | ✅ Schemas + mock fixtures đã commit · ✅ cargo check · revm PoC trong dual_evm (test fork RPC, #[ignore]) |
 | 2 | extractor.py: OpenAI integration | ✅ dual_evm.rs: fork 2 chains | extractor output JSON hợp lệ |
 | 3 | extractor.py: multi-step analysis hoàn chỉnh | ✅ dual_evm.rs: execute tx trên cả 2 chains | ✅ execute tx trên dual-EVM (`dual_evm.rs`) |
-| 4 | atg_builder.py + invariant_synth.py | snapshot.rs: capture + restore | atg.json cho Nomad · snapshot round-trip |
-| 5 | knowledge_base.py + bắt đầu 51 records | mock_relay.rs: 4 modes | KB load test · relay mode tests |
+| 4 | atg_builder.py + invariant_synth.py | ✅ snapshot.rs + dual_evm capture/restore | atg.json cho Nomad · ✅ snapshot round-trip (unit tests + `snapshot_restore_preserves_tracked_balances` #[ignore] RPC) |
+| 5 | knowledge_base.py + bắt đầu 51 records | ✅ mock_relay.rs: 4 modes | KB load test · relay mode tests |
 | 6 | Tiếp tục 51 records + embedder.py | ✅ config.rs + ✅ types.rs | ✅ Module 3: CLI + deserialize ATG/hypotheses · FAISS index (Module 2): chưa |
-| 7 | scenario_gen.py → hypotheses.json | mutator.rs + checker.rs | hypotheses.json cho Nomad · fuzzer loop |
+| 7 | scenario_gen.py → hypotheses.json | ✅ mutator.rs + ✅ checker.rs + ✅ fuzz_loop (Alg.1: corpus, R, SnapshotPool) | hypotheses.json cho Nomad · fuzzer loop |
 | 8 | orchestrator.py tích hợp | main.rs CLI + binary build | END-TO-END NOMAD |
 | 9 | 4 benchmarks ưu tiên cao | Smoke test + debug | 5/12 benchmarks chạy |
 | 10 | 7 benchmarks còn lại | Benchmark testing | 12/12 benchmarks chạy |
