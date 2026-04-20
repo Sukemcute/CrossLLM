@@ -286,6 +286,12 @@ pub struct FuzzingStats {
     pub total_iterations: u64,
     pub snapshots_captured: u64,
     pub mutations_applied: u64,
+    /// Final corpus size (seeds) after the campaign.
+    #[serde(default)]
+    pub corpus_size: u64,
+    /// Peak snapshot pool size observed.
+    #[serde(default)]
+    pub snapshot_pool_peak: u64,
 }
 
 // ============================================================================
@@ -326,12 +332,28 @@ pub struct FuzzerConfig {
     /// Random seed for reproducibility
     #[serde(default)]
     pub random_seed: Option<u64>,
+    /// Minimum reward $R(\sigma)$ to add seed + snapshot (Alg. 1).
+    #[serde(default = "default_r_threshold")]
+    pub r_threshold: f64,
+    /// Max corpus entries (including seeds from hypotheses).
+    #[serde(default = "default_max_corpus")]
+    pub max_corpus: usize,
+    /// Max snapshots in pool (FIFO eviction).
+    #[serde(default = "default_max_snapshots")]
+    pub max_snapshots: usize,
+    /// When false, only the initial snapshot is used (no dynamic captures).
+    #[serde(default = "default_true")]
+    pub dynamic_snapshots: bool,
 }
 
 fn default_runs() -> u32 { 1 }
 fn default_alpha() -> f64 { 0.3 }
 fn default_beta() -> f64 { 0.4 }
 fn default_gamma() -> f64 { 0.3 }
+fn default_r_threshold() -> f64 { 0.5 }
+fn default_max_corpus() -> usize { 256 }
+fn default_max_snapshots() -> usize { 64 }
+fn default_true() -> bool { true }
 
 // ============================================================================
 // Invariant check result (used by checker.rs)
@@ -441,6 +463,8 @@ mod tests {
                 total_iterations: 15234,
                 snapshots_captured: 47,
                 mutations_applied: 14890,
+                corpus_size: 12,
+                snapshot_pool_peak: 20,
             },
         };
 
@@ -472,6 +496,10 @@ mod tests {
         assert!((config.beta - 0.4).abs() < f64::EPSILON, "Default beta should be 0.4");
         assert!((config.gamma - 0.3).abs() < f64::EPSILON, "Default gamma should be 0.3");
         assert!(config.random_seed.is_none(), "Default random_seed should be None");
+        assert!((config.r_threshold - 0.5).abs() < 1e-9);
+        assert_eq!(config.max_corpus, 256);
+        assert_eq!(config.max_snapshots, 64);
+        assert!(config.dynamic_snapshots);
     }
 
     #[test]

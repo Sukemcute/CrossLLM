@@ -103,6 +103,22 @@ pub struct CliArgs {
     #[arg(long)]
     pub seed: Option<u64>,
 
+    /// Reward threshold $R_{\text{th}}$: add scenario to corpus and snapshot pool when $R(\sigma)$ exceeds this (Alg. 1).
+    #[arg(long)]
+    pub r_threshold: Option<f64>,
+
+    /// Maximum corpus size (including initial hypotheses).
+    #[arg(long)]
+    pub max_corpus: Option<usize>,
+
+    /// Maximum snapshots kept in the pool (FIFO eviction).
+    #[arg(long)]
+    pub max_snapshots: Option<usize>,
+
+    /// Do not add snapshots when reward is high (only use initial fork snapshot).
+    #[arg(long, default_value_t = false)]
+    pub no_dynamic_snapshots: bool,
+
     /// Enable verbose logging
     #[arg(long, short = 'v', default_value_t = false)]
     pub verbose: bool,
@@ -192,6 +208,10 @@ fn resolve_config(cli: &CliArgs, base: Option<FuzzerConfig>) -> Result<FuzzerCon
         beta: 0.4,
         gamma: 0.3,
         random_seed: None,
+        r_threshold: 0.5,
+        max_corpus: 256,
+        max_snapshots: 64,
+        dynamic_snapshots: true,
     });
 
     Ok(FuzzerConfig {
@@ -214,6 +234,10 @@ fn resolve_config(cli: &CliArgs, base: Option<FuzzerConfig>) -> Result<FuzzerCon
         beta: cli.beta,
         gamma: cli.gamma,
         random_seed: cli.seed.or(base.random_seed),
+        r_threshold: cli.r_threshold.unwrap_or(base.r_threshold),
+        max_corpus: cli.max_corpus.unwrap_or(base.max_corpus),
+        max_snapshots: cli.max_snapshots.unwrap_or(base.max_snapshots),
+        dynamic_snapshots: base.dynamic_snapshots && !cli.no_dynamic_snapshots,
     })
 }
 
@@ -360,6 +384,22 @@ impl RuntimeContext {
             "║ Reward Weights:  α={:.1} β={:.1} γ={:.1}{:<27}║",
             self.config.alpha, self.config.beta, self.config.gamma, ""
         );
+        println!(
+            "║ R-threshold:     {:<43}║",
+            format!("{:.3}", self.config.r_threshold)
+        );
+        println!(
+            "║ Max corpus:      {:<43}║",
+            self.config.max_corpus
+        );
+        println!(
+            "║ Max snapshots:   {:<43}║",
+            self.config.max_snapshots
+        );
+        println!(
+            "║ Dynamic snaps:   {:<43}║",
+            self.config.dynamic_snapshots
+        );
         if let Some(seed) = self.config.random_seed {
             println!("║ Random Seed:     {:<43}║", seed);
         }
@@ -445,6 +485,10 @@ mod tests {
             beta: 0.4,
             gamma: 0.3,
             random_seed: None,
+            r_threshold: 0.5,
+            max_corpus: 256,
+            max_snapshots: 64,
+            dynamic_snapshots: true,
         };
 
         // Should succeed — mock fixtures have matching invariant IDs
@@ -469,6 +513,10 @@ mod tests {
             beta: 0.4,
             gamma: 0.3,
             seed: Some(42),
+            r_threshold: None,
+            max_corpus: None,
+            max_snapshots: None,
+            no_dynamic_snapshots: false,
             verbose: true,
         };
 
@@ -501,6 +549,10 @@ mod tests {
             beta: 0.3,
             gamma: 0.2,
             random_seed: Some(99),
+            r_threshold: 0.55,
+            max_corpus: 128,
+            max_snapshots: 32,
+            dynamic_snapshots: true,
         };
 
         let cli = CliArgs {
@@ -518,6 +570,10 @@ mod tests {
             beta: 0.4,
             gamma: 0.3,
             seed: None, // Falls back to JSON config
+            r_threshold: None,
+            max_corpus: None,
+            max_snapshots: None,
+            no_dynamic_snapshots: false,
             verbose: false,
         };
 
@@ -533,6 +589,9 @@ mod tests {
         assert_eq!(config.dest_rpc, "https://old-rpc.com");
         assert_eq!(config.dest_block, 10000000);
         assert_eq!(config.random_seed, Some(99));
+        assert!((config.r_threshold - 0.55).abs() < 1e-9);
+        assert_eq!(config.max_corpus, 128);
+        assert_eq!(config.max_snapshots, 32);
     }
 
     #[test]
@@ -555,6 +614,10 @@ mod tests {
             beta: 0.4,
             gamma: 0.3,
             seed: None,
+            r_threshold: None,
+            max_corpus: None,
+            max_snapshots: None,
+            no_dynamic_snapshots: false,
             verbose: false,
         };
 
@@ -586,6 +649,10 @@ mod tests {
             beta: 0.4,
             gamma: 0.3,
             seed: Some(42),
+            r_threshold: None,
+            max_corpus: None,
+            max_snapshots: None,
+            no_dynamic_snapshots: false,
             verbose: true,
         };
 
