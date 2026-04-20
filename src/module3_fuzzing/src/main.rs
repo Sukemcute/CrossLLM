@@ -5,16 +5,17 @@
 
 pub mod types;
 pub mod config;
-// Dual-EVM API is consumed by the fuzz loop (Phase 3); keep module warning-free until wired.
-#[allow(dead_code)]
 mod dual_evm;
+mod fuzz_loop;
 mod mock_relay;
 mod snapshot;
 mod mutator;
 mod checker;
+mod scenario_sim;
+
+use eyre::Context;
 
 fn main() {
-    // Parse CLI args → load config + ATG + hypotheses → validate
     let ctx = match config::parse_and_load() {
         Ok(ctx) => ctx,
         Err(e) => {
@@ -23,13 +24,43 @@ fn main() {
         }
     };
 
-    // Print summary banner
     ctx.print_summary();
 
-    // TODO: Phase 3 integration (Tuần 8)
-    // - Initialize Dual-EVM environment from config
-    // - Convert scenarios to initial seed corpus
-    // - Run fuzzing loop (Algorithm 1 from paper)
-    // - Output vulnerability reports to config.output_path
-    println!("\nFuzzer loop not yet implemented. Config loaded successfully.");
+    let results = match fuzz_loop::run(&ctx) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("ERROR: Fuzz loop failed: {:#}", e);
+            std::process::exit(1);
+        }
+    };
+
+    if let Err(e) = write_results(&ctx.config.output_path, &results) {
+        eprintln!("ERROR: Failed to write results JSON: {e:#}");
+        std::process::exit(2);
+    }
+
+    println!(
+        "\nFuzzer loop completed. Iterations={} Violations={} Corpus={} PoolPeak={} Output={}",
+        results.stats.total_iterations,
+        results.violations.len(),
+        results.stats.corpus_size,
+        results.stats.snapshot_pool_peak,
+        ctx.config.output_path
+    );
+}
+
+fn write_results(path: &str, results: &types::FuzzingResults) -> eyre::Result<()> {
+    let output_path = std::path::Path::new(path);
+    if let Some(parent) = output_path.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)
+                .wrap_err_with(|| format!("Failed to create output dir: {}", parent.display()))?;
+        }
+    }
+
+    let content = serde_json::to_string_pretty(results)
+        .wrap_err("Failed to serialize results to JSON")?;
+    std::fs::write(output_path, content)
+        .wrap_err_with(|| format!("Failed to write output file: {}", output_path.display()))?;
+    Ok(())
 }
