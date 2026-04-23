@@ -2,19 +2,27 @@
 
 12 reconstructed real-world cross-chain bridge exploits.
 
+Shared fields for all `metadata.json` files are described in
+[`BENCHMARK_METADATA.schema.json`](BENCHMARK_METADATA.schema.json)
+(JSON Schema draft 2020-12; optional `schema_version` + `reporting` for the report table).
+
 ## Directory Structure
 
 Each benchmark contains:
 ```
 benchmarks/<bridge_name>/
 ├── metadata.json          # Bridge info, fork block, vulnerability class
-├── contracts/             # Verified Solidity source files
-│   ├── SourceRouter.sol
+├── repro.sh / repro.ps1  # optional: smoke repro for Module 1+2 (where provided)
+├── contracts/             # Verified or reconstructed Solidity sources
+│   ├── SourceRouter.sol   # (names vary by benchmark)
 │   ├── DestRouter.sol
-│   └── Token.sol
-├── exploit_trace.json     # Original attack transaction sequence
+│   ├── Token.sol
+│   └── ...
+├── exploit_trace.json     # Curated attack timeline / tx pointers
 └── mapping.json           # Cross-chain address/asset mapping
 ```
+
+The **nomad** benchmark is the reference full package (see `benchmarks/nomad/README.md`); the other rows are to be filled in the same shape over time.
 
 ## Benchmarks
 
