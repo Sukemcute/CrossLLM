@@ -741,8 +741,62 @@ Khi khôi phục snapshot, cả ba được restore đồng thời.</p>
 </code></pre>
 <hr>
 <h2 id="8-chạy-thực-nghiệm-và-thu-thập-kết-quả">8. Chạy Thực Nghiệm và Thu Thập Kết Quả</h2>
-<h3 id="81-pipeline-chạy-đầy-đủ">8.1 Pipeline Chạy Đầy Đủ</h3>
-<pre><code class="language-bash"><span class="hljs-comment"># Chạy toàn bộ pipeline cho một benchmark</span>
+
+<blockquote style="border-left: 4px solid #e3b341; padding: 8px 16px; background: #fff8e6; margin-bottom: 16px;">
+  <strong>⚠️ Lưu ý môi trường:</strong> Project chạy trên <strong>Ubuntu/Linux</strong>. Binary Rust không có đuôi <code>.exe</code> và đường dẫn dùng dấu <code>/</code> (forward slash). Không dùng cú pháp PowerShell (<code>.\</code>, <code>.exe</code>) trên server Linux.
+</blockquote>
+
+<h3 id="81-chạy-module-3-fuzzer-trực-tiếp-ubuntu">8.1 Chạy Module 3 Fuzzer (Ubuntu)</h3>
+
+<h4>Bước 1: Build fuzzer</h4>
+<pre><code class="language-bash"><span class="hljs-comment"># Di chuyển vào thư mục module3</span>
+<span class="hljs-built_in">cd</span> ~/bridge/CrossLLM/src/module3_fuzzing
+
+<span class="hljs-comment"># Build release mode (tối ưu hiệu năng)</span>
+cargo build --release
+
+<span class="hljs-comment"># Binary sau build nằm ở (KHÔNG có .exe trên Linux):</span>
+<span class="hljs-comment"># ./target/release/bridgesentry-fuzzer</span>
+</code></pre>
+
+<h4>Bước 2: Chạy một run thử nghiệm</h4>
+<pre><code class="language-bash"><span class="hljs-built_in">cd</span> ~/bridge/CrossLLM
+
+<span class="hljs-comment"># Kiểm tra help (dùng / và không có .exe)</span>
+./src/module3_fuzzing/target/release/bridgesentry-fuzzer --help
+
+<span class="hljs-comment"># Chạy một run với nomad mock data</span>
+./src/module3_fuzzing/target/release/bridgesentry-fuzzer \
+    --atg       tests/fixtures/atg_mock.json \
+    --scenarios tests/fixtures/hypotheses_mock.json \
+    --budget    600 \
+    --output    results/nomad/run_001.json \
+    --seed      1042 \
+    --alpha 0.3 --beta 0.4 --gamma 0.3
+</code></pre>
+
+<h4>Bước 3: Chạy toàn bộ 20 runs với script bash</h4>
+<pre><code class="language-bash"><span class="hljs-built_in">cd</span> ~/bridge/CrossLLM
+
+<span class="hljs-comment"># Cấp quyền thực thi cho script</span>
+chmod +x scripts/run_module3_experiments.sh
+
+<span class="hljs-comment"># Chạy với tham số mặc định (20 runs, 600s budget, nomad)</span>
+./scripts/run_module3_experiments.sh
+
+<span class="hljs-comment"># Hoặc tùy chỉnh tham số</span>
+./scripts/run_module3_experiments.sh --bridge nomad --runs 20 --budget 600
+</code></pre>
+
+<h4>Chạy nhiều bridge khác nhau</h4>
+<pre><code class="language-bash"><span class="hljs-keyword">for</span> bridge <span class="hljs-keyword">in</span> nomad polynetwork wormhole ronin; <span class="hljs-keyword">do</span>
+    <span class="hljs-built_in">echo</span> <span class="hljs-string">"=== Running: <span class="hljs-variable">$bridge</span> ==="</span>
+    ./scripts/run_module3_experiments.sh --bridge <span class="hljs-string">"<span class="hljs-variable">$bridge</span>"</span> --runs 20 --budget 600
+<span class="hljs-keyword">done</span>
+</code></pre>
+
+<h3 id="82-pipeline-đầy-đủ-tất-cả-module">8.2 Pipeline Chạy Đầy Đủ (Tất Cả Module)</h3>
+<pre><code class="language-bash"><span class="hljs-comment"># Chạy toàn bộ pipeline (Module 1+2+3) cho một benchmark</span>
 python3 src/orchestrator.py \
     --benchmark benchmarks/nomad/ \
     --time-budget 600 \
@@ -762,7 +816,9 @@ python3 src/orchestrator.py \
         --output <span class="hljs-string">&quot;results/<span class="hljs-variable">$name</span>/&quot;</span>
 <span class="hljs-keyword">done</span>
 </code></pre>
-<h3 id="82-chạy-baselines">8.2 Chạy Baselines</h3>
+
+
+<h3 id="83-chạy-baselines">8.3 Chạy Baselines</h3>
 <pre><code class="language-bash"><span class="hljs-comment"># ItyFuzz</span>
 ityfuzz evm -t benchmarks/nomad/contracts/ --<span class="hljs-built_in">timeout</span> 600
 
@@ -778,37 +834,27 @@ gptscan --<span class="hljs-built_in">source</span> benchmarks/nomad/contracts/ 
 xscope detect --tx-logs benchmarks/nomad/logs/ \
     --output results/nomad/xscope/
 </code></pre>
-<h3 id="83-thu-thập-metrics">8.3 Thu Thập Metrics</h3>
-<p>Script thu thập kết quả:</p>
-<pre><code class="language-python"><span class="hljs-comment"># scripts/collect_results.py</span>
-<span class="hljs-keyword">import</span> json
-<span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
 
-<span class="hljs-keyword">def</span> <span class="hljs-title function_">collect_metrics</span>(<span class="hljs-params">results_dir</span>):
-    metrics = {}
-    <span class="hljs-keyword">for</span> bench_dir <span class="hljs-keyword">in</span> <span class="hljs-built_in">sorted</span>(Path(results_dir).iterdir()):
-        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> bench_dir.is_dir():
-            <span class="hljs-keyword">continue</span>
-        name = bench_dir.name
-        runs = []
-        <span class="hljs-keyword">for</span> run_file <span class="hljs-keyword">in</span> <span class="hljs-built_in">sorted</span>(bench_dir.glob(<span class="hljs-string">&quot;run_*.json&quot;</span>)):
-            <span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(run_file) <span class="hljs-keyword">as</span> f:
-                runs.append(json.load(f))
+<h3 id="84-thu-thập-metrics">8.4 Thu Thập Metrics (collect_results.py)</h3>
+<p>Chạy từ thư mục gốc dự án trên server Ubuntu:</p>
+<pre><code class="language-bash"><span class="hljs-built_in">cd</span> ~/bridge/CrossLLM
 
-        <span class="hljs-comment"># Tính metrics trung bình qua 5 runs</span>
-        detected = <span class="hljs-built_in">any</span>(r[<span class="hljs-string">&quot;vulnerability_found&quot;</span>] <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> runs)
-        tte_values = [r[<span class="hljs-string">&quot;time_to_exploit&quot;</span>] <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> runs <span class="hljs-keyword">if</span> r[<span class="hljs-string">&quot;vulnerability_found&quot;</span>]]
-        median_tte = <span class="hljs-built_in">sorted</span>(tte_values)[<span class="hljs-built_in">len</span>(tte_values)//<span class="hljs-number">2</span>] <span class="hljs-keyword">if</span> tte_values <span class="hljs-keyword">else</span> <span class="hljs-literal">None</span>
-        fpr = <span class="hljs-built_in">sum</span>(r[<span class="hljs-string">&quot;false_positives&quot;</span>] <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> runs) / <span class="hljs-built_in">max</span>(<span class="hljs-built_in">sum</span>(r[<span class="hljs-string">&quot;total_reports&quot;</span>] <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> runs), <span class="hljs-number">1</span>)
+<span class="hljs-comment"># Xem kết quả dạng bảng (tất cả bridge)</span>
+python3 scripts/collect_results.py
 
-        metrics[name] = {
-            <span class="hljs-string">&quot;detected&quot;</span>: detected,
-            <span class="hljs-string">&quot;median_tte&quot;</span>: median_tte,
-            <span class="hljs-string">&quot;fpr&quot;</span>: fpr,
-            <span class="hljs-string">&quot;xcc&quot;</span>: <span class="hljs-built_in">sum</span>(r[<span class="hljs-string">&quot;cross_chain_coverage&quot;</span>] <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> runs) / <span class="hljs-built_in">len</span>(runs)
-        }
-    <span class="hljs-keyword">return</span> metrics
+<span class="hljs-comment"># Chỉ một bridge cụ thể</span>
+python3 scripts/collect_results.py --bridge nomad
+
+<span class="hljs-comment"># Xuất bảng LaTeX cho paper</span>
+python3 scripts/collect_results.py --format latex
+
+<span class="hljs-comment"># Chi tiết từng run</span>
+python3 scripts/collect_results.py --format detail
+
+<span class="hljs-comment"># Lưu metrics ra JSON</span>
+python3 scripts/collect_results.py --save-json results/metrics_summary.json
 </code></pre>
+
 <hr>
 <h2 id="9-đánh-giá-kết-quả">9. Đánh Giá Kết Quả</h2>
 <h3 id="91-metrics-chính">9.1 Metrics Chính</h3>

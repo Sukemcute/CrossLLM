@@ -96,6 +96,38 @@ The convergence of LLMs and fuzzing remains underexplored in the cross-chain con
 
 The Atomic Transfer Graph formalism was introduced by D\"ubler et al.~\cite{dubler2025atg} as a framework for designing secure-by-construction cross-chain protocols over heterogeneous blockchain ecosystems. Their work defines ATGs as directed labeled graphs over blockchain entities and transfer operations, and provides formal security proofs for protocols constructed under the ATG model. BridgeSentry applies ATGs in a different context: rather than using ATGs to design new protocols, we use them to model existing bridge implementations and derive testable invariants for dynamic vulnerability discovery. The four invariant categories we define, which are detailed in Section~\ref{sec:problem}, are specific to the cross-chain bridge fuzzing setting and complement the protocol-design guarantees of the original ATG framework.
 
+Table~\ref{tab:rw-positioning} summarizes representative tools along the dimensions emphasized in our introduction: analysis modality, whether coordinated source/destination/relay execution is exercised in a single harness, use of dynamic fuzzing, and the role of LLMs (if any).
+
+\begin{table*}[!t]
+    \centering
+    \caption{Representative tools compared by analysis modality, dual-chain harness with relay ($\mathcal{C}_S{+}\mathcal{C}_D{+}\mathcal{R}$), dynamic fuzzing, and LLM role. Column meanings and artifact scope are given below the table.}
+    \label{tab:rw-positioning}
+    \small
+    \setlength{\tabcolsep}{6pt}
+    \renewcommand{\arraystretch}{1.25}
+    \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}llccc@{}}
+      \toprule
+      \textbf{Tool / framework} & \textbf{Modality} & \textbf{Dual\,+\,$\mathcal{R}$} & \textbf{Fuzz} & \textbf{LLM} \\
+      \midrule
+      SmartAxe~\cite{liao2024smartaxe}      & Stat.  & --- & --- & --- \\
+      XScope~\cite{zhang2022xscope}         & Obs.   & --- & --- & --- \\
+      BridgeGuard~\cite{wu2025safeguarding} & Obs.   & --- & --- & --- \\
+      BridgeShield~\cite{lin2025bridgeshield} & Obs. & --- & --- & --- \\
+      ItyFuzz~\cite{shou2023ityfuzz}        & Fuzz   & --- & \checkmark & --- \\
+      SmartShot~\cite{liang2025smartshot}   & Fuzz   & --- & \checkmark & --- \\
+      GPTScan~\cite{sun2024gptscan}         & Stat.  & --- & --- & Prep. \\
+      CrossGuard~\cite{ali2025crossguard}   & Fuzz   & --- & \checkmark & In-loop \\
+      \textbf{BridgeSentry} (Sec.~\ref{sec:method}) & Stat.\,+\,Fuzz & \checkmark & \checkmark & Prep. \\
+      \bottomrule
+    \end{tabular*}\\[0.6em]
+    \begin{minipage}{\textwidth}\footnotesize\raggedright
+      \textbf{Columns.} \emph{Modality}---\textbf{Stat.}: design-time analysis on source or specifications (taint, data-flow, or LLM-on-source); \textbf{Obs.}: detection driven by on-chain traces, logs, or transaction graphs; \textbf{Fuzz}: dynamic greybox execution.
+      \emph{Dual\,+\,$\mathcal{R}$}: coordinated dual-chain execution with explicit relay (or equivalent messaging) in one harness (Section~\ref{sec:problem}).
+      \emph{LLM}: \textbf{---}\,none; \textbf{Prep.}\,offline modeling or scenario generation; \textbf{In-loop}\,runtime feedback during fuzzing.
+      \emph{Artifact:} the research prototype implements Module~3 end-to-end from structured ATG and hypothesis JSON; Modules~1--2 match Section~\ref{sec:method} at the component-interface level.
+    \end{minipage}
+  \end{table*}
+
 % ============================================================
 \section{Problem Formulation}\label{sec:problem}
 % ============================================================
@@ -181,7 +213,8 @@ BridgeSentry consists of three modules operating in sequence: (1) LLM-based sema
     module/.style={rectangle, draw, dashed, rounded corners=4pt, inner sep=8pt},
     arr/.style={-{Stealth[length=6pt]}, thick},
     dataarr/.style={-{Stealth[length=5pt]}, thick, dashed, blue!60!black},
-    label/.style={font=\small\bfseries, anchor=south west},
+    % ĐÃ SỬA: Đổi tên 'label' thành 'modlabel' để tránh ghi đè hàm của hệ thống
+    modlabel/.style={font=\small\bfseries, anchor=south west},
 ]
 
 % Module 1
@@ -191,7 +224,8 @@ BridgeSentry consists of three modules operating in sequence: (1) LLM-based sema
 \draw[arr] (src) -- (llm);
 \draw[arr] (llm) -- (atg);
 \begin{scope}[on background layer]
-\node[module, fill=green!3, fit=(src)(llm)(atg), label={[label]above left:Module 1: Semantic Extraction}] (m1) {};
+% ĐÃ SỬA: Gọi style '[modlabel]'
+\node[module, fill=green!3, fit=(src)(llm)(atg), label={[modlabel]above left:Module 1: Semantic Extraction}] (m1) {};
 \end{scope}
 
 % Module 2
@@ -202,7 +236,8 @@ BridgeSentry consists of three modules operating in sequence: (1) LLM-based sema
 \draw[arr] (rag) -- (scenarios);
 \draw[dataarr] (atg) -- (rag);
 \begin{scope}[on background layer]
-\node[module, fill=orange!3, fit=(kb)(rag)(scenarios), label={[label]above left:Module 2: Attack Scenario Generation}] (m2) {};
+% ĐÃ SỬA: Gọi style '[modlabel]'
+\node[module, fill=orange!3, fit=(kb)(rag)(scenarios), label={[modlabel]above left:Module 2: Attack Scenario Generation}] (m2) {};
 \end{scope}
 
 % Module 3
@@ -215,7 +250,8 @@ BridgeSentry consists of three modules operating in sequence: (1) LLM-based sema
 \draw[arr] (evmB) -- (checker);
 \draw[dataarr] (scenarios) -- (relay);
 \begin{scope}[on background layer]
-\node[module, fill=red!3, fit=(evmA)(relay)(evmB)(checker), label={[label]above left:Module 3: Synchronized Dual-Chain Fuzzing}] (m3) {};
+% ĐÃ SỬA: Gọi style '[modlabel]'
+\node[module, fill=red!3, fit=(evmA)(relay)(evmB)(checker), label={[modlabel]above left:Module 3: Synchronized Dual-Chain Fuzzing}] (m3) {};
 \end{scope}
 
 % Output
