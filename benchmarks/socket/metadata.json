@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0",
+  "benchmark_id": "socket_20240116",
+  "name": "Socket Gateway Exploit",
+  "incident_date_utc": "2024-01-16",
+  "loss_usd_estimate": 3300000,
+  "attack_type": "missing_caller_authorization",
+  "vulnerability_classes": ["V5"],
+  "attack_stage": "source_chain",
+  "source_chain": {
+    "name": "ethereum",
+    "chain_id": 1,
+    "rpc_env": "ETH_RPC_URL"
+  },
+  "destination_chain": {
+    "name": "ethereum",
+    "chain_id": 1,
+    "rpc_env": "ETH_RPC_URL"
+  },
+  "fork": {
+    "block_number": 19062800,
+    "first_exploit_block": 19062857,
+    "repro_rpc_port": 8545
+  },
+  "contracts": {
+    "socket_gateway": {
+      "address": "0x3a23F943181408EAC424116Af7b7790c94Cb97a5",
+      "chain": "source",
+      "etherscan_url": "https://etherscan.io/address/0x3a23F943181408EAC424116Af7b7790c94Cb97a5",
+      "role": "Socket Gateway aggregator proxy. Held thousands of pre-existing user approvals. The vulnerable route's performAction trusted a caller-supplied fromUser parameter."
+    },
+    "attacker": {
+      "address": "0x50f9602e3105B5dDc56dE3D9f6BD98f30A28e2cF",
+      "chain": "source",
+      "etherscan_url": "https://etherscan.io/address/0x50f9602e3105B5dDc56dE3D9f6BD98f30A28e2cF",
+      "role": "Attacker EOA. Repeatedly invoked the vulnerable route with fromUser=victimAddress for each previously-approved user.",
+      "is_eoa": true
+    }
+  },
+  "single_chain_note": {
+    "reason": "Socket Gateway is an in-chain swap/bridge aggregator on Ethereum; the exploit drained tokens from approved users without crossing chains. source_chain == destination_chain == ethereum. The cross-chain invariant set still applies because Socket is *also* a bridge aggregator (Bungee), but the 2024-01-16 incident specifically broke the same-chain swap path.",
+    "implication": "Module 3 (dual-EVM fuzzer) can run with both chains pointed at the same fork; ATG will have both source and destination nodes collapse to one chain id."
+  },
+  "root_cause_summary": {
+    "vulnerable_pattern": "SocketGateway.performAction calls IERC20.transferFrom(fromUser, ...) where fromUser is read from caller-supplied calldata. There is no `require(msg.sender == fromUser)` and no signed-permit alternative.",
+    "verification_bypass": "Approval consent is mis-attributed: a user's prior approve(SocketGateway, X) is intended to authorize the user themselves to spend up to X via the gateway, but the gateway treats it as unconditional spending power that any caller can drive.",
+    "affected_logic": [
+      "SocketGateway.performAction (route #16 in production)",
+      "IERC20.transferFrom (downstream — unmodified, the bug is upstream caller-auth)"
+    ],
+    "notes": "Classified V5 (logic / business-rule bug). The pattern is the canonical 'forgot to check msg.sender' anti-pattern; what makes it expensive is the universe of pre-approved victim wallets."
+  },
+  "exploit_characteristics": {
+    "style": "approval-pull drain via missing caller authorization",
+    "num_transactions_estimate": 200,
+    "notes": "Attacker performed ~200 small drain transactions targeting the largest approvals. Total ~$3.3M extracted before the team paused the affected route."
+  },
+  "references": [
+    {
+      "title": "Socket Protocol — Post-Mortem",
+      "url": "https://socket.tech/blog/post-mortem-socket-incident-january-16-2024"
+    },
+    {
+      "title": "Quill Audits — Socket Hack Analysis",
+      "url": "https://www.quillaudits.com/blog/hack-analysis/socket-hack-analysis"
+    },
+    {
+      "title": "Etherscan: Socket Gateway",
+      "url": "https://etherscan.io/address/0x3a23F943181408EAC424116Af7b7790c94Cb97a5"
+    }
+  ],
+  "status": {
+    "contracts_reconstructed": true,
+    "trace_curated": true,
+    "ready_for_module1_2_pipeline": true,
+    "ready_for_full_dual_evm_replay": false
+  },
+  "reporting": {
+    "table_row": 7,
+    "loss_usd_confidence": "estimate"
+  }
+}
