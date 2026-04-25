@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0",
+  "benchmark_id": "polynetwork_20210810",
+  "name": "PolyNetwork Cross-Chain Bridge Exploit",
+  "incident_date_utc": "2021-08-10",
+  "loss_usd_estimate": 611000000,
+  "attack_type": "key_compromise",
+  "vulnerability_classes": ["V3", "V4"],
+  "attack_stage": "source_chain",
+  "source_chain": {
+    "name": "ethereum",
+    "chain_id": 1,
+    "rpc_env": "ETH_RPC_URL"
+  },
+  "destination_chain": {
+    "name": "bsc",
+    "chain_id": 56,
+    "rpc_env": "BSC_RPC_URL"
+  },
+  "fork": {
+    "block_number": 12996658,
+    "first_exploit_block": 12996659,
+    "repro_rpc_port": 8545
+  },
+  "contracts": {
+    "eth_cross_chain_manager": {
+      "address": "0x250e76987d838a75310c34bf422ea9f1AC4Cc906",
+      "chain": "source",
+      "etherscan_url": "https://etherscan.io/address/0x250e76987d838a75310c34bf422ea9f1AC4Cc906",
+      "role": "Manager contract that forwarded arbitrary calldata via verifyHeaderAndExecuteTx; the attacker's calls carried msg.sender == manager."
+    },
+    "eth_cross_chain_data": {
+      "address": "0xcF2afe102057bA5c16f899271045a0A37fCb10f2",
+      "chain": "source",
+      "etherscan_url": "https://etherscan.io/address/0xcF2afe102057bA5c16f899271045a0A37fCb10f2",
+      "role": "Storage contract whose putCurEpochConPubKeyBytes was reachable through the manager forward; rotating its keeper let the attacker sign arbitrary withdrawals."
+    },
+    "lock_proxy_eth": {
+      "address": "0x250e76987d838a75310c34bf422ea9f1AC4Cc906",
+      "chain": "source",
+      "etherscan_url": "https://etherscan.io/address/0x250e76987d838a75310c34bf422ea9f1AC4Cc906",
+      "role": "Source-chain lock proxy on Ethereum; held WETH / DAI / WBTC / SHIB / FEI before the drain. (Same as manager in this incident — manager itself custodied funds.)"
+    }
+  },
+  "secondary_chains": [
+    {
+      "name": "bsc",
+      "chain_id": 56,
+      "manager_address": "0x05F0FdD0B9F90F87BAec4D9F0Cb35F89A11A1F69",
+      "note": "BSC-side EthCrossChainManager analogue; attacker drained BUSD/BNB/USDC after the keeper rotation propagated."
+    },
+    {
+      "name": "polygon",
+      "chain_id": 137,
+      "manager_address": "0x9DbBb04f54Bd33D87E8e5d3b9bd62faC3B26C87B",
+      "note": "Polygon-side bridge that suffered the same drain mechanism."
+    }
+  ],
+  "root_cause_summary": {
+    "vulnerable_pattern": "EthCrossChainManager.verifyHeaderAndExecuteTx forwarded arbitrary (target, calldata) without restricting target to a whitelisted handler. The forwarded call carried msg.sender == manager.",
+    "verification_bypass": "EthCrossChainData.putCurEpochConPubKeyBytes was guarded only by onlyManager(msg.sender == manager). The forward made that check trivially pass, enabling keeper hijack.",
+    "affected_logic": [
+      "EthCrossChainManager.verifyHeaderAndExecuteTx",
+      "EthCrossChainData.putCurEpochConPubKeyBytes",
+      "Cross-chain proof acceptance (post-rotation it admits any attacker-signed proof)"
+    ],
+    "notes": "Although classified as V4 (key compromise), the underlying mechanism is a target-whitelist failure (V3 / state desync) — the keeper key was rotated *via* the protocol's own privileged path."
+  },
+  "exploit_characteristics": {
+    "style": "manager-forwarded keeper hijack",
+    "num_transactions_estimate": 3,
+    "notes": "One keeper-rotation tx per chain (ETH/BSC/Polygon) followed by signed withdrawals draining over $611M. Most funds were eventually returned by the attacker."
+  },
+  "references": [
+    {
+      "title": "BlockSec — The Further Analysis of the Poly Network Attack",
+      "url": "https://blocksecteam.medium.com/the-further-analysis-of-the-poly-network-attack-6c459199c057"
+    },
+    {
+      "title": "Rekt News — Poly Network Rekt",
+      "url": "https://rekt.news/polynetwork-rekt/"
+    },
+    {
+      "title": "Etherscan: EthCrossChainManager",
+      "url": "https://etherscan.io/address/0x250e76987d838a75310c34bf422ea9f1AC4Cc906"
+    }
+  ],
+  "status": {
+    "contracts_reconstructed": true,
+    "trace_curated": true,
+    "ready_for_module1_2_pipeline": true,
+    "ready_for_full_dual_evm_replay": false
+  },
+  "reporting": {
+    "table_row": 1,
+    "loss_usd_confidence": "estimate"
+  }
+}
