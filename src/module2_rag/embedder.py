@@ -3,11 +3,20 @@ Embedder — Encodes exploit records into vector embeddings and manages FAISS in
 
 Uses sentence-transformers (all-MiniLM-L6-v2) for encoding.
 FAISS for similarity search.
+
+Embedding cache
+---------------
+Encoding 50+ exploit texts via sentence-transformers takes 5-10s on CPU. We
+hash the (model_name + concatenated texts) and persist the embedding matrix
+under ``.embedding_cache/`` so repeated runs of ``build_index`` reuse the
+work. Disable with ``BRIDGESENTRY_EMBEDDING_CACHE=0``.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +28,21 @@ try:
     import faiss  # type: ignore
 except Exception:  # pragma: no cover
     faiss = None
+
+
+_DEFAULT_CACHE_DIR = ".embedding_cache"
+
+
+def _embedding_cache_enabled() -> bool:
+    flag = os.getenv("BRIDGESENTRY_EMBEDDING_CACHE", "1").strip().lower()
+    return flag not in {"0", "false", "no", "off"}
+
+
+def _embedding_cache_dir() -> Path:
+    base = os.getenv("BRIDGESENTRY_EMBEDDING_CACHE_DIR", _DEFAULT_CACHE_DIR)
+    path = Path(base)
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 class ExploitEmbedder:
     """Embed exploit descriptions and build FAISS index for retrieval."""
@@ -32,7 +56,12 @@ class ExploitEmbedder:
         self.exploits: list[dict[str, Any]] = []
 
     def build_index(self, exploits: list[dict]) -> None:
-        """Encode all exploits and build FAISS index."""
+        """Encode all exploits and build FAISS index.
+
+        When the embedding cache is enabled (default), the encoded matrix is
+        keyed on ``(model_name, joined_texts)`` and persisted as ``.npy`` so
+        subsequent runs over the same KB skip the sentence-transformer pass.
+        """
         self.exploits = exploits
         kb = ExploitKnowledgeBase()
         self.exploit_texts = [kb.to_text(e) for e in exploits]
@@ -41,7 +70,7 @@ class ExploitEmbedder:
             self._matrix = None
             return
 
-        embeddings = self._encode_texts(self.exploit_texts)
+        embeddings = self._load_or_encode_with_cache(self.exploit_texts)
         self._matrix = embeddings
 
         if faiss is not None:
@@ -52,6 +81,35 @@ class ExploitEmbedder:
             self.index = idx
         else:
             self.index = "numpy_cosine"
+
+    def _load_or_encode_with_cache(self, texts: list[str]) -> np.ndarray:
+        """Encode ``texts`` through sentence-transformers, hitting disk cache when possible."""
+        if not _embedding_cache_enabled():
+            return self._encode_texts(texts)
+
+        key = self._cache_key(texts)
+        cache_path = _embedding_cache_dir() / f"{key}.npy"
+        if cache_path.exists():
+            try:
+                return np.load(cache_path)
+            except (OSError, ValueError):
+                # Corrupt cache file — fall through and overwrite below.
+                pass
+
+        embeddings = self._encode_texts(texts)
+        try:
+            # ``cache_path`` already ends in ``.npy`` so np.save writes there directly.
+            # Skip atomic rename: a partially-written file is still cheaper to overwrite
+            # than the encode pass, and the load path tolerates corrupt files.
+            np.save(cache_path, embeddings)
+        except OSError:
+            # Best-effort cache; never block the pipeline.
+            pass
+        return embeddings
+
+    def _cache_key(self, texts: list[str]) -> str:
+        material = self.model_name + "\n---\n" + "\n\n".join(texts)
+        return hashlib.sha256(material.encode("utf-8")).hexdigest()[:16]
 
     def search(self, query: str, top_k: int = 5) -> list[dict]:
         """Retrieve top-k most similar exploits for a given query."""
