@@ -122,8 +122,17 @@ class ATGEdge:
     conditions: list = field(default_factory=list)
     condition_objects: list[Condition] = field(default_factory=list)
 
-    def set_conditions(self, raw: list[Any]) -> None:
-        """Populate both ``conditions`` (strings) and ``condition_objects`` from a mixed list."""
+    def set_conditions(self, raw: list[Any] | None) -> None:
+        """Populate both ``conditions`` (strings) and ``condition_objects`` from a mixed list.
+
+        LLM responses sometimes return ``null`` for ``conditions`` when no
+        conditions apply, which would otherwise crash the iteration. Treat
+        ``None`` and missing-but-supplied values as an empty list.
+        """
+        if not raw:
+            self.condition_objects = []
+            self.conditions = []
+            return
         typed = [parse_condition(c) for c in raw]
         self.condition_objects = typed
         self.conditions = [c.to_string() for c in typed]
