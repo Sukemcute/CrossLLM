@@ -1,0 +1,124 @@
+{
+  "benchmark_id": "ronin_20220323",
+  "summary": "Cross-chain mapping for the Ronin Bridge benchmark. Ethereum holds the custodial WETH/USDC balance; Ronin chain holds the wrapped representations. The attack drained the Ethereum-side custody — Ronin-side balances were unaffected, but the wrapped tokens on Ronin were left unbacked.",
+  "bridge_name": "ronin",
+  "source_chain": {
+    "name": "ethereum",
+    "chain_id": 1,
+    "contracts": {
+      "bridge_manager": "0x098B716B8Aaf21512996dC57EB0615e2383E2f96",
+      "bridge_v2_proxy": "0x1A2a1c938CE3eC39b6D47113c7955bAa9DD454F2"
+    }
+  },
+  "destination_chain": {
+    "name": "ronin",
+    "chain_id": 2020,
+    "contracts": {
+      "ronin_bridge": "0xE35D5B5d7d7d5A8d9a8cC5d8E4D1d2f5b8b8c0e8",
+      "note": "Ronin chain explorer: https://app.roninchain.com — bridge contract addresses on Ronin side were not the target of the exploit; included here for cross-chain mapping completeness."
+    }
+  },
+  "entity_map": [
+    {
+      "logical_id": "validator_set",
+      "chain": "offchain",
+      "address": "",
+      "type": "validator_set",
+      "role": "Nine ECDSA signers — 4 Sky Mavis, 4 Axie DAO, plus an Axie-DAO-delegated key still administered by Sky Mavis. Threshold 5-of-9 for any cross-chain action.",
+      "size": 9,
+      "threshold": 5,
+      "compromised_at_incident": 5
+    },
+    {
+      "logical_id": "source_bridge_manager",
+      "chain": "source",
+      "address": "0x098B716B8Aaf21512996dC57EB0615e2383E2f96",
+      "type": "contract",
+      "role": "Validator-set governance + signature verification on Ethereum."
+    },
+    {
+      "logical_id": "source_bridge_custody",
+      "chain": "source",
+      "address": "0x1A2a1c938CE3eC39b6D47113c7955bAa9DD454F2",
+      "type": "contract",
+      "role": "Ethereum-side custody account; held WETH/USDC drained in the attack."
+    },
+    {
+      "logical_id": "destination_bridge",
+      "chain": "destination",
+      "address": "",
+      "type": "contract",
+      "role": "Ronin-side mint/burn router for wrapped representations."
+    },
+    {
+      "logical_id": "attacker",
+      "chain": "source",
+      "address": "0x098B716B8Aaf21512996dC57EB0615e2383E2f97",
+      "type": "user",
+      "role": "Lazarus Group (DPRK) attacker EOA; received 173,600 WETH + 25.5M USDC."
+    }
+  ],
+  "asset_map": [
+    {
+      "symbol": "WETH",
+      "source_token": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      "destination_token": "0xc99a6A985eD2Cac1ef41640596C5A5f9F4E19Ef5",
+      "decimals": 18,
+      "destination_decimals": 18,
+      "amount_drained": "173600 * 10**18",
+      "notes": "Largest single asset drained; ~$595M at attack-time prices."
+    },
+    {
+      "symbol": "USDC",
+      "source_token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "destination_token": "0x0B7007c13325C48911F73A2daD5FA5dCBf808aDc",
+      "decimals": 6,
+      "destination_decimals": 6,
+      "amount_drained": "25500000 * 10**6",
+      "notes": "Second drain in the same block; ~$25.5M."
+    }
+  ],
+  "router_mapping": [
+    {
+      "ethereum": {
+        "contract": "0x098B716B8Aaf21512996dC57EB0615e2383E2f96",
+        "function_signature": "execute(address,uint256,bytes,uint256,bytes[])",
+        "self_call_target": "unlock(address,address,uint256)",
+        "verifier_call": "MockMultisig._recover (5-of-9 ECDSA threshold)"
+      },
+      "ronin": {
+        "contract": "ronin_bridge",
+        "function_signature": "withdraw / mint counterpart on Ronin chain",
+        "note": "Ronin-side counterpart is informational; this benchmark fuzzes the Ethereum-side custody only."
+      }
+    }
+  ],
+  "message_map": {
+    "message_id_field": "digest = keccak256(abi.encode(target, value, data, nonce, address(this)))",
+    "proof_field": "bytes[] sigs (>= 5 ECDSA signatures, ascending recovered-address order)",
+    "critical_default": "executed[digest] == false",
+    "critical_auth_map": "isSigner[recovered] && |unique_recovered| >= 5"
+  },
+  "invariants_for_fuzzer": [
+    {
+      "invariant_id": "inv_ronin_threshold_quorum",
+      "description": "Every Unlocked event must correspond to a prior `execute` call carrying >= 5 valid distinct signatures from the configured validator set."
+    },
+    {
+      "invariant_id": "inv_ronin_validator_set_authority",
+      "description": "Only addresses in the constructor's signer list may contribute to the threshold quorum. (On-chain enforced; off-chain assumption 'fewer than 5 keys compromised' is what the incident broke.)"
+    },
+    {
+      "invariant_id": "inv_ronin_asset_conservation_per_token",
+      "description": "totalLocked[token] >= cumulative unlocked[token]; no overdraw past the locked balance."
+    },
+    {
+      "invariant_id": "inv_ronin_digest_uniqueness",
+      "description": "Each (target, value, data, nonce, bridge_address) tuple may unlock at most once — replay protection on the digest cache."
+    },
+    {
+      "invariant_id": "inv_ronin_no_stale_delegate",
+      "description": "(Architectural / off-chain) Delegate signing permissions must be revoked when the operational need ends. The Axie-DAO-to-Sky-Mavis delegate that persisted from Nov 2021 to Mar 2022 supplied the 5th attacker-reachable key."
+    }
+  ]
+}

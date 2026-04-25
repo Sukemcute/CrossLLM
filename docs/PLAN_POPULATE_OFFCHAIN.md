@@ -182,7 +182,7 @@ the 5 compromised keys, draining 173,600 ETH + 25.5M USDC.
 **Bug pattern to reconstruct:**
 
 ```solidity
-import "../_shared/MockMultisig.sol";
+import "../../_shared/MockMultisig.sol";  // contracts live two levels deep
 
 contract RoninBridgeManager is MockMultisig {
     // 9 signers, threshold 5. The "bug" is upstream: 5 keys fell into

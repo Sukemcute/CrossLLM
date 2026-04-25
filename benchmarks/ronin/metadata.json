@@ -1,0 +1,101 @@
+{
+  "schema_version": "1.0",
+  "benchmark_id": "ronin_20220323",
+  "name": "Ronin Bridge Exploit",
+  "incident_date_utc": "2022-03-23",
+  "loss_usd_estimate": 624000000,
+  "attack_type": "key_compromise",
+  "vulnerability_classes": ["V4"],
+  "attack_stage": "off_chain",
+  "source_chain": {
+    "name": "ethereum",
+    "chain_id": 1,
+    "rpc_env": "ETH_RPC_URL"
+  },
+  "destination_chain": {
+    "name": "ronin",
+    "chain_id": 2020,
+    "rpc_env": "RONIN_RPC_URL"
+  },
+  "fork": {
+    "block_number": 14442835,
+    "first_exploit_block": 14442836,
+    "repro_rpc_port": 8545
+  },
+  "contracts": {
+    "ronin_bridge_manager": {
+      "address": "0x098B716B8Aaf21512996dC57EB0615e2383E2f96",
+      "chain": "source",
+      "etherscan_url": "https://etherscan.io/address/0x098B716B8Aaf21512996dC57EB0615e2383E2f96",
+      "role": "Ethereum-side validator/governance manager for the Ronin Bridge. Held the validator set whose 5/9 keys the attacker compromised. Modelled by RoninBridgeManager.sol extending the shared MockMultisig harness (N=9, K=5).",
+      "threshold": "5/9"
+    },
+    "ronin_bridge_v2_proxy": {
+      "address": "0x1A2a1c938CE3eC39b6D47113c7955bAa9DD454F2",
+      "chain": "source",
+      "etherscan_url": "https://etherscan.io/address/0x1A2a1c938CE3eC39b6D47113c7955bAa9DD454F2",
+      "role": "Ronin Bridge V2 proxy on Ethereum — held the WETH/USDC custody balance the attacker drained. The withdraw entry point processes signed withdrawal receipts."
+    },
+    "weth_ethereum": {
+      "address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      "chain": "source",
+      "etherscan_url": "https://etherscan.io/address/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      "role": "WETH custodied on the Ethereum side. 173,600 WETH (~$595M at the time) drained in the first fraudulent withdrawal."
+    },
+    "usdc_ethereum": {
+      "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "chain": "source",
+      "etherscan_url": "https://etherscan.io/address/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "role": "USDC custodied on the Ethereum side. 25,500,000 USDC drained in the second fraudulent withdrawal."
+    },
+    "attacker": {
+      "address": "0x098B716B8Aaf21512996dC57EB0615e2383E2f97",
+      "chain": "source",
+      "role": "Placeholder for the attacker address that received the drained WETH/USDC. Real attribution: Lazarus Group (DPRK), per US Treasury OFAC and Elliptic.",
+      "is_eoa": true
+    }
+  },
+  "off_chain_compromise_note": {
+    "reason": "The bug exploited here lives off-chain: validator private keys leaked. The on-chain code in production enforced its 5-of-9 quorum spec correctly. What failed is the assumption 'fewer than 5 validators will be compromised at once', combined with stale Axie-DAO-delegate-to-Sky-Mavis permission that was never revoked.",
+    "implication": "Module 1 should infer a `validator_set_authority` invariant that *the on-chain code already enforces*. Module 2's `key_compromise` scenarios violate that invariant by varying the off-chain assumption: who controls k of the n keys.",
+    "modelled_by": "RoninBridgeManager extends MockMultisig (N=9, K=5). The compromise model is 'attacker is given 5 of the 9 private keys' rather than any contract-level vulnerability."
+  },
+  "root_cause_summary": {
+    "vulnerable_pattern": "Bridge withdrawal authorisation requires 5-of-9 ECDSA signatures from a fixed validator set. The on-chain check is correct.",
+    "verification_bypass": "Off-chain: 4 of the 9 keys belonged to Sky Mavis, and a 5th (Axie DAO delegate) was still administered on Sky Mavis infrastructure after the November 2021 surge-helping arrangement. Lazarus-Group spear-phishing campaign against Sky Mavis (a fake job offer with a malicious PDF) compromised all five keys, satisfying the threshold from a single attacker.",
+    "affected_logic": [
+      "RoninBridgeManager._validateSignatures (modelled by MockMultisig.execute)",
+      "RoninBridgeManager.withdraw (modelled by RoninBridgeManager.unlock self-callable only via multi-sig)"
+    ],
+    "notes": "The Axie DAO delegate permission was originally granted in November 2021 when Ronin's user load surged and Axie DAO offered to relay validator signatures. The arrangement was wound down on the operational side (Sky Mavis stopped requesting signatures) but Axie DAO never revoked the allowlist entry, leaving the delegate key as a 5th attacker-reachable signer for ~5 months. This stale-permission backstory is the single most important architectural lesson from the incident."
+  },
+  "exploit_characteristics": {
+    "style": "validator quorum collapse via private-key compromise",
+    "num_transactions_estimate": 2,
+    "notes": "Two large withdrawals issued in a single block (14442836). The attack went unnoticed for six days until a user reported being unable to withdraw 5,000 ETH on 2022-03-29. Funds were laundered through Tornado Cash; ~10% recovered after the OFAC sanctions in April 2022."
+  },
+  "references": [
+    {
+      "title": "Sky Mavis — Community Alert: Ronin Validators Compromised",
+      "url": "https://roninblockchain.substack.com/p/community-alert-ronin-validators"
+    },
+    {
+      "title": "Halborn — Explained: The Ronin Hack (March 2022)",
+      "url": "https://www.halborn.com/blog/post/explained-the-ronin-hack-march-2022"
+    },
+    {
+      "title": "Etherscan: Ronin Bridge Manager",
+      "url": "https://etherscan.io/address/0x098B716B8Aaf21512996dC57EB0615e2383E2f96"
+    }
+  ],
+  "status": {
+    "contracts_reconstructed": true,
+    "trace_curated": true,
+    "ready_for_module1_2_pipeline": true,
+    "ready_for_full_dual_evm_replay": false
+  },
+  "reporting": {
+    "table_row": 3,
+    "loss_usd_confidence": "estimate"
+  }
+}
