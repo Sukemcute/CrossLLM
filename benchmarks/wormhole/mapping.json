@@ -1,0 +1,107 @@
+{
+  "benchmark_id": "wormhole_20220202",
+  "summary": "Cross-chain mapping for the Wormhole benchmark. The exploit broke the (verify_signatures account → verified-digest record) binding on Solana; the EVM benchmark models the same trust boundary as a (legacyVerifiedSlot key → guardian-set authority) binding.",
+  "bridge_name": "wormhole",
+  "source_chain": {
+    "name": "solana",
+    "wormhole_chain_id": 1,
+    "contracts": {
+      "core_bridge_program": "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth",
+      "token_bridge_program": "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb",
+      "note": "Solana program IDs; not addressable by EVM tooling. Modelled on EVM by WormholeCore.sol and TokenBridge.sol."
+    }
+  },
+  "destination_chain": {
+    "name": "ethereum",
+    "chain_id": 1,
+    "contracts": {
+      "wormhole_core": "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B",
+      "token_bridge": "0x3ee18B2214AFF97000D974cf647E7C347E8fa585"
+    }
+  },
+  "entity_map": [
+    {
+      "logical_id": "source_core_bridge",
+      "chain": "source",
+      "address": "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth",
+      "type": "program",
+      "role": "Solana Wormhole Core program; verify_signatures lived here. Modelled by WormholeCore.sol."
+    },
+    {
+      "logical_id": "source_token_bridge",
+      "chain": "source",
+      "address": "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb",
+      "type": "program",
+      "role": "Solana Wormhole Token Bridge program; complete_wrapped lived here. Modelled by TokenBridge.sol."
+    },
+    {
+      "logical_id": "destination_core_bridge",
+      "chain": "destination",
+      "address": "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B",
+      "type": "contract",
+      "role": "Ethereum Wormhole Core; verifies guardian-signed VAAs for the redeem path."
+    },
+    {
+      "logical_id": "destination_token_bridge",
+      "chain": "destination",
+      "address": "0x3ee18B2214AFF97000D974cf647E7C347E8fa585",
+      "type": "contract",
+      "role": "Ethereum Wormhole Token Bridge; redeems whETH back into native WETH."
+    },
+    {
+      "logical_id": "guardian_set",
+      "chain": "offchain",
+      "address": "",
+      "type": "validator_set",
+      "role": "19 guardians (at incident time); their ECDSA signatures are the canonical authority any VAA verifier must check."
+    }
+  ],
+  "asset_map": [
+    {
+      "symbol": "wETH (Solana whETH)",
+      "source_token": "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs",
+      "destination_token": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      "decimals": 8,
+      "destination_decimals": 18,
+      "notes": "120,000 whETH was minted on Solana; ~93,750 was bridged back to Ethereum WETH. whETH on Solana uses 8 decimals; native WETH on Ethereum uses 18 — bridge re-scales by 10^10 on transfer."
+    }
+  ],
+  "router_mapping": [
+    {
+      "source": {
+        "program": "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb",
+        "instruction": "complete_wrapped",
+        "verifier": "verify_signatures"
+      },
+      "destination": {
+        "contract": "0x3ee18B2214AFF97000D974cf647E7C347E8fa585",
+        "function_signature": "completeTransfer(bytes)",
+        "verifier_call": "WormholeCore.parseAndVerifyVM(bytes)"
+      }
+    }
+  ],
+  "message_map": {
+    "message_id_field": "vaa.hash",
+    "proof_field": "guardian_signatures",
+    "critical_default": "legacyVerifiedSlot[digest] == false",
+    "critical_auth_map": "guardianSets[currentGuardianSetIndex]"
+  },
+  "invariants_for_fuzzer": [
+    {
+      "invariant_id": "inv_wormhole_signature_authenticity",
+      "description": "Every accepted VAA digest must have ≥ guardianQuorum[index] valid ECDSA signatures from guardianSets[index]."
+    },
+    {
+      "invariant_id": "inv_wormhole_legacy_slot_authority",
+      "description": "legacyVerifiedSlot[k] may only be written when k corresponds to the canonical guardian-set verification record (modelled Sysvar Instructions binding)."
+    },
+    {
+      "invariant_id": "inv_wormhole_asset_conservation",
+      "description": "TokenBridge.totalMinted across all wrapped assets must equal the total locked native value on the corresponding source-chain bridge minus fees."
+    },
+    {
+      "invariant_id": "inv_wormhole_vaa_uniqueness",
+      "description": "TokenBridge.completed[digest] transitions false→true at most once per digest."
+    }
+  ]
+}
