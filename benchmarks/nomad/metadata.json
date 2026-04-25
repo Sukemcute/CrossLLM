@@ -36,7 +36,8 @@
     },
     "funds_recovery_wallet": {
       "address": "0x94A84433101A10aEda762968f6995c574D1bF154",
-      "role": "official Nomad recovery wallet after incident"
+      "role": "official Nomad recovery wallet after incident",
+      "is_eoa": true
     }
   },
   "root_cause_summary": {

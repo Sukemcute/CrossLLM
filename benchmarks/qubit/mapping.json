@@ -1,0 +1,38 @@
+{
+  "benchmark_id": "qubit_20220127",
+  "summary": "Cross-chain address and asset mapping for the Qubit Bridge benchmark. The exploit hinged on the absence of a strong (asset, amount) binding between the Ethereum deposit and the BSC mint side.",
+  "address_mapping": [
+    {
+      "asset": "Native ETH (Ethereum) -> qXETH (BSC)",
+      "ethereum": {
+        "contract": "0x0000000000000000000000000000000000000000",
+        "decimals": 18,
+        "note": "Native sentinel; Qubit's deposit() used address(0) to designate native ETH"
+      },
+      "bsc": {
+        "contract": "0xc78248d676deBB4597e88071D3d889eCA70E5469",
+        "decimals": 18,
+        "symbol": "qXETH"
+      }
+    }
+  ],
+  "router_mapping": [
+    {
+      "ethereum": {
+        "contract": "0x67568a64ee0a8d44fcb35e1c64620a25c1d3cA5a",
+        "function_signature": "deposit(address,uint256,address)",
+        "event_signature": "Deposit(address,uint256,address,uint64)"
+      },
+      "bsc": {
+        "contract": "0xF734985f7d40Bcc0B2E3FA5d0cb2A86C12BDF7eb",
+        "function_signature": "process(address,uint256,uint64)",
+        "event_signature": "Mint(address,uint256,uint64)"
+      }
+    }
+  ],
+  "user_identity": {
+    "ethereum_address": "<attacker EOA on Ethereum>",
+    "bsc_address": "<attacker EOA on BSC, often same address>",
+    "note": "Bridge passed the recipient unchanged across chains; attacker used the same EVM address on both."
+  }
+}

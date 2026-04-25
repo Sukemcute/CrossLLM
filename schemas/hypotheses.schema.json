@@ -17,7 +17,7 @@
   "$defs": {
     "scenario": {
       "type": "object",
-      "additionalProperties": false,
+      "additionalProperties": true,
       "required": [
         "scenario_id",
         "target_invariant",
@@ -57,7 +57,7 @@
     },
     "action": {
       "type": "object",
-      "additionalProperties": false,
+      "additionalProperties": true,
       "required": ["step", "chain", "params", "description"],
       "properties": {
         "step": {

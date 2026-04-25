@@ -150,10 +150,13 @@ class ATGBuilder:
         for ent in entities:
             atg.nodes.append(
                 ATGNode(
-                    node_id=ent.get("entity_id", ""),
-                    node_type=ent.get("entity_type", "contract"),
-                    chain=ent.get("chain", "source"),
-                    address=ent.get("address", ""),
+                    # Use ``or default`` instead of ``get(key, default)`` because the
+                    # LLM occasionally emits explicit ``null`` for these fields, and
+                    # the schema requires strings.
+                    node_id=(ent.get("entity_id") or ent.get("name") or "").strip() or "node",
+                    node_type=ent.get("entity_type") or ent.get("type") or "contract",
+                    chain=ent.get("chain") or "source",
+                    address=ent.get("address") or "",
                 )
             )
 

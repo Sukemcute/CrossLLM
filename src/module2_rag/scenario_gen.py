@@ -127,19 +127,43 @@ class AttackScenarioGenerator:
         self, data: dict, invariant: dict, retrieved: list[dict]
     ) -> dict[str, Any]:
         """Fill in required fields the LLM may omit (step numbers, chain, defaults)."""
-        data.setdefault(
-            "target_invariant", invariant.get("invariant_id", "inv_unknown")
-        )
-        data.setdefault(
-            "retrieved_exploits",
-            [e.get("exploit_id", "") for e in retrieved if e.get("exploit_id")],
-        )
+        # `target_invariant` must be a string ID; some LLMs return the whole
+        # invariant object — pull the ID out when that happens.
+        target = data.get("target_invariant")
+        if isinstance(target, dict):
+            data["target_invariant"] = (
+                target.get("invariant_id")
+                or target.get("id")
+                or invariant.get("invariant_id", "inv_unknown")
+            )
+        elif not isinstance(target, str) or not target.strip():
+            data["target_invariant"] = invariant.get("invariant_id", "inv_unknown")
+        # Normalize retrieved_exploits to a list of strings; LLMs sometimes
+        # echo the full exploit objects back instead of just IDs.
+        raw_retrieved = data.get("retrieved_exploits")
+        if isinstance(raw_retrieved, list) and raw_retrieved:
+            normalized_ids: list[str] = []
+            for item in raw_retrieved:
+                if isinstance(item, str) and item.strip():
+                    normalized_ids.append(item)
+                elif isinstance(item, dict):
+                    eid = item.get("exploit_id") or item.get("id")
+                    if isinstance(eid, str) and eid.strip():
+                        normalized_ids.append(eid)
+            data["retrieved_exploits"] = normalized_ids
+        else:
+            data["retrieved_exploits"] = [
+                e.get("exploit_id", "") for e in retrieved if e.get("exploit_id")
+            ]
         data.setdefault(
             "scenario_id", f"s_{invariant.get('invariant_id', 'unknown')}_llm"
         )
         data.setdefault(
             "vulnerability_class", self._class_from_invariant(invariant)
         )
+        # `vulnerability_class` must be a string for schema validation.
+        if not isinstance(data["vulnerability_class"], str):
+            data["vulnerability_class"] = self._class_from_invariant(invariant)
         try:
             data["confidence"] = float(data.get("confidence", 0.5))
         except (TypeError, ValueError):

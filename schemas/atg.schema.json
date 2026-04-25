@@ -111,7 +111,24 @@
         "token": { "type": "string" },
         "conditions": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "description": "Legacy string projection of edge guards (Rust fuzzer wire format)"
+        },
+        "condition_objects": {
+          "type": "array",
+          "description": "Sprint 3 typed condition view; ignored by Rust fuzzer (unknown field)",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "params"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["hashlock", "timelock", "signature", "nonce", "balance", "generic"]
+              },
+              "params": { "type": "object", "additionalProperties": true }
+            }
+          }
         },
         "function_signature": { "type": "string" }
       }
