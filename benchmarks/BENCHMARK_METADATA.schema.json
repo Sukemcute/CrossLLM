@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://crossllm.local/benchmark-metadata.schema.json",
+  "title": "CrossLLM benchmark metadata",
+  "type": "object",
+  "required": ["benchmark_id", "name", "attack_type", "source_chain", "destination_chain", "fork", "status"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Version of this metadata contract; bump when fields are added or renamed.",
+      "pattern": "^\\d+\\.\\d+(\\.\\d+)?$"
+    },
+    "benchmark_id": { "type": "string" },
+    "name": { "type": "string" },
+    "incident_date_utc": { "type": "string", "format": "date" },
+    "loss_usd_estimate": { "type": "integer", "minimum": 0 },
+    "attack_type": { "type": "string" },
+    "vulnerability_classes": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^V[1-9][0-9]?$" }
+    },
+    "attack_stage": {
+      "type": "string",
+      "description": "Where the exploit primarily executes (e.g. destination_chain, source_chain, off_chain)."
+    },
+    "source_chain": { "$ref": "#/$defs/chain" },
+    "destination_chain": { "$ref": "#/$defs/chain" },
+    "fork": {
+      "type": "object",
+      "required": ["block_number"],
+      "properties": {
+        "block_number": { "type": "integer", "minimum": 0 },
+        "first_exploit_block": { "type": "integer", "minimum": 0 },
+        "repro_rpc_port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+      }
+    },
+    "contracts": { "type": "object", "additionalProperties": true },
+    "root_cause_summary": { "type": "object", "additionalProperties": true },
+    "exploit_characteristics": { "type": "object", "additionalProperties": true },
+    "references": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "url": { "type": "string", "format": "uri" }
+        }
+      }
+    },
+    "status": {
+      "type": "object",
+      "properties": {
+        "contracts_reconstructed": { "type": "boolean" },
+        "trace_curated": { "type": "boolean" },
+        "ready_for_module1_2_pipeline": { "type": "boolean" },
+        "ready_for_full_dual_evm_replay": { "type": "boolean" }
+      }
+    },
+    "reporting": {
+      "type": "object",
+      "description": "Project report table / CSV alignment (non-runtime).",
+      "properties": {
+        "table_row": { "type": "integer", "minimum": 1 },
+        "loss_usd_confidence": {
+          "type": "string",
+          "enum": ["estimate", "lower_bound", "range", "undisclosed"]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "chain": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "chain_id": { "type": "integer" },
+        "rpc_env": { "type": "string" }
+      }
+    }
+  }
+}

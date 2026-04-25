@@ -1,0 +1,90 @@
+{
+  "benchmark_id": "nomad_2022",
+  "bridge_name": "nomad",
+  "source_chain": {
+    "name": "ethereum",
+    "chain_id": 1,
+    "contracts": {
+      "replica": "0xB92336759618F55bd0F8313bd843604592E27bd8",
+      "erc20_bridge": "0x88A69B4E698A4B090DF6CF5BD7B2D47325AD30A3"
+    }
+  },
+  "destination_chain": {
+    "name": "moonbeam",
+    "chain_id": 1284,
+    "contracts": {
+      "router": "unknown_or_chain_specific",
+      "message_processor": "represented_by_mock_destination_router"
+    }
+  },
+  "entity_map": [
+    {
+      "logical_id": "source_replica",
+      "chain": "source",
+      "address": "0xB92336759618F55bd0F8313bd843604592E27bd8",
+      "type": "contract",
+      "role": "message authentication"
+    },
+    {
+      "logical_id": "source_bridge_router",
+      "chain": "source",
+      "address": "0x88A69B4E698A4B090DF6CF5BD7B2D47325AD30A3",
+      "type": "contract",
+      "role": "bridge asset handling"
+    },
+    {
+      "logical_id": "destination_router",
+      "chain": "destination",
+      "address": "",
+      "type": "contract",
+      "role": "destination processing/mint path (modeled in local benchmark contracts)"
+    },
+    {
+      "logical_id": "relay",
+      "chain": "offchain",
+      "address": "",
+      "type": "relay",
+      "role": "message forwarding"
+    }
+  ],
+  "asset_map": [
+    {
+      "symbol": "WBTC",
+      "source_token": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+      "destination_token": "",
+      "notes": "Widely drained in early exploit block."
+    },
+    {
+      "symbol": "USDC",
+      "source_token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "destination_token": "",
+      "notes": "Copycat withdrawals reused calldata template with recipient substitution."
+    },
+    {
+      "symbol": "WETH",
+      "source_token": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      "destination_token": "",
+      "notes": "Representative major bridge asset."
+    }
+  ],
+  "message_map": {
+    "message_id_field": "messageHash",
+    "proof_root_field": "messages[messageHash]",
+    "critical_default": "bytes32(0)",
+    "critical_auth_map": "confirmAt[root]"
+  },
+  "invariants_for_fuzzer": [
+    {
+      "invariant_id": "inv_nomad_proven_before_process",
+      "description": "A message must be proven under a valid non-zero root before process()."
+    },
+    {
+      "invariant_id": "inv_nomad_no_mint_without_lock",
+      "description": "Destination payout must correspond to a valid source lock/commit."
+    },
+    {
+      "invariant_id": "inv_nomad_single_use_nonce",
+      "description": "A message nonce/hash can only be consumed once."
+    }
+  ]
+}
