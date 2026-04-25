@@ -1,0 +1,23 @@
+{
+  "exploit_id": "rainbow_20220505",
+  "bridge": "Rainbow Bridge",
+  "date": "2022-05-05",
+  "loss_usd": 0,
+  "chains": [
+    "ethereum",
+    "near"
+  ],
+  "vulnerability_class": "fake_deposit",
+  "attack_stage": "off_chain",
+  "summary": "Attacker attempted to submit a forged NEAR block header with crafted bond, but bridge's challenger network slashed and reverted before withdrawal.",
+  "attack_trace": [
+    "Bond NEAR with malicious block header",
+    "Wait challenge window for withdrawal",
+    "Challenger detects forgery, slashes bond"
+  ],
+  "root_cause": "Optimistic verification window relies on watcher liveness; the attempt failed because challengers were active.",
+  "references": [
+    "https://near.org/blog/the-recent-rainbow-bridge-incident/"
+  ],
+  "source": "curated"
+}

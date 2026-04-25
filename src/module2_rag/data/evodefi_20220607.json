@@ -1,0 +1,23 @@
+{
+  "exploit_id": "evodefi_20220607",
+  "bridge": "EvoDeFi",
+  "date": "2022-06-07",
+  "loss_usd": 6000000,
+  "chains": [
+    "bsc",
+    "polygon"
+  ],
+  "vulnerability_class": "key_compromise",
+  "attack_stage": "off_chain",
+  "summary": "Single-key relayer compromise let attacker mint unbacked GENS tokens on Polygon while burning none on BSC, breaking the 1:1 bridge invariant.",
+  "attack_trace": [
+    "Steal sole bridge relayer private key",
+    "Submit forged Bridge_Withdraw events to Polygon",
+    "Mint $6M GENS tokens with no BSC backing"
+  ],
+  "root_cause": "EvoDeFi bridge used a single-signature relayer instead of multi-sig, single point of failure.",
+  "references": [
+    "https://medium.com/coinmonks/evodefi-bridge-attack-explained-acb27b97e75e"
+  ],
+  "source": "curated"
+}

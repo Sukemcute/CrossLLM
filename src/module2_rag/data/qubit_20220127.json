@@ -1,0 +1,23 @@
+{
+  "exploit_id": "qubit_20220127",
+  "bridge": "Qubit Finance",
+  "date": "2022-01-27",
+  "loss_usd": 80000000,
+  "chains": [
+    "ethereum",
+    "bsc"
+  ],
+  "vulnerability_class": "fake_deposit",
+  "attack_stage": "destination_chain",
+  "summary": "Deposit function on Ethereum did not check non-zero msg.value, while the destination chain blindly minted xETH proportional to the deposit log, allowing infinite mint with zero collateral.",
+  "attack_trace": [
+    "Call deposit() with msg.value = 0 — emits Deposit event with zero amount",
+    "Replay safeTransferFrom path treating WETH as native; emit large Deposit log",
+    "Mint qXETH on BSC using forged deposit event"
+  ],
+  "root_cause": "deposit() used safeTransferFrom on address(0) (legacy ETH path) without sentinel guard, so attackers used WETH events to mint without backing.",
+  "references": [
+    "https://medium.com/@QubitFin/protocol-exploit-report-305c34540fa3"
+  ],
+  "source": "curated"
+}

@@ -1,0 +1,23 @@
+{
+  "exploit_id": "chainswap_20210711",
+  "bridge": "ChainSwap",
+  "date": "2021-07-11",
+  "loss_usd": 8000000,
+  "chains": [
+    "ethereum",
+    "bsc"
+  ],
+  "vulnerability_class": "signature_forgery",
+  "attack_stage": "off_chain",
+  "summary": "Bridge accepted unsigned 'receive' messages by treating empty signatures as zero address, letting attackers mint wrapped tokens at will.",
+  "attack_trace": [
+    "Submit receive() call with empty signature array",
+    "ecrecover returned address(0) — bypass signer authority",
+    "Mint wrapped tokens against ghost source events"
+  ],
+  "root_cause": "Signature length not enforced; ecrecover failure returned address(0) which was incorrectly trusted.",
+  "references": [
+    "https://chain-swap.medium.com/chainswap-exploit-11-july-2021-post-mortem-6e4e346e5a32"
+  ],
+  "source": "curated"
+}

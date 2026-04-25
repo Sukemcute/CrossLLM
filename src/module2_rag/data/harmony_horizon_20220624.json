@@ -1,0 +1,23 @@
+{
+  "exploit_id": "harmony_horizon_20220624",
+  "bridge": "Harmony Horizon",
+  "date": "2022-06-24",
+  "loss_usd": 100000000,
+  "chains": [
+    "ethereum",
+    "harmony"
+  ],
+  "vulnerability_class": "key_compromise",
+  "attack_stage": "off_chain",
+  "summary": "2 of 4 multi-sig private keys for the Horizon bridge were compromised, enabling unauthorized withdrawals across 11 transactions.",
+  "attack_trace": [
+    "Steal two of the four multi-sig keys (likely via compromised Horizon engineer)",
+    "Submit confirmTransaction calls to drain ERC-20 pool",
+    "Repeat for ETH, BUSD, BNB, FRAX, AAVE, SUSHI, USDT, USDC, DAI"
+  ],
+  "root_cause": "2/4 multi-sig threshold with hot keys offered insufficient security margin for a $100M+ pool.",
+  "references": [
+    "https://medium.com/harmony-one/harmonys-horizon-bridge-hack-1e8d283b6d66"
+  ],
+  "source": "curated"
+}

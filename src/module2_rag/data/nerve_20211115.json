@@ -1,0 +1,23 @@
+{
+  "exploit_id": "nerve_20211115",
+  "bridge": "Nerve Bridge",
+  "date": "2021-11-15",
+  "loss_usd": 1000000,
+  "chains": [
+    "bsc",
+    "huobi"
+  ],
+  "vulnerability_class": "oracle_manipulation",
+  "attack_stage": "source_chain",
+  "summary": "Imbalanced metapool oracle let flashloan attacker exit at favorable virtual price after a one-block balance swing.",
+  "attack_trace": [
+    "Flashloan large amount of stable asset",
+    "Distort metapool balance to alter virtual price reading",
+    "Withdraw at inflated price within same block"
+  ],
+  "root_cause": "Pool used spot virtual_price for liquidity events with no time-weighted average, exposing flashloan window.",
+  "references": [
+    "https://medium.com/nerve-finance/nerve-finance-nrv-bridge-incident-3df0d2c33f5"
+  ],
+  "source": "curated"
+}

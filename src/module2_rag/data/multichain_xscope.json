@@ -1,0 +1,14 @@
+{
+  "exploit_id": "multichain_xscope",
+  "bridge": "MultiChain",
+  "vulnerability_class": "signature_forgery",
+  "attack_stage": "destination_chain",
+  "summary": "XScope-catalog attack on MultiChain.",
+  "attack_trace": [
+    "See post-mortem: https://medium.com/zengo/without-permit-multichains-exploit-explained-8417e8c1639b"
+  ],
+  "references": [
+    "https://medium.com/zengo/without-permit-multichains-exploit-explained-8417e8c1639b"
+  ],
+  "source": "xscope_ase22"
+}

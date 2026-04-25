@@ -1,0 +1,24 @@
+{
+  "exploit_id": "polynetwork_20210810",
+  "bridge": "PolyNetwork",
+  "date": "2021-08-10",
+  "loss_usd": 611000000,
+  "chains": [
+    "ethereum",
+    "bsc",
+    "polygon"
+  ],
+  "vulnerability_class": "key_compromise",
+  "attack_stage": "off_chain",
+  "summary": "Attacker forged a cross-chain message updating the EthCrossChainData keeper to their own address, then signed arbitrary withdrawals against three chains.",
+  "attack_trace": [
+    "Submit crafted putCurEpochConPubKeyBytes call via verifyHeaderAndExecuteTx",
+    "Replace keeper pubkey with attacker-controlled key",
+    "Sign withdrawal messages, drain pools on Ethereum/BSC/Polygon"
+  ],
+  "root_cause": "EthCrossChainManager forwarded calls to EthCrossChainData using msg.sender = manager, allowing the keeper to be reassigned without validation.",
+  "references": [
+    "https://blocksecteam.medium.com/the-further-analysis-of-the-poly-network-attack-6c459199c057"
+  ],
+  "source": "curated"
+}

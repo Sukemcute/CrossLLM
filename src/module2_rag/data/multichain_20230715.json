@@ -1,0 +1,25 @@
+{
+  "exploit_id": "multichain_20230715",
+  "bridge": "Multichain",
+  "date": "2023-07-15",
+  "loss_usd": 126000000,
+  "chains": [
+    "ethereum",
+    "fantom",
+    "moonriver",
+    "bsc"
+  ],
+  "vulnerability_class": "key_compromise",
+  "attack_stage": "off_chain",
+  "summary": "After CEO arrest, custodial MPC keys were drained from at least 6 token vaults across the protocol, leading to silent withdrawals of WBTC, WETH, USDC, USDT.",
+  "attack_trace": [
+    "Withdraw signing material from compromised MPC node",
+    "Submit AnySwapOut signed messages to deplete vaults",
+    "Repeat across Fantom anyTokens until pools are dry"
+  ],
+  "root_cause": "Centralized custody of MPC key shares plus operational compromise of node operators.",
+  "references": [
+    "https://medium.com/multichainorg/multichain-protocol-statement-fbb2e636b5b7"
+  ],
+  "source": "curated"
+}

@@ -1,0 +1,14 @@
+{
+  "exploit_id": "thorchain_3_xscope",
+  "bridge": "THORChain # 3",
+  "vulnerability_class": "fake_deposit",
+  "attack_stage": "destination_chain",
+  "summary": "XScope-catalog attack on THORChain # 3.",
+  "attack_trace": [
+    "See post-mortem: https://thearchitect.notion.site/THORChain-Incident-07-22-874a06db7bf8466caf240e1823697e35"
+  ],
+  "references": [
+    "https://thearchitect.notion.site/THORChain-Incident-07-22-874a06db7bf8466caf240e1823697e35"
+  ],
+  "source": "xscope_ase22"
+}

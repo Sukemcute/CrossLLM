@@ -9,6 +9,7 @@ build/
 .venv/
 venv/
 env/
+.crossllm/
 
 # Rust
 target/
@@ -35,6 +36,10 @@ results/
 *.bin
 *.pt
 *.onnx
+
+# Sprint 2 caches
+.llm_cache/
+.embedding_cache/
 
 # Jupyter
 .ipynb_checkpoints/

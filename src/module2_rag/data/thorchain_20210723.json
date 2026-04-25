@@ -1,0 +1,23 @@
+{
+  "exploit_id": "thorchain_20210723",
+  "bridge": "THORChain",
+  "date": "2021-07-23",
+  "loss_usd": 8000000,
+  "chains": [
+    "ethereum",
+    "thorchain"
+  ],
+  "vulnerability_class": "logic_bug",
+  "attack_stage": "source_chain",
+  "summary": "Router accepted forged asset symbols in deposit memos, causing improperly-priced swaps that drained the asgard vault.",
+  "attack_trace": [
+    "Send native ETH with wrong asset symbol in memo",
+    "Pricing oracle interpreted spoofed symbol as expensive asset",
+    "Receive disproportionate output value"
+  ],
+  "root_cause": "Memo parsing did not cross-validate asset symbol with the actual transferred asset address.",
+  "references": [
+    "https://thearchitect.notion.site/THORChain-Incident-07-22-874a06db7bf8466caf240e1823697e35"
+  ],
+  "source": "curated"
+}

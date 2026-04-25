@@ -1,0 +1,12 @@
+{
+  "exploit_id": "meterpassport_20220206",
+  "bridge": "Meter Passport",
+  "date": "2022-02-06",
+  "vulnerability_class": "logic_bug",
+  "attack_stage": "source_chain",
+  "summary": "SmartAxe FSE'24 manually-labeled cross-chain bridge attack on Meter Passport.",
+  "attack_trace": [
+    "Hex artifact bundle: references/FSE24-SmartAxe/manually-labeled dataset/Real_attack_dataset_format/MeterPassPort20220206/"
+  ],
+  "source": "smartaxe_fse24"
+}

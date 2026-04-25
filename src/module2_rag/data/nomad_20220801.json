@@ -1,0 +1,23 @@
+{
+  "exploit_id": "nomad_20220801",
+  "bridge": "Nomad",
+  "date": "2022-08-01",
+  "loss_usd": 190000000,
+  "chains": [
+    "ethereum",
+    "moonbeam"
+  ],
+  "vulnerability_class": "fake_deposit",
+  "attack_stage": "destination_chain",
+  "summary": "After an upgrade, Replica.initialize set acceptableRoot[0x00] = 1, allowing any unproven message to pass verification. Hundreds of copycats replayed the calldata with their own recipient.",
+  "attack_trace": [
+    "Discover that messages with default merkle root pass acceptableRoot()",
+    "Submit process(messageBytes) bypassing prove() entirely",
+    "Replace recipient field, drain bridge token reserves"
+  ],
+  "root_cause": "Replica.initialize accidentally pre-approved the empty merkle root after the upgrade, enabling acceptableRoot(0x00) == true.",
+  "references": [
+    "https://medium.com/nomad-xyz-blog/nomad-bridge-hack-root-cause-analysis-875ad2e5aacd"
+  ],
+  "source": "curated"
+}

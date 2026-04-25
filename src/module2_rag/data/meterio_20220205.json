@@ -1,0 +1,23 @@
+{
+  "exploit_id": "meterio_20220205",
+  "bridge": "meter.io",
+  "date": "2022-02-05",
+  "loss_usd": 4400000,
+  "chains": [
+    "ethereum",
+    "bsc"
+  ],
+  "vulnerability_class": "logic_bug",
+  "attack_stage": "source_chain",
+  "summary": "ChainBridge ERC20Handler treated WETH deposits as native ETH, letting attacker mint mapped tokens by sending zero-value calls with arbitrary amount params.",
+  "attack_trace": [
+    "Call deposit on ERC20Handler with zero msg.value, large amount param",
+    "Handler emits Deposit event without actual transfer",
+    "Bridge mints corresponding token on destination"
+  ],
+  "root_cause": "ERC20Handler conflated msg.value (native) and amount (ERC-20) when checking deposit validity.",
+  "references": [
+    "https://halborn.com/explained-the-meter-io-hack-february-2022/"
+  ],
+  "source": "curated"
+}

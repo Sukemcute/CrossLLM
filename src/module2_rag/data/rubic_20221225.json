@@ -1,0 +1,22 @@
+{
+  "exploit_id": "rubic_20221225",
+  "bridge": "Rubic",
+  "date": "2022-12-25",
+  "loss_usd": 1400000,
+  "chains": [
+    "ethereum"
+  ],
+  "vulnerability_class": "logic_bug",
+  "attack_stage": "source_chain",
+  "summary": "Cross-chain router permitted arbitrary external calls without target whitelist, draining tokens from users with infinite approvals.",
+  "attack_trace": [
+    "Call swap with attacker contract as target",
+    "Router invokes attacker.fallback with msg.sender = router",
+    "Attacker uses transferFrom to drain victim approvals"
+  ],
+  "root_cause": "Identical to Li.Finance: external call routing without target validation.",
+  "references": [
+    "https://medium.com/rubic-exchange/dec-2022-rubic-incident-report-94ff5c5b76e3"
+  ],
+  "source": "curated"
+}
