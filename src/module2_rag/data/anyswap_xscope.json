@@ -1,0 +1,14 @@
+{
+  "exploit_id": "anyswap_xscope",
+  "bridge": "Anyswap",
+  "vulnerability_class": "fake_deposit",
+  "attack_stage": "destination_chain",
+  "summary": "XScope-catalog attack on Anyswap.",
+  "attack_trace": [
+    "See post-mortem: https://medium.com/multichainorg/anyswap-multichain-router-v3-exploit-statement-6833f1b7e6fb"
+  ],
+  "references": [
+    "https://medium.com/multichainorg/anyswap-multichain-router-v3-exploit-statement-6833f1b7e6fb"
+  ],
+  "source": "xscope_ase22"
+}

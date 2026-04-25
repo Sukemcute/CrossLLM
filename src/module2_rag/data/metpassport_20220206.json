@@ -1,0 +1,23 @@
+{
+  "exploit_id": "metpassport_20220206",
+  "bridge": "MeterPassPort",
+  "date": "2022-02-06",
+  "loss_usd": 4400000,
+  "chains": [
+    "ethereum",
+    "bsc"
+  ],
+  "vulnerability_class": "logic_bug",
+  "attack_stage": "source_chain",
+  "summary": "ChainBridge MeterPassport's WETH deposit handler trusted user-supplied amount, ignoring whether ETH was actually transferred.",
+  "attack_trace": [
+    "Call deposit specifying any amount with zero msg.value",
+    "Handler emits Deposit event with chosen amount",
+    "Mint corresponding mapped token on destination chain"
+  ],
+  "root_cause": "depositETH did not require msg.value == amount.",
+  "references": [
+    "https://halborn.com/explained-the-meter-io-hack-february-2022/"
+  ],
+  "source": "curated"
+}

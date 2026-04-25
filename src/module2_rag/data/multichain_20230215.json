@@ -1,0 +1,12 @@
+{
+  "exploit_id": "multichain_20230215",
+  "bridge": "Multichain",
+  "date": "2023-02-15",
+  "vulnerability_class": "key_compromise",
+  "attack_stage": "off_chain",
+  "summary": "SmartAxe FSE'24 manually-labeled cross-chain bridge attack on Multichain.",
+  "attack_trace": [
+    "Hex artifact bundle: references/FSE24-SmartAxe/manually-labeled dataset/Real_attack_dataset_format/Multichain20230215/"
+  ],
+  "source": "smartaxe_fse24"
+}

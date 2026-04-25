@@ -1,0 +1,23 @@
+{
+  "exploit_id": "orbit_20240101",
+  "bridge": "Orbit Bridge",
+  "date": "2024-01-01",
+  "loss_usd": 82000000,
+  "chains": [
+    "ethereum",
+    "klaytn"
+  ],
+  "vulnerability_class": "key_compromise",
+  "attack_stage": "off_chain",
+  "summary": "Seven of ten bridge multi-sig keys signed unauthorized withdrawals, draining the bridge across USDT, USDC, ETH, WBTC, DAI, and ORC tokens.",
+  "attack_trace": [
+    "Compromise majority of signers (likely operational compromise)",
+    "Submit confirmTransaction calls draining six asset pools",
+    "Repeat across pools until $82M moved"
+  ],
+  "root_cause": "Multi-sig threshold matched the size of compromised signer set; no off-chain anomaly detection.",
+  "references": [
+    "https://medium.com/orbit-chain/orbit-bridge-incident-7c00f8bce04c"
+  ],
+  "source": "curated"
+}

@@ -1,0 +1,23 @@
+{
+  "exploit_id": "pnetwork_20210919",
+  "bridge": "pNetwork",
+  "date": "2021-09-19",
+  "loss_usd": 12000000,
+  "chains": [
+    "bitcoin",
+    "bsc"
+  ],
+  "vulnerability_class": "logic_bug",
+  "attack_stage": "off_chain",
+  "summary": "Bug in pBTC-on-BSC node software accepted older Bitcoin transaction proofs without enforcing finality, enabling replay of stale deposit broadcasts.",
+  "attack_trace": [
+    "Replay an older valid Bitcoin pegout broadcast",
+    "Bridge nodes process the pegout as new",
+    "Mint pBTC against transaction already redeemed"
+  ],
+  "root_cause": "pNetwork node missed the input UTXO check for the pegout transaction, conflating new and replayed deposits.",
+  "references": [
+    "https://medium.com/pnetwork/pnetwork-post-mortem-pbtc-on-bsc-exploit-170890c58d5f"
+  ],
+  "source": "curated"
+}

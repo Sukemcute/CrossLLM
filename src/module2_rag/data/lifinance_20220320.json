@@ -1,0 +1,22 @@
+{
+  "exploit_id": "lifinance_20220320",
+  "bridge": "Li.Finance",
+  "date": "2022-03-20",
+  "loss_usd": 600000,
+  "chains": [
+    "ethereum"
+  ],
+  "vulnerability_class": "logic_bug",
+  "attack_stage": "source_chain",
+  "summary": "Aggregator's swap function passed user-controlled call data to arbitrary tokens, allowing attacker to invoke transferFrom against any approved user of LIFI router.",
+  "attack_trace": [
+    "Submit swap call with crafted target = victim token, data = transferFrom(victim, attacker, amount)",
+    "Router executes transferFrom on victim's behalf",
+    "Drain users who had unlimited approvals"
+  ],
+  "root_cause": "swapAndStartBridge accepted arbitrary low-level calls without validating that the target was a whitelisted DEX or token.",
+  "references": [
+    "https://blog.li.finance/20-3-22-the-exploit-what-you-need-to-know-3a5ad9f99a6b"
+  ],
+  "source": "curated"
+}

@@ -1,0 +1,14 @@
+{
+  "exploit_id": "qubit_bridge_xscope",
+  "bridge": "Qubit Bridge",
+  "vulnerability_class": "fake_deposit",
+  "attack_stage": "destination_chain",
+  "summary": "XScope-catalog attack on Qubit Bridge.",
+  "attack_trace": [
+    "See post-mortem: https://medium.com/@QubitFin/protocol-exploit-report-305c34540fa3"
+  ],
+  "references": [
+    "https://medium.com/@QubitFin/protocol-exploit-report-305c34540fa3"
+  ],
+  "source": "xscope_ase22"
+}

@@ -1,0 +1,14 @@
+{
+  "exploit_id": "ronin_xscope",
+  "bridge": "Ronin",
+  "vulnerability_class": "key_compromise",
+  "attack_stage": "off_chain",
+  "summary": "XScope-catalog attack on Ronin.",
+  "attack_trace": [
+    "See post-mortem: https://roninblockchain.substack.com/p/community-alert-ronin-validators?s=w"
+  ],
+  "references": [
+    "https://roninblockchain.substack.com/p/community-alert-ronin-validators?s=w"
+  ],
+  "source": "xscope_ase22"
+}

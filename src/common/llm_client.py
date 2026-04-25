@@ -151,7 +151,6 @@ def with_retry(max_retries: int = 3, base_delay: float = 2.0) -> Callable:
     return decorator
 
 
-@with_retry(max_retries=3)
 def chat_completion_json(
     provider: LLMProvider,
     system: str,
@@ -159,11 +158,45 @@ def chat_completion_json(
     *,
     temperature: float = 0.0,
     max_tokens: int | None = None,
+    use_cache: bool = True,
 ) -> str:
-    """Helper: JSON-mode chat completion with retry.
+    """JSON-mode chat completion with retry **and file-based caching**.
+
+    The cache key is ``(provider.model, system, user, extra)`` where ``extra``
+    encodes ``temperature`` and ``max_tokens`` so different sampling configs
+    do not share entries. Set ``use_cache=False`` to bypass.
 
     Returns the raw string content; caller is responsible for ``json.loads``.
     """
+    from src.common.llm_cache import get_cache  # local import to avoid cycle
+
+    cache = get_cache() if use_cache else None
+    extra = f"temperature={temperature}|max_tokens={max_tokens}"
+
+    if cache is not None:
+        cached = cache.get(provider.model, system, user, extra=extra)
+        if cached is not None:
+            return cached
+
+    content = _chat_completion_json_uncached(
+        provider, system, user, temperature=temperature, max_tokens=max_tokens
+    )
+
+    if cache is not None and content:
+        cache.put(provider.model, system, user, content, extra=extra)
+    return content
+
+
+@with_retry(max_retries=3)
+def _chat_completion_json_uncached(
+    provider: LLMProvider,
+    system: str,
+    user: str,
+    *,
+    temperature: float = 0.0,
+    max_tokens: int | None = None,
+) -> str:
+    """Internal: actual API call with retry. Use :func:`chat_completion_json`."""
     kwargs: dict[str, Any] = {
         "model": provider.model,
         "temperature": temperature,

@@ -1,0 +1,14 @@
+{
+  "exploit_id": "pnetwork_xscope",
+  "bridge": "pNetwork",
+  "vulnerability_class": "fake_deposit",
+  "attack_stage": "destination_chain",
+  "summary": "XScope-catalog attack on pNetwork.",
+  "attack_trace": [
+    "See post-mortem: https://medium.com/pnetwork/pnetwork-post-mortem-pbtc-on-bsc-exploit-170890c58d5f"
+  ],
+  "references": [
+    "https://medium.com/pnetwork/pnetwork-post-mortem-pbtc-on-bsc-exploit-170890c58d5f"
+  ],
+  "source": "xscope_ase22"
+}

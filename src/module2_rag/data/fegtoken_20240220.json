@@ -1,0 +1,23 @@
+{
+  "exploit_id": "fegtoken_20240220",
+  "bridge": "FEGtoken",
+  "date": "2024-02-20",
+  "loss_usd": 900000,
+  "chains": [
+    "ethereum",
+    "bsc"
+  ],
+  "vulnerability_class": "key_compromise",
+  "attack_stage": "off_chain",
+  "summary": "Bridge admin EOA was leaked via misconfigured backup, attacker drained pool with single signature.",
+  "attack_trace": [
+    "Recover admin private key from leaked backup",
+    "Submit pause + drainPool transactions",
+    "Sweep ERC-20 vaults across both chains"
+  ],
+  "root_cause": "Single-signer admin EOA with sweep privileges, no time-lock or multisig.",
+  "references": [
+    "https://twitter.com/fegtoken/status/1760145290837270753"
+  ],
+  "source": "curated"
+}

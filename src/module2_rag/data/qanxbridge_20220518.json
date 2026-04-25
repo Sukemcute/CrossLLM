@@ -1,0 +1,23 @@
+{
+  "exploit_id": "qanxbridge_20220518",
+  "bridge": "QANX Bridge",
+  "date": "2022-05-18",
+  "loss_usd": 1900000,
+  "chains": [
+    "ethereum",
+    "bsc"
+  ],
+  "vulnerability_class": "key_compromise",
+  "attack_stage": "off_chain",
+  "summary": "Sole bridge admin private key compromised, attacker called withdraw on bridge depositing wallet to drain pooled QANX tokens.",
+  "attack_trace": [
+    "Compromise admin EOA via phishing",
+    "Call withdraw(uint256) directly on the deployer-owned multisig wallet",
+    "Sweep all QANX held by bridge"
+  ],
+  "root_cause": "QANX bridge wallet used a single EOA signer.",
+  "references": [
+    "https://medium.com/quantum-resistant-ledger/qanx-bridge-attack-incident-report-1923ed170dac"
+  ],
+  "source": "curated"
+}

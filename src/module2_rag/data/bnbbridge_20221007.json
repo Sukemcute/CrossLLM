@@ -1,0 +1,23 @@
+{
+  "exploit_id": "bnbbridge_20221007",
+  "bridge": "BNB Token Hub",
+  "date": "2022-10-07",
+  "loss_usd": 586000000,
+  "chains": [
+    "bsc",
+    "binance_chain"
+  ],
+  "vulnerability_class": "fake_deposit",
+  "attack_stage": "destination_chain",
+  "summary": "Forged IAVL proof passed verifyMerkleProof on Token Hub bridge, letting attacker mint 2M BNB on BSC. Most funds frozen by validators before exit.",
+  "attack_trace": [
+    "Submit handleDelegate proof using crafted IAVL leaf",
+    "Bridge accepts forged proof against historical block",
+    "Cross-mint 2M BNB on BSC, attempt to exit cross-chain"
+  ],
+  "root_cause": "verifyMerkleProof incorrectly trusted attacker-controlled proof path due to legacy IAVL implementation bug.",
+  "references": [
+    "https://blocksecteam.medium.com/the-analysis-of-the-bnb-bridge-attack-1c99e8a0adfe"
+  ],
+  "source": "curated"
+}

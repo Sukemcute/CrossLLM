@@ -1,0 +1,24 @@
+{
+  "exploit_id": "multichain_20220118",
+  "bridge": "Multichain",
+  "date": "2022-01-18",
+  "loss_usd": 3000000,
+  "chains": [
+    "ethereum",
+    "bsc",
+    "polygon"
+  ],
+  "vulnerability_class": "signature_forgery",
+  "attack_stage": "destination_chain",
+  "summary": "anySwapOutUnderlyingWithPermit accepted EIP-2612 permit signatures without validating that the signed token was the call target, letting attackers redeem tokens with valid permits for unrelated contracts.",
+  "attack_trace": [
+    "Acquire valid EIP-2612 permit for low-value token",
+    "Reuse permit signature against unrelated token via anySwapOut",
+    "Drain user balances that previously approved the bridge"
+  ],
+  "root_cause": "permit() in the bridge router did not bind the signed permit to the actual swap target token.",
+  "references": [
+    "https://medium.com/zengo/without-permit-multichains-exploit-explained-8417e8c1639b"
+  ],
+  "source": "curated"
+}

@@ -1,0 +1,22 @@
+{
+  "exploit_id": "socket_20240116",
+  "bridge": "Socket Gateway",
+  "date": "2024-01-16",
+  "loss_usd": 3300000,
+  "chains": [
+    "ethereum"
+  ],
+  "vulnerability_class": "logic_bug",
+  "attack_stage": "source_chain",
+  "summary": "performAction routed user funds through a deprecated route ID with no validator, letting attacker invoke arbitrary external calls via approvedERC20.",
+  "attack_trace": [
+    "Identify deprecated route accepting arbitrary call data",
+    "Submit performAction with malicious target",
+    "Call transferFrom on victims with unlimited approvals"
+  ],
+  "root_cause": "Route registry retained inactive routes that bypassed integration validators.",
+  "references": [
+    "https://medium.com/bungee-exchange/socket-bridge-jan-16-2024-incident-3edf18a5e8ba"
+  ],
+  "source": "curated"
+}

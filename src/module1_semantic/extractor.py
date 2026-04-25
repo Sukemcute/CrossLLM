@@ -4,6 +4,19 @@ and extract entities, functions, asset flows, and guards.
 
 Input:  Solidity source files + optional Relayer code
 Output: Structured JSON with entities, functions, asset_flows, guards
+
+Pipeline (per file)
+-------------------
+1. **Slither IR** (primary, when ``slither-analyzer`` is installed and the
+   contract compiles): structured AST-level extraction handling inheritance,
+   modifiers, multi-line declarations, etc.
+2. **Regex baseline** (fallback): cheap pattern matching that runs offline
+   and handles non-standard sources Slither cannot compile.
+3. **LLM enrichment** (optional, when ``OPENAI_API_KEY`` / ``NVIDIA_API_KEY``
+   is set): replaces or augments the structured fields with semantic insight.
+
+Each step is a no-op when its prerequisites are missing, so the extractor
+always returns a well-formed dict.
 """
 
 from __future__ import annotations
@@ -16,6 +29,7 @@ from typing import Any
 from src.common.llm_client import chat_completion_json, get_llm_client
 
 from .prompts import load as load_prompt
+from .slither_parser import parse_with_slither
 
 
 FUNCTION_RE = re.compile(r"function\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)", re.DOTALL)
@@ -33,14 +47,60 @@ class SemanticExtractor:
         self.temperature = temperature
 
     def extract(self, source_code: str, contract_name: str) -> dict:
-        """Analyze source code and return structured semantic information."""
-        source_code = source_code or ""
-        entities = self._extract_entities(source_code, contract_name)
-        functions = self._extract_functions(source_code)
-        guards = self._extract_guards(source_code)
-        asset_flows = self._infer_asset_flows(functions)
+        """Analyze a Solidity source string and return structured semantics.
 
-        # Keep offline-first behavior for reproducibility; enrich with LLM if available.
+        ``extract_from_file`` should be preferred when a real file path is
+        available, because Slither requires a file on disk.
+        """
+        return self._extract_internal(
+            source_code=source_code or "",
+            contract_name=contract_name,
+            file_path=None,
+        )
+
+    def extract_from_file(self, file_path: str) -> dict:
+        """Load a Solidity source file and extract semantics.
+
+        Slither needs the file path to resolve ``import`` statements, so we
+        prefer the file-aware path whenever possible.
+        """
+        path = Path(file_path)
+        code = path.read_text(encoding="utf-8")
+        return self._extract_internal(
+            source_code=code,
+            contract_name=path.stem,
+            file_path=str(path),
+        )
+
+    # -------------------------------------------------------------- internal
+
+    def _extract_internal(
+        self,
+        source_code: str,
+        contract_name: str,
+        file_path: str | None,
+    ) -> dict:
+        # Stage 1: Slither IR (primary structured parser).
+        slither_payload: dict[str, Any] | None = None
+        parser_used = "regex"
+        if file_path:
+            slither_payload = parse_with_slither(file_path)
+            if slither_payload is not None:
+                parser_used = "slither"
+
+        if slither_payload is not None:
+            entities = slither_payload.get("entities", [])
+            functions = slither_payload.get("functions", [])
+            asset_flows = slither_payload.get("asset_flows", [])
+            guards = slither_payload.get("guards", [])
+        else:
+            # Stage 2: regex baseline.
+            entities = self._extract_entities(source_code, contract_name)
+            functions = self._extract_functions(source_code)
+            guards = self._extract_guards(source_code)
+            asset_flows = self._infer_asset_flows(functions)
+
+        # Stage 3: LLM enrichment (optional, replaces fields when keys present).
         llm_payload = self._try_llm_extract(source_code, contract_name)
         if isinstance(llm_payload, dict):
             entities = llm_payload.get("entities", entities)
@@ -57,16 +117,10 @@ class SemanticExtractor:
             "metadata": {
                 "model": self.model,
                 "temperature": self.temperature,
+                "parser": parser_used,
                 "llm_used": bool(llm_payload),
             },
         }
-
-    def extract_from_file(self, file_path: str) -> dict:
-        """Load source file and extract semantics."""
-        path = Path(file_path)
-        code = path.read_text(encoding="utf-8")
-        contract_name = path.stem
-        return self.extract(code, contract_name)
 
     def _extract_entities(self, source_code: str, contract_name: str) -> list[dict[str, Any]]:
         entities: list[dict[str, Any]] = [

@@ -1,0 +1,23 @@
+{
+  "exploit_id": "thorchain_20210628",
+  "bridge": "THORChain",
+  "date": "2021-06-28",
+  "loss_usd": 140000,
+  "chains": [
+    "bsc",
+    "thorchain"
+  ],
+  "vulnerability_class": "logic_bug",
+  "attack_stage": "source_chain",
+  "summary": "Old BEP20 router was missing a sanity check on swap memo, refunds executed before the deposit, letting attacker drain refund pool.",
+  "attack_trace": [
+    "Send deposit with malformed memo",
+    "Router triggers refund path before pricing oracle responds",
+    "Receive refund larger than deposit"
+  ],
+  "root_cause": "BEP20 router's refund path triggered before swap-pricing returned canonical amount.",
+  "references": [
+    "https://medium.com/thorchain/thorchain-incident-29-jun-21-eth-bep20-bug-7a4cd66f31fb"
+  ],
+  "source": "curated"
+}

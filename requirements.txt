@@ -8,6 +8,10 @@ chromadb>=0.4.0
 # Blockchain
 web3>=6.0.0
 py-solc-x>=2.0.0
+slither-analyzer>=0.10.0  # optional: structured Solidity IR parsing in Module 1
+
+# Schema validation
+jsonschema>=4.0.0
 
 # Data & Visualization
 networkx>=3.0
