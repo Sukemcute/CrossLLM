@@ -312,6 +312,39 @@ Public BSC RPC không có archive. `verify_benchmark.py` đã auto-fallback sang
 
 ---
 
+## Shared benchmark utilities (`benchmarks/_shared/`)
+
+Một số benchmark (Ronin, Harmony, Orbit, Multichain trong
+`PLAN_POPULATE_OFFCHAIN.md`) chia sẻ cùng K-of-N multi-sig pattern.
+Phần code dùng chung sống ở `benchmarks/_shared/`:
+
+| File | Purpose |
+|------|---------|
+| `benchmarks/_shared/MockMultisig.sol` | K-of-N ECDSA threshold harness (constructor: `address[] signers_, uint256 threshold_`) |
+| `benchmarks/_shared/README.md` | Note dùng chung — không có `metadata.json` nên `verify_benchmark.py` không chạy ở đây |
+
+**Cách import từ benchmark:**
+
+```solidity
+// benchmarks/<bridge>/contracts/SomeBridge.sol
+import "../../_shared/MockMultisig.sol";
+
+contract RoninBridgeManager is MockMultisig {
+    constructor(address[] memory signers_) MockMultisig(signers_, 5) {}
+}
+```
+
+**Lưu ý cho rsync sang WSL:** thư mục `_shared/` là sibling của các
+benchmark folder, nên lệnh rsync `benchmarks/` ở Pre-requisites đã đồng
+bộ luôn. Không cần lệnh riêng.
+
+**Lưu ý cho `verify_benchmark.py`:** không pass `benchmarks/_shared/`
+làm argument — script sẽ báo `missing metadata.json` (đúng, vì đây là
+helper chứ không phải benchmark). Convention: thư mục con của
+`benchmarks/` bắt đầu bằng `_` là private/library.
+
+---
+
 ## Reference: Qubit smoke test đã chạy thành công
 
 | Tier | Command | Output |
