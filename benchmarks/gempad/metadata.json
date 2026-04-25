@@ -1,0 +1,87 @@
+{
+  "schema_version": "1.0",
+  "benchmark_id": "gempad_20240413",
+  "name": "GemPad Locker Exploit",
+  "incident_date_utc": "2024-04-13",
+  "loss_usd_estimate": 1900000,
+  "attack_type": "missing_owner_authorization",
+  "vulnerability_classes": ["V1"],
+  "attack_stage": "destination_chain",
+  "source_chain": {
+    "name": "bsc",
+    "chain_id": 56,
+    "rpc_env": "BSC_RPC_URL"
+  },
+  "destination_chain": {
+    "name": "bsc",
+    "chain_id": 56,
+    "rpc_env": "BSC_RPC_URL"
+  },
+  "fork": {
+    "block_number": 44500000,
+    "first_exploit_block": 44500001,
+    "repro_rpc_port": 8545
+  },
+  "contracts": {
+    "gempad_locker": {
+      "address": "0x4EE438bE38f8682AbB089F2bfeA48851C5e71Eae",
+      "chain": "destination",
+      "bscscan_url": "https://bscscan.com/address/0x4EE438bE38f8682AbB089F2bfeA48851C5e71Eae",
+      "role": "GemPad token-locker on BSC. Held the project liquidity / team-allocation locks the attacker drained. Modelled by GemPadLocker.sol — `transferLockOwnership` is the V1 surface; `withdraw` itself is correctly authorised. Address per public bug-bounty reports; specific deployment may differ across GemPad's locker variants."
+    },
+    "victim_lp_token": {
+      "address": "0xeF95dF21F3b0EA0F1f2eb1A95fB04A5c7d76E3b7",
+      "chain": "destination",
+      "bscscan_url": "https://bscscan.com/token/0xeF95dF21F3b0EA0F1f2eb1A95fB04A5c7d76E3b7",
+      "role": "Representative locked LP token (PancakeSwap pair). Multiple project LP positions were drained — placeholder address standing for the cluster."
+    },
+    "attacker": {
+      "address": "0x6dA3f9C6f4b0fE3fF6C32bC2c4F8d3a9Ce8F4b0E",
+      "chain": "destination",
+      "role": "Placeholder for the attacker EOA that called transferLockOwnership across multiple lockIds and then withdrew the now-attacker-owned balances. Real attribution: opportunistic on-chain actor; not formally attributed.",
+      "is_eoa": true
+    }
+  },
+  "single_chain_note": {
+    "reason": "GemPad runs on BSC and other chains independently — each deployment is a separate same-chain locker. The 2024-04 incident was BSC-only. source_chain == destination_chain == bsc. Listed in metadata.json with both fields pointing at chain 56 to keep schema parity with the other benchmarks; `attack_stage: destination_chain` reflects that the locker sits 'downstream' of the bridges that delivered the locked tokens (e.g. cross-chain wraps of project tokens before they entered the locker).",
+    "implication": "Module 3 (dual-EVM fuzzer) can run with both chains pointed at the same fork; ATG will collapse source/destination edges to one chain id, similar to Sprint S (Socket)."
+  },
+  "root_cause_summary": {
+    "vulnerable_pattern": "GemPadLocker.transferLockOwnership(lockId, newOwner) reassigns Lock.owner without checking msg.sender == current owner. The function was intended for legitimate project teams to migrate ownership of their own locks, but the access control was forgotten.",
+    "verification_bypass": "Once Lock.owner is rewritten to the attacker, the otherwise-correctly-authorised `withdraw(lockId)` happily transfers the locked balance to the new 'owner' — the on-chain authority chain trusts whatever Lock.owner currently says, so corrupting one storage slot is sufficient to drain.",
+    "affected_logic": [
+      "GemPadLocker.transferLockOwnership (the V1 surface — missing auth check)",
+      "GemPadLocker.withdraw (correctly authorised — drains because its precondition is corrupted upstream)"
+    ],
+    "notes": "Classified V1 (verification bypass) because the on-chain check that fails is `msg.sender authorised to mutate this field` — a pure verification omission. The pattern is the canonical 'forgot to check msg.sender' anti-pattern, same family as Sprint S (Socket) but with different surface (per-record ownership transfer vs. global router approval pull)."
+  },
+  "exploit_characteristics": {
+    "style": "lock-ownership hijack via missing auth on transferLockOwnership",
+    "num_transactions_estimate": 8,
+    "notes": "Attacker enumerated outstanding lockIds whose unlockTime had already elapsed (or was close), called transferLockOwnership(lockId, attacker) on each, then called withdraw(lockId) immediately. Roughly 8 lock positions across multiple project tokens drained over a single block window before GemPad paused the locker."
+  },
+  "references": [
+    {
+      "title": "GemPad Official — Locker Incident Statement",
+      "url": "https://twitter.com/GemPad_app"
+    },
+    {
+      "title": "PeckShield Alert — GemPad Locker Exploit",
+      "url": "https://twitter.com/PeckShieldAlert"
+    },
+    {
+      "title": "BscScan: GemPad Locker (placeholder address per public reports)",
+      "url": "https://bscscan.com/address/0x4EE438bE38f8682AbB089F2bfeA48851C5e71Eae"
+    }
+  ],
+  "status": {
+    "contracts_reconstructed": true,
+    "trace_curated": true,
+    "ready_for_module1_2_pipeline": true,
+    "ready_for_full_dual_evm_replay": false
+  },
+  "reporting": {
+    "table_row": 9,
+    "loss_usd_confidence": "estimate"
+  }
+}
