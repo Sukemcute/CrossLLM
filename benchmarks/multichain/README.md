@@ -7,7 +7,7 @@ and [Harmony Horizon (Sprint H)](../harmony/README.md), but the
 compromise vector here is **TSS / MPC ceremony collapse**, not a direct
 hot-wallet key leak.
 
-## ⚠️ MPC simulation gap
+## MPC simulation gap
 
 > **This is the most important section of this README. Read before
 > looking at the contracts.**
