@@ -1,0 +1,158 @@
+{
+  "benchmark_id": "multichain_20230706",
+  "summary": "Cross-chain mapping for the Multichain bridge benchmark. Ethereum was the largest source-chain custody holder (anyCallV6 router + older Multichain Router). Funds were drained to attacker addresses on Fantom (largest destination ~$122M), Avalanche, and Polygon. The mapping treats Fantom as the primary destination_chain; secondary AVAX/Polygon legs are listed under `secondary_chains` in metadata.json.",
+  "bridge_name": "multichain",
+  "source_chain": {
+    "name": "ethereum",
+    "chain_id": 1,
+    "contracts": {
+      "anycall_v6_router": "0x6b7a87899490ece95443e979ca9485cbe7e71522",
+      "multichain_router": "0xC564EE9f21Ed8A2d8E7e76c085740d5e4c5FaFbE"
+    }
+  },
+  "destination_chain": {
+    "name": "fantom",
+    "chain_id": 250,
+    "contracts": {
+      "anycall_v6_router_fantom": "0xC564EE9f21Ed8A2d8E7e76c085740d5e4c5FaFbE",
+      "note": "Fantom-side router (same address bytecode as Ethereum side, deployed at the same address on Fantom). Received the largest single drain destination — ~$122M of the total $126M loss landed in Fantom attacker accounts."
+    }
+  },
+  "entity_map": [
+    {
+      "logical_id": "mpc_ceremony",
+      "chain": "offchain",
+      "address": "",
+      "type": "mpc_ceremony",
+      "role": "Threshold Signature Scheme / Multi-Party Computation ceremony among federated nodes. Produced ONE aggregate ECDSA signature per cross-chain action. Modelled on-chain by a single signer (N=1, K=1) per the MPC simulation gap (see metadata.mpc_simulation).",
+      "design_size": "federated (>=2 independent principals)",
+      "de_facto_administrators_pre_incident": 1,
+      "compromised_at_incident": 1
+    },
+    {
+      "logical_id": "source_anycall_router",
+      "chain": "source",
+      "address": "0x6b7a87899490ece95443e979ca9485cbe7e71522",
+      "type": "contract",
+      "role": "anyCallV6 router on Ethereum — verified the post-MPC aggregate signature and dispatched unlock to the correct destination chain id."
+    },
+    {
+      "logical_id": "source_multichain_router",
+      "chain": "source",
+      "address": "0xC564EE9f21Ed8A2d8E7e76c085740d5e4c5FaFbE",
+      "type": "contract",
+      "role": "Older Multichain Router on Ethereum, still active at the time of the incident — held additional locked balances drained alongside anyCallV6."
+    },
+    {
+      "logical_id": "destination_router_fantom",
+      "chain": "destination",
+      "address": "0xC564EE9f21Ed8A2d8E7e76c085740d5e4c5FaFbE",
+      "type": "contract",
+      "role": "Fantom-side router — primary destination of the drain; held wrapped representations (multiUSDC, multiETH, etc.) of the source-chain custody."
+    },
+    {
+      "logical_id": "mpc_aggregate_signer",
+      "chain": "source",
+      "address": "0x9d57b4eb6388d3f1ca7d9a4c4ef79e2bf01dd13c",
+      "type": "user",
+      "role": "On-chain witness for the post-MPC aggregate signature. EOA-shaped key per the simulation gap; the corresponding TSS administration is the off-chain artifact that broke."
+    },
+    {
+      "logical_id": "attacker",
+      "chain": "destination",
+      "address": "0x0d043128146654C7683Fbf30ac98D7B2285DeD00",
+      "type": "user",
+      "role": "Attacker EOA cluster on Fantom (and AVAX/Polygon) that received the 6 large drain transactions. Attribution officially unconfirmed."
+    }
+  ],
+  "asset_map": [
+    {
+      "symbol": "USDC",
+      "source_token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "destination_token": "0x04068DA6C83AFCFA0e13ba15A6696662335D5B75",
+      "decimals": 6,
+      "destination_decimals": 6,
+      "amount_drained": "~53000000 * 10**6",
+      "notes": "Largest single asset drained — ~$53M. Destination token is multiUSDC on Fantom."
+    },
+    {
+      "symbol": "WETH",
+      "source_token": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      "destination_token": "0x74b23882a30290451A17c44f4F05243b6b58C76d",
+      "decimals": 18,
+      "destination_decimals": 18,
+      "amount_drained": "~10800 * 10**18",
+      "notes": "Second-largest asset — ~$21M. Destination token is multiETH on Fantom."
+    },
+    {
+      "symbol": "DAI",
+      "source_token": "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+      "destination_token": "0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E",
+      "decimals": 18,
+      "destination_decimals": 18,
+      "amount_drained": "~16000000 * 10**18",
+      "notes": "~$16M drained."
+    },
+    {
+      "symbol": "WBTC",
+      "source_token": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+      "destination_token": "0x321162Cd933E2Be498Cd2267a90534A804051b11",
+      "decimals": 8,
+      "destination_decimals": 8,
+      "amount_drained": "~270 * 10**8",
+      "notes": "~$8M drained. Destination is wrapped BTC representation on Fantom."
+    },
+    {
+      "symbol": "USDT",
+      "source_token": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+      "destination_token": "0x049d68029688eAbF473097a2fC38ef61633A3C7A",
+      "decimals": 6,
+      "destination_decimals": 6,
+      "amount_drained": "~6000000 * 10**6",
+      "notes": "~$6M drained — fUSDT on Fantom."
+    }
+  ],
+  "router_mapping": [
+    {
+      "ethereum": {
+        "contract": "0x6b7a87899490ece95443e979ca9485cbe7e71522",
+        "function_signature": "execute(address,uint256,bytes,uint256,bytes[])",
+        "self_call_target": "unlock(address,address,uint256,uint16)",
+        "verifier_call": "MockMultisig._recover (1-of-1 post-MPC aggregate ECDSA threshold)"
+      },
+      "fantom": {
+        "contract": "0xC564EE9f21Ed8A2d8E7e76c085740d5e4c5FaFbE",
+        "function_signature": "anyExecute / mint counterpart on Fantom",
+        "note": "Fantom-side counterpart received the wrapped representations as the primary destination of the drain."
+      }
+    }
+  ],
+  "message_map": {
+    "message_id_field": "digest = keccak256(abi.encode(target, value, data, nonce, address(this)))",
+    "proof_field": "bytes[] sigs (exactly 1 ECDSA signature — the post-MPC aggregate)",
+    "critical_default": "executed[digest] == false",
+    "critical_auth_map": "isSigner[recovered] (with |signers| == 1)"
+  },
+  "invariants_for_fuzzer": [
+    {
+      "invariant_id": "inv_multichain_aggregate_authority",
+      "description": "Every Unlocked event must correspond to a prior `execute` call carrying exactly 1 valid signature from the configured post-MPC aggregate signer."
+    },
+    {
+      "invariant_id": "inv_multichain_signer_set_authority",
+      "description": "Only the address in the constructor's signer list (size 1) may contribute the aggregate signature. (On-chain enforced; off-chain assumption 'MPC administration is decentralised among >=2 principals' is what the incident broke.)"
+    },
+    {
+      "invariant_id": "inv_multichain_asset_conservation_per_token",
+      "description": "totalLocked[token] >= cumulative released[token]; bucket cannot release more than it has custodied for any single token, even across 6 batched receipts to multiple destination chains."
+    },
+    {
+      "invariant_id": "inv_multichain_digest_uniqueness",
+      "description": "Each (target, value, data, nonce, bridge_address) tuple may unlock at most once — replay protection on the digest cache."
+    },
+    {
+      "invariant_id": "inv_multichain_mpc_decentralisation",
+      "description": "(Architectural / off-chain) The MPC ceremony's administration must require participation from >= 2 independent principals. Multichain's de-facto 1-of-1 administration is the structural precondition that the 2023-07-06 incident exploited; this invariant is *not* enforceable on-chain in any TSS protocol."
+    }
+  ]
+}
