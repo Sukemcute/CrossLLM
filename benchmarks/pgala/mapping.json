@@ -1,0 +1,45 @@
+{
+  "benchmark_id": "pgala_20221103",
+  "summary": "Cross-chain address and asset mapping for the pGALA incident. The legacy peg (pGALA <-> ETH GALA) was the trust anchor that broke when the BSC custodian retained its old signer.",
+  "address_mapping": [
+    {
+      "asset": "GALA (Ethereum) -> pGALA (BSC, legacy)",
+      "ethereum": {
+        "contract": "0x15D4c048F83bd7e37d49eA4C83a07267Ec4203dA",
+        "decimals": 8,
+        "symbol": "GALA",
+        "note": "Original GALA token on Ethereum (pre-2022-05 contract). The deprecated v1 token; v2 was deployed in May 2022 but the bridge accounting was not migrated until after the incident."
+      },
+      "bsc_legacy": {
+        "contract": "0xD069599E718f963bD84502b49ba8F8657fAF5B3a",
+        "decimals": 18,
+        "symbol": "pGALA",
+        "note": "Deprecated after the incident."
+      },
+      "bsc_relaunch": {
+        "contract": "0x7dDEE176F665cD201F93eEDE625770E2fD911990",
+        "decimals": 8,
+        "symbol": "GALA",
+        "note": "Re-issued by pNetwork after the incident; out of fuzzer scope."
+      }
+    }
+  ],
+  "router_mapping": [
+    {
+      "ethereum": {
+        "role": "Lock side (modelled by LegacyCustodian.totalLockedOnEthereum view)",
+        "function_signature": "lock(uint256,address)"
+      },
+      "bsc_legacy": {
+        "role": "Mint side (vulnerable LegacyCustodian)",
+        "function_signature": "mint(address,uint256,uint64,bytes)",
+        "event_signature": "Mint(address,uint256,uint64)"
+      }
+    }
+  ],
+  "user_identity": {
+    "ethereum_address": "<not used in this incident — attacker only acted on BSC>",
+    "bsc_address": "<attacker EOA on BSC>",
+    "note": "The exploit only required a BSC-side signature using a stale ECDSA key. No Ethereum-side action was performed by the attacker."
+  }
+}

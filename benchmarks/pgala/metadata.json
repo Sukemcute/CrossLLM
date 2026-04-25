@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0",
+  "benchmark_id": "pgala_20221103",
+  "name": "pGALA / pNetwork Bridge Incident",
+  "incident_date_utc": "2022-11-03",
+  "loss_usd_estimate": 10000000,
+  "attack_type": "key_compromise",
+  "vulnerability_classes": ["V1", "V4"],
+  "attack_stage": "off_chain",
+  "source_chain": {
+    "name": "ethereum",
+    "chain_id": 1,
+    "rpc_env": "ETH_RPC_URL"
+  },
+  "destination_chain": {
+    "name": "bsc",
+    "chain_id": 56,
+    "rpc_env": "BSC_RPC_URL"
+  },
+  "fork": {
+    "block_number": 22700000,
+    "first_exploit_block": 22700001,
+    "repro_rpc_port": 8545
+  },
+  "contracts": {
+    "pgala_token_legacy": {
+      "address": "0xD069599E718f963bD84502b49ba8F8657fAF5B3a",
+      "chain": "destination",
+      "bscscan_url": "https://bscscan.com/token/0xD069599E718f963bD84502b49ba8F8657fAF5B3a",
+      "role": "Legacy pGALA token on BSC (deprecated after the incident; pNetwork re-issued under a fresh address)."
+    },
+    "pgala_token_relaunch": {
+      "address": "0x7dDEE176F665cD201F93eEDE625770E2fD911990",
+      "chain": "destination",
+      "bscscan_url": "https://bscscan.com/token/0x7dDEE176F665cD201F93eEDE625770E2fD911990",
+      "role": "Re-issued GALA token on BSC after the incident (out of fuzzer scope; documented for completeness)."
+    }
+  },
+  "root_cause_summary": {
+    "vulnerable_pattern": "Bridge custodian was re-deployed on BSC without rotating the legacy ECDSA signing key. The legacy custodian remained authoritative for mint() and an attacker who held a stale key signed unbacked mints.",
+    "verification_bypass": "ecrecover(digest, v, r, s) returned the legacy signer for attacker-supplied signatures, so the require(recovered == signer) check passed without any cross-chain consistency.",
+    "affected_logic": [
+      "LegacyCustodian.mint",
+      "LegacyCustodian.signer (slot never rotated)"
+    ],
+    "notes": "pNetwork retired the legacy custodian within ~hours of the incident and re-issued GALA under 0x7dDE.... The benchmark models only the original custodian; the re-issuance flow is out of scope."
+  },
+  "exploit_characteristics": {
+    "style": "stale-credential authorisation bypass",
+    "num_transactions_estimate": 1,
+    "notes": "A single mint transaction emitted ~1 billion pGALA to the attacker, after which the tokens were dumped on PancakeSwap. PancakeSwap-side liquidity drain is documented in the post-mortem but kept out of the fuzzer scope."
+  },
+  "references": [
+    {
+      "title": "pNetwork — pGALA on BSC Token Incident (2022-11-03)",
+      "url": "https://medium.com/pnetwork/pgala-on-bsc-token-incident-2022-11-03-a09ac6cf68f3"
+    },
+    {
+      "title": "Rekt News — pGALA Rekt",
+      "url": "https://rekt.news/pgala-rekt/"
+    }
+  ],
+  "status": {
+    "contracts_reconstructed": true,
+    "trace_curated": true,
+    "ready_for_module1_2_pipeline": true,
+    "ready_for_full_dual_evm_replay": false
+  },
+  "reporting": {
+    "table_row": 11,
+    "loss_usd_confidence": "estimate"
+  }
+}
