@@ -9,10 +9,13 @@ Output: Structured JSON with entities, functions, asset_flows, guards
 from __future__ import annotations
 
 import json
-import os
 import re
 from pathlib import Path
 from typing import Any
+
+from src.common.llm_client import chat_completion_json, get_llm_client
+
+from .prompts import load as load_prompt
 
 
 FUNCTION_RE = re.compile(r"function\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)", re.DOTALL)
@@ -24,7 +27,8 @@ ADDRESS_RE = re.compile(r"0x[a-fA-F0-9]{40}")
 class SemanticExtractor:
     """Extract protocol semantics from bridge source code using LLM."""
 
-    def __init__(self, model: str = "gpt-4o", temperature: float = 0.2):
+    def __init__(self, model: str | None = None, temperature: float = 0.0):
+        # `model` is kept for orchestrator backward-compat; resolved provider wins.
         self.model = model
         self.temperature = temperature
 
@@ -164,24 +168,43 @@ class SemanticExtractor:
         return match.group(0) if match else ""
 
     def _try_llm_extract(self, source_code: str, contract_name: str) -> dict[str, Any] | None:
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
+        provider = get_llm_client()
+        if provider is None:
             return None
-        try:
-            from openai import OpenAI
 
-            client = OpenAI(api_key=api_key)
-            prompt = (
-                "Extract bridge semantics as JSON with keys: entities, functions, asset_flows, guards. "
-                f"Contract name: {contract_name}\n\n{source_code[:12000]}"
-            )
-            res = client.chat.completions.create(
-                model=self.model,
+        system = load_prompt("system_auditor.txt")
+        user = (
+            "Extract bridge semantics from the following Solidity source as JSON.\n"
+            "Required top-level keys: entities, functions, asset_flows, guards.\n"
+            "- entities: [{entity_id, entity_type, chain, address, roles}]\n"
+            "- functions: [{name, signature, parameters, mutability, visibility, role}]\n"
+            "- asset_flows: [{src, dst, label, token, function_signature, conditions}]\n"
+            "- guards: [string]\n\n"
+            f"Contract name: {contract_name}\n\n"
+            f"Source:\n```solidity\n{source_code[:12000]}\n```"
+        )
+
+        try:
+            content = chat_completion_json(
+                provider,
+                system=system,
+                user=user,
                 temperature=self.temperature,
-                response_format={"type": "json_object"},
-                messages=[{"role": "user", "content": prompt}],
             )
-            content = res.choices[0].message.content or "{}"
-            return json.loads(content)
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            print(f"[Extractor] LLM call failed: {exc}")
             return None
+
+        if not content:
+            return None
+
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError:
+            stripped = content.strip().lstrip("```json").lstrip("```").rstrip("```")
+            try:
+                data = json.loads(stripped)
+            except json.JSONDecodeError:
+                return None
+
+        return data if isinstance(data, dict) else None
