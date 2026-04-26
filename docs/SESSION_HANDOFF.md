@@ -40,6 +40,12 @@
 - 12/12 benchmark chạy `gpt-oss-120b` — 229 invariants + 229 scenarios + 4 categories cố định (asset_conservation / authorization / timeliness / uniqueness)
 - Wall-clock ~80 phút trên WSL (10 batch + bug fix + 3 re-run)
 
+### 1.5 Module 3 end-to-end test + integration gap (2026-04-27)
+
+- Build `bridgesentry-fuzzer` (Rust) thành công với toolchain Rust 1.91.0 (Rust 1.94.1 có ICE bug ở `mutator.rs`).
+- Chạy 20-run experiment trên Nomad với real LLM data (`benchmarks/nomad/llm_outputs/`).
+- **Phát hiện integration gap nghiêm trọng**: 0/20 violations với real LLM data vs 20/20 với mock fixtures. Chi tiết đầy đủ ở §5.0 dưới — **section quan trọng nhất cho Member B**.
+
 ---
 
 ## 2. Tác dụng (cho thesis + project)
@@ -402,6 +408,171 @@ python -m pytest tests/ -q
 
 ## 5. Quy trình tiếp theo với Member B
 
+### 5.0 ⚑ ATTENTION MEMBER B — Integration gap đã phát hiện (2026-04-27)
+
+> **Đây là section quan trọng nhất của Member B trong handoff này.**
+> Đọc kỹ trước khi tiếp tục bất kỳ work nào trên Module 3. Tất cả các
+> bullet checklist trong section này dành riêng cho Member B.
+
+#### Tóm tắt 1 dòng
+
+Module 3 simulator chỉ recognize **mock vocabulary** (`"dispatch"`, `"process"`,
+`"handle"`); **không nhận dạng** Module 2 LLM output (Solidity function
+signatures kiểu `"lock(uint256 amount, address token, address recipient)"`).
+Hệ quả: pipeline end-to-end với data thực **không phát hiện được violation
+nào** — DR drop từ 20/20 (mock) xuống 0/20 (real LLM).
+
+#### Bằng chứng — 20-run experiment trên Nomad, budget 60s/run
+
+| Setup | DR | TTE | XCC | Iter/run | Snapshots |
+|---|---|---|---|---|---|
+| Mock fixtures (`tests/fixtures/atg_mock.json`) | **20/20** ✅ | 0.0001-0.0003s | **99.0%** | 300K-9.5M | 1885-2701 |
+| **Real LLM output** (`benchmarks/nomad/llm_outputs/atg.json`) | **0/20** ❌ | N/A | **66.7%** | ~2.1M (uniform) | 1 |
+
+Snapshot count drop từ ~2700 xuống 1 = simulator KHÔNG mutate state vì không
+nhận dạng action. XCC drop từ 99% xuống 66.7% = chỉ 2/3 ATG edges được
+exercise (do action không trigger state transition).
+
+#### Code location chính xác của gap
+
+- `src/module3_fuzzing/src/scenario_sim.rs:18-44` — hardcode strings
+  `"dispatch"`, `"process"`, `"handle"` cho action.function matching.
+- `src/module3_fuzzing/src/scenario_sim.rs:109-114` — hardcode scenario_id
+  `"s1_zero_root_bypass"` / `"s2_replay_attack"` cho waypoint mapping.
+- `src/module3_fuzzing/src/checker.rs:41-55` — checker dispatch vào hardcoded
+  categories. State slots `__locked__` / `__minted__` / `zero_root_accepted`
+  chỉ được set khi simulator nhận dạng action.
+
+So sánh nhanh format actions (cho Member B):
+
+```bash
+# Trên WSL:
+cd ~/CrossLLM
+diff <(jq '.scenarios[].actions[].function' tests/fixtures/hypotheses_mock.json) \
+     <(jq '.scenarios[].actions[].function' benchmarks/nomad/llm_outputs/hypotheses.json)
+```
+
+Mock cho ra: `"process"`, `"handle"`, `"dispatch"`, `"faithful"`, `"proveAndProcess"`
+LLM cho ra: `"lock(uint256 amount, address token, address recipient)"`,
+`"submitMessage(bytes message)"`, `"processAndRelease(NomadMessage.Body)"`
+
+#### Tại sao gap xảy ra — bối cảnh team workflow
+
+- Member B cần build Module 3 trước khi Module 1+2 của Member A xong → phải
+  mock với vocabulary tự chọn (hợp lý cho prototype).
+- Member A's LLM output sinh full Solidity signature (semantically chính xác
+  hơn — đúng spec Module 1+2 phải làm).
+- Hai vocabularies không converge từ đầu → integration gap khi pipeline đầy
+  đủ.
+
+→ **Không phải fault cá nhân của ai** — là gap quy trình do thiếu **schema
+contract** giữa Module 2 ↔ Module 3 từ đầu. Khi báo cáo với thầy cô, framing
+nên là *"Module 1+2 và Module 3 hoạt động đúng spec độc lập; integration gap
+ở interface là next step task tập thể"*.
+
+#### Đề xuất fix — Schema Contract approach (cách bền vững)
+
+Cả 2 phía cùng converge về controlled vocabulary, không phải một bên adapt
+sang bên kia.
+
+**Phía Member A (Python — src/module2_rag/scenario_gen.py):**
+
+- Sau khi LLM trả về scenarios, post-process từng action:
+  - Extract bare op name từ Solidity signature: `lock(uint256 amount, ...)` → `op="lock"`
+  - Giữ nguyên raw signature trong field mới `function_signature` (cho ATG / paper)
+  - Thêm field mới `op` (controlled vocabulary, xem dưới)
+- Effort estimate: ~2-4 giờ (regex parser + post-processor + unit test)
+
+**Phía Member B (Rust — src/module3_fuzzing/):**
+
+- Sửa `scenario_sim.rs`:
+  - Đọc `action.op` thay vì `action.function`
+  - Mở rộng match arm để cover toàn bộ controlled vocabulary
+  - Mở rộng state mutation logic cho `lock`/`unlock`/`mint`/`burn` (không chỉ `dispatch`/`process`)
+- Sửa `checker.rs`:
+  - Định nghĩa state mutations cho từng op trong vocabulary
+  - Cập nhật `check_one` dispatch để work với LLM-generated invariant IDs (không chỉ mock IDs)
+- Effort estimate: ~6-8 giờ
+
+**Schema mới (cùng define):** `schemas/scenario_action.schema.json`
+
+```json
+{
+  "type": "object",
+  "required": ["chain", "op"],
+  "properties": {
+    "chain": { "enum": ["source", "destination", "relay", "off_chain"] },
+    "op": {
+      "enum": ["lock", "unlock", "dispatch", "process", "mint", "burn",
+              "relay", "verify", "approve", "transfer", "transferFrom",
+              "register", "claim", "swap"]
+    },
+    "function_signature": { "type": "string", "description": "Raw Solidity sig from LLM, optional" },
+    "params": { "type": "object" },
+    "step": { "type": "integer" },
+    "actor": { "type": "string" }
+  }
+}
+```
+
+#### Action items cho Member B (theo thứ tự)
+
+- [ ] **Step 1** — Đọc kỹ section này (5.0) + section 5.1-5.5 dưới
+- [ ] **Step 2** — Pull latest từ origin/main (`git pull`)
+- [ ] **Step 3** — Reproduce gap bằng tay:
+  ```bash
+  # Build
+  cd ~/CrossLLM/src/module3_fuzzing
+  rustup override set 1.91.0  # Rust 1.94 có ICE bug, dùng 1.91
+  cargo build --release
+
+  # Run với mock — should succeed
+  cd ~/CrossLLM
+  ./scripts/run_module3_experiments.sh --bridge nomad_mock --runs 5 --budget 30
+  python3 scripts/collect_results.py --bridge nomad_mock --format detail
+  # Expected: DR=5/5
+
+  # Run với real LLM — should show 0/5
+  ./src/module3_fuzzing/target/release/bridgesentry-fuzzer \
+      --atg benchmarks/nomad/llm_outputs/atg.json \
+      --scenarios benchmarks/nomad/llm_outputs/hypotheses.json \
+      --output /tmp/test.json --budget 30 --seed 1042
+  jq '.violations | length' /tmp/test.json
+  # Expected: 0
+  ```
+- [ ] **Step 4** — Schema contract meeting với Member A (~1 giờ)
+- [ ] **Step 5** — Implement extended `scenario_sim.rs` + `checker.rs` theo controlled vocabulary mới
+- [ ] **Step 6** — Member A apply post-processor; Member B re-run 20-run experiment
+- [ ] **Step 7** — Confirm DR ≥ 1/20 trên Nomad với real LLM data; xác nhận coverage XCC ≥ 90%
+- [ ] **Step 8** — Loop qua 11 benchmark còn lại; flip `ready_for_full_dual_evm_replay: true` cho từng benchmark đạt acceptance ở §5.3
+
+#### Workaround tạm thời (cho đến khi fix xong)
+
+Module 3 functionality + Module 1+2 functionality **đã verified độc lập**:
+
+- Module 1+2 chạy được với 12 benchmark (xem `docs/LLM_VERIFICATION_FULL_DATASET.md`)
+- Module 3 chạy được với mock fixtures (Member B's screenshot 20/20 DR)
+
+→ Cho đến khi schema contract done, demo riêng từng module — **không demo
+end-to-end pipeline với real data** vì sẽ hiển thị 0/20.
+
+#### Lý do gap này quan trọng cho thesis paper
+
+Đây là **finding §6 (Limitations) số 5** — bổ sung vào danh sách 4 finding
+đã có trong [`docs/LLM_VERIFICATION_FULL_DATASET.md`](LLM_VERIFICATION_FULL_DATASET.md).
+
+> *"BridgeSentry's Module 3 simulator currently uses a controlled action
+> vocabulary (`dispatch`/`process`/`handle`) calibrated against the mock
+> evaluation fixtures. When fed real LLM-generated scenarios from Module
+> 2 (which emit full Solidity function signatures), the simulator does
+> not match → no state mutation → DR drops from 20/20 to 0/20. This is
+> not a defect of either module in isolation; both work to spec. The
+> finding motivates a future-work normalization layer or a schema
+> contract between Module 2 and Module 3 to ensure end-to-end pipeline
+> robustness."*
+
+---
+
 ### 5.1 Member B chịu trách nhiệm
 
 **Module 3 — Dual-EVM Fuzzer (Rust):**
@@ -595,10 +766,14 @@ sukem/sprint2 (ahead origin 2 commits):
 
 ## 7. TL;DR — Cần làm tiếp theo
 
-1. **Push `sukem/sprint2` lên origin** — 2 commit chưa publish
-2. **Nói với Member B:** "12/12 benchmark đã sẵn sàng, có ATG + invariants + scenarios trong `results/<bridge>_llm/` (hoặc copy sang `benchmarks/<bridge>/llm_outputs/`); pick Nomad làm baseline integration"
-3. **Member A song song:** mở `latex/paper.tex` viết §6 + §7 với 4 findings + 12-row table có sẵn
-4. **Sau khi Member B integrate xong từng benchmark:** flip `ready_for_full_dual_evm_replay: true` trong metadata.json
+1. **CRITICAL — Member B đọc §5.0** — integration gap đã verified với 20-run experiment trên Nomad. DR drop 20/20 (mock) → 0/20 (real LLM) do `scenario_sim.rs` hardcode mock vocabulary. Cần schema contract trước khi integrate tiếp.
+2. **Member A apply post-processor** trong `scenario_gen.py` — extract `op` từ Solidity signature về controlled vocabulary (~2-4 giờ). Phối hợp với Member B's schema.
+3. **Member B extend simulator + checker** trong `scenario_sim.rs` + `checker.rs` (~6-8 giờ). Cover toàn bộ controlled vocabulary, không chỉ `dispatch`/`process`.
+4. **Re-run 20-run experiment** trên Nomad sau fix → confirm DR ≥ 1/20, XCC ≥ 90%. Loop qua 11 benchmark còn lại.
+5. **Member A song song:** mở `latex/paper.tex` viết §6 (5 findings — gồm V2 integration gap mới) + §7 (12-row table từ `LLM_VERIFICATION_FULL_DATASET.md`).
+6. **Sau khi Member B integrate xong từng benchmark:** flip `ready_for_full_dual_evm_replay: true` trong metadata.json.
+
+**Trạng thái git:** branch `main` ahead origin có thể đã sync; check `git status` trước khi work tiếp.
 
 ---
 
