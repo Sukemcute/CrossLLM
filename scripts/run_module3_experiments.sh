@@ -21,9 +21,11 @@ BRIDGE="nomad"      # Default benchmark
 # --- Parse arguments ---
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --budget)  TIME_BUDGET="$2"; shift 2 ;;
-        --runs)    RUNS="$2";        shift 2 ;;
-        --bridge)  BRIDGE="$2";      shift 2 ;;
+        --budget)    TIME_BUDGET="$2"; shift 2 ;;
+        --runs)      RUNS="$2";        shift 2 ;;
+        --bridge)    BRIDGE="$2";      shift 2 ;;
+        --atg)       CUSTOM_ATG="$2";  shift 2 ;;
+        --scenarios) CUSTOM_SCENARIOS="$2"; shift 2 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
@@ -33,8 +35,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 FUZZER_DIR="$PROJECT_ROOT/src/module3_fuzzing"
 FIXTURES_DIR="$PROJECT_ROOT/tests/fixtures"
-ATG_FILE="$FIXTURES_DIR/atg_mock.json"
-SCENARIOS_FILE="$FIXTURES_DIR/hypotheses_mock.json"
+
+ATG_FILE="${CUSTOM_ATG:-$FIXTURES_DIR/atg_mock.json}"
+SCENARIOS_FILE="${CUSTOM_SCENARIOS:-$FIXTURES_DIR/hypotheses_mock.json}"
 RESULTS_DIR="$PROJECT_ROOT/results/$BRIDGE"
 
 # --- Validate inputs ---
