@@ -1,0 +1,142 @@
+{
+  "benchmark_id": "fegtoken_20220428",
+  "summary": "Cross-chain mapping for the FEGtoken benchmark. FEG had parallel deployments on BSC and Ethereum and was attacked on both within a short window. The bridge nature of FEG comes from these mirrored ecosystems sharing the same migrator-role pattern, not from cross-chain message passing — which is why the attack played out as two independent same-chain events linked by their root cause.",
+  "bridge_name": "fegtoken",
+  "source_chain": {
+    "name": "bsc",
+    "chain_id": 56,
+    "contracts": {
+      "feg_token": "0xacFC95585D80Ab62f67A14C566C1b7a49Fe91167",
+      "feg_swap": "0x4b9be7e93f02d94c87c20cd71a90b6f5a3c3ca42",
+      "flash_loan_pair": "0x10ED43C718714eb63d5aA57B78B54704E256024E"
+    }
+  },
+  "destination_chain": {
+    "name": "ethereum",
+    "chain_id": 1,
+    "contracts": {
+      "feg_token_eth": "0x389999216860AB8E0175387A0c90E5c52522C945",
+      "feg_swap_eth": "0x818E2013dD7D9bF4547aaabF6B617c1262578bc7",
+      "note": "Ethereum-side mirror of the same migrator-role pattern. Drained in a parallel campaign with the same V2+V4 chain."
+    }
+  },
+  "entity_map": [
+    {
+      "logical_id": "feg_token",
+      "chain": "source",
+      "address": "0xacFC95585D80Ab62f67A14C566C1b7a49Fe91167",
+      "type": "contract",
+      "role": "FEG governance/utility token. Hosts the `claimMigrator` transient-balance gate that the flash loan defeated."
+    },
+    {
+      "logical_id": "feg_swap",
+      "chain": "source",
+      "address": "0x4b9be7e93f02d94c87c20cd71a90b6f5a3c3ca42",
+      "type": "contract",
+      "role": "FEGSwap router. Holds the user approvals; `swapToSwap` is the only-migrator-gated drain entry."
+    },
+    {
+      "logical_id": "flash_loan_pair",
+      "chain": "source",
+      "address": "0x10ED43C718714eb63d5aA57B78B54704E256024E",
+      "type": "contract",
+      "role": "PancakeSwap V2 Router used as the flash-loan venue. Itself not vulnerable; correctly enforces the post-callback balance check."
+    },
+    {
+      "logical_id": "victim_pool",
+      "chain": "source",
+      "address": "",
+      "type": "user_set",
+      "role": "Multiple users (and some smart-contract counterparties) who had previously approved FEGSwap to spend their MockToken balances for legitimate swaps."
+    },
+    {
+      "logical_id": "attacker",
+      "chain": "source",
+      "address": "0x73B359D5da488eB2e97990619Fa17e7C18ad3D89",
+      "type": "user",
+      "role": "Attacker EOA cluster — multiple sibling addresses across BSC and ETH."
+    }
+  ],
+  "asset_map": [
+    {
+      "symbol": "FEG (BSC)",
+      "source_token": "0xacFC95585D80Ab62f67A14C566C1b7a49Fe91167",
+      "destination_token": "0x389999216860AB8E0175387A0c90E5c52522C945",
+      "decimals": 18,
+      "destination_decimals": 18,
+      "amount_drained": "0 (FEG itself was the flash-loan vehicle, not the drain target)",
+      "notes": "FEG was borrowed from the flash-loan pool to satisfy the migrator gate, then repaid intact. Net flow of FEG is zero — the drained value comes from MockToken approvals."
+    },
+    {
+      "symbol": "BUSD",
+      "source_token": "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56",
+      "destination_token": "",
+      "decimals": 18,
+      "destination_decimals": 18,
+      "amount_drained": "~600000 * 10**18",
+      "notes": "BUSD allowances were the largest single drain target on the BSC leg."
+    },
+    {
+      "symbol": "WBNB",
+      "source_token": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+      "destination_token": "",
+      "decimals": 18,
+      "destination_decimals": 18,
+      "amount_drained": "~400000 * 10**18 (approx, valued ~$300k at attack time)",
+      "notes": "WBNB approvals also drained; secondary asset on BSC leg."
+    },
+    {
+      "symbol": "WETH (ETH leg)",
+      "source_token": "",
+      "destination_token": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      "decimals": 18,
+      "destination_decimals": 18,
+      "amount_drained": "~150 * 10**18",
+      "notes": "Smaller ETH-leg drain — same V2+V4 pattern executed against the ETH-side FEGSwap deployment."
+    }
+  ],
+  "router_mapping": [
+    {
+      "bsc": {
+        "contract": "0x4b9be7e93f02d94c87c20cd71a90b6f5a3c3ca42",
+        "function_signature": "swapToSwap(address,address,address,uint256)",
+        "vulnerable_param": "from (3rd argument) — pulled via FEGSwap's prior approvals",
+        "auth_gate": "msg.sender == FEGToken.migrator()"
+      },
+      "ethereum": {
+        "contract": "0x818E2013dD7D9bF4547aaabF6B617c1262578bc7",
+        "function_signature": "swapToSwap(address,address,address,uint256)",
+        "auth_gate": "msg.sender == FEGToken_ETH.migrator()",
+        "note": "Same function signature on ETH leg."
+      }
+    }
+  ],
+  "message_map": {
+    "message_id_field": "n/a (no cross-chain messages — two parallel same-chain events)",
+    "proof_field": "n/a",
+    "critical_default": "FEGToken.migrator transitions on transient balance",
+    "critical_auth_map": "FEGSwap onlyMigrator -> FEGToken.migrator (read indirectly)"
+  },
+  "invariants_for_fuzzer": [
+    {
+      "invariant_id": "inv_feg_migrator_persistence",
+      "description": "Migrator role assignment must require sustained balance ownership across at least 1 confirmation block — transient flash-loaned balance must not satisfy the gate."
+    },
+    {
+      "invariant_id": "inv_feg_swap_caller_authorisation",
+      "description": "FEGSwap.swapToSwap must require an authorisation chain that ties the operation to the source-account holder, not just to the migrator role (e.g. signed permit, msg.sender == from, or governance proposal id)."
+    },
+    {
+      "invariant_id": "inv_feg_approval_consent",
+      "description": "A user's approve(FEGSwap, X) authorises FEGSwap to act on the user's own swap requests; it does not authorise arbitrary migrator-driven drains."
+    },
+    {
+      "invariant_id": "inv_feg_asset_conservation_per_user",
+      "description": "For any user u who has not signed a transaction in block B, MockToken.balanceOf(u) at end of block B >= MockToken.balanceOf(u) at start of block B."
+    },
+    {
+      "invariant_id": "inv_feg_flash_loan_post_balance",
+      "description": "FlashLoanProvider correctly enforces post-callback balance check (this invariant is preserved — the flash-loan provider itself is not the bug)."
+    }
+  ]
+}

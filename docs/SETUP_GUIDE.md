@@ -514,6 +514,20 @@ pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install sentence-transformers
 ```
 
+### Slither parser fail với "No such file or directory: 'solc'"
+
+Slither cần binary `solc` để compile contract. Cài qua `solc-select` (đã trong `requirements.txt`):
+
+```bash
+cd ~/CrossLLM
+source .crossllm/bin/activate
+solc-select install 0.8.20
+solc-select use 0.8.20
+solc --version  # Phải báo: solc 0.8.20+commit...
+```
+
+Sau đó chạy lại Module 1 với venv **đã activate** (cần PATH có `solc`).
+
 ### Lỗi: WSL2 hết dung lượng
 
 ```bash

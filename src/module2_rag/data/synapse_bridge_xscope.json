@@ -1,0 +1,14 @@
+{
+  "exploit_id": "synapse_bridge_xscope",
+  "bridge": "Synapse Bridge",
+  "vulnerability_class": "fake_deposit",
+  "attack_stage": "destination_chain",
+  "summary": "XScope-catalog attack on Synapse Bridge.",
+  "attack_trace": [
+    "See post-mortem: https://synapseprotocol.medium.com/11-06-2021-post-mortem-of-synapse-metapool-exploit-3003b4df4ef4"
+  ],
+  "references": [
+    "https://synapseprotocol.medium.com/11-06-2021-post-mortem-of-synapse-metapool-exploit-3003b4df4ef4"
+  ],
+  "source": "xscope_ase22"
+}

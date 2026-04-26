@@ -1,0 +1,23 @@
+{
+  "exploit_id": "thorchain_20210716",
+  "bridge": "THORChain",
+  "date": "2021-07-16",
+  "loss_usd": 5000000,
+  "chains": [
+    "ethereum",
+    "thorchain"
+  ],
+  "vulnerability_class": "logic_bug",
+  "attack_stage": "source_chain",
+  "summary": "Router contract returned native asset instead of the swapped asset, allowing attackers to send native ETH and receive the same value of any ERC-20.",
+  "attack_trace": [
+    "Send ETH via router transferOut",
+    "Specify ERC-20 token destination",
+    "Receive 1:1 value mismatch in destination ERC-20"
+  ],
+  "root_cause": "Router contract did not validate native vs ERC-20 transfer paths, mixing transfer accounting.",
+  "references": [
+    "https://thearchitect.notion.site/THORChain-Incident-07-15-7d205f91924e44a5b6499b6df5f6c210"
+  ],
+  "source": "curated"
+}

@@ -1,0 +1,49 @@
+{
+  "benchmark_id": "polynetwork_20210810",
+  "summary": "Cross-chain address and asset mapping for the PolyNetwork exploit. The bridge spanned three chains; the keeper-hijack ran on each of them with the same pattern.",
+  "address_mapping": [
+    {
+      "asset": "WETH",
+      "ethereum": {"contract": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", "decimals": 18},
+      "bsc":      {"contract": "0x2170Ed0880ac9A755fd29B2688956BD959F933F8", "decimals": 18},
+      "polygon":  {"contract": "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619", "decimals": 18}
+    },
+    {
+      "asset": "USDC",
+      "ethereum": {"contract": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "decimals": 6},
+      "bsc":      {"contract": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", "decimals": 18},
+      "polygon":  {"contract": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174", "decimals": 6}
+    },
+    {
+      "asset": "WBTC",
+      "ethereum": {"contract": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", "decimals": 8},
+      "polygon":  {"contract": "0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6", "decimals": 8}
+    }
+  ],
+  "router_mapping": [
+    {
+      "ethereum": {
+        "manager": "0x250e76987d838a75310c34bf422ea9f1AC4Cc906",
+        "data": "0xcF2afe102057bA5c16f899271045a0A37fCb10f2",
+        "function_signature": "verifyHeaderAndExecuteTx(address,bytes)",
+        "rotate_signature": "putCurEpochConPubKeyBytes(bytes)"
+      },
+      "bsc": {
+        "manager": "0x05F0FdD0B9F90F87BAec4D9F0Cb35F89A11A1F69",
+        "function_signature": "verifyHeaderAndExecuteTx(address,bytes)",
+        "rotate_signature": "putCurEpochConPubKeyBytes(bytes)"
+      },
+      "polygon": {
+        "manager": "0x9DbBb04f54Bd33D87E8e5d3b9bd62faC3B26C87B",
+        "function_signature": "verifyHeaderAndExecuteTx(address,bytes)",
+        "rotate_signature": "putCurEpochConPubKeyBytes(bytes)"
+      }
+    }
+  ],
+  "user_identity": {
+    "ethereum_address": "<attacker EOA on Ethereum>",
+    "bsc_address": "<attacker EOA on BSC, same key>",
+    "polygon_address": "<attacker EOA on Polygon, same key>",
+    "note": "Attacker reused the same EVM address across all three chains; the post-hijack signed proofs were issued by the same key set on each chain."
+  }
+}

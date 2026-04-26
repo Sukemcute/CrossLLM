@@ -1,0 +1,22 @@
+{
+  "exploit_id": "gempad_20240419",
+  "bridge": "GemPad",
+  "date": "2024-04-19",
+  "loss_usd": 1900000,
+  "chains": [
+    "bsc"
+  ],
+  "vulnerability_class": "fake_deposit",
+  "attack_stage": "destination_chain",
+  "summary": "Lock contract on BSC accepted manipulated lock IDs, allowing attacker to claim tokens that belonged to other users.",
+  "attack_trace": [
+    "Submit unlock with arbitrary lock id pointing at victim entry",
+    "Contract re-emitted approved transfer for victim's tokens",
+    "Repeat across high-value vesting locks"
+  ],
+  "root_cause": "Lock contract did not verify lock owner before transferring, only checking timestamp validity.",
+  "references": [
+    "https://medium.com/quillaudits-team/gempad-hack-analysis-acafe1f8e4ff"
+  ],
+  "source": "curated"
+}

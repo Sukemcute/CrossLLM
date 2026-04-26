@@ -1,0 +1,151 @@
+{
+  "benchmark_id": "harmony_horizon_20220623",
+  "summary": "Cross-chain mapping for the Harmony Horizon Bridge benchmark. Ethereum holds the custodial ETH/USDC/USDT/WBTC/DAI balance; Harmony chain (chain_id 1666600000) holds the wrapped representations. The attack drained the Ethereum-side custody — Harmony-side balances were unaffected, but the wrapped tokens on Harmony were left unbacked.",
+  "bridge_name": "harmony_horizon",
+  "source_chain": {
+    "name": "ethereum",
+    "chain_id": 1,
+    "contracts": {
+      "horizon_eth_manager": "0x2dCCDB493827E15a5dC8f8b72147E6c4A5620857",
+      "horizon_eth_bucket": "0x84943BE3eaeC8dB3915b56F23B7D2F69bbE96d62"
+    }
+  },
+  "destination_chain": {
+    "name": "harmony",
+    "chain_id": 1666600000,
+    "contracts": {
+      "horizon_harmony_bridge": "0xfD53b1B4AF84D59B20bF2C20CA89a6BeeAa2c628",
+      "note": "Harmony-side bridge contract. Receives wrapped representation mint instructions from the off-chain relayer when Ethereum-side `lock` events are observed. The 2022-06-23 attack drained the Ethereum custody only — Harmony-side balances were untouched, but the existing 1Inch / 1USDC etc. wrapped tokens on Harmony were left unbacked."
+    }
+  },
+  "entity_map": [
+    {
+      "logical_id": "operator_set",
+      "chain": "offchain",
+      "address": "",
+      "type": "validator_set",
+      "role": "Four ECDSA hot-wallet operators. Threshold 2-of-4 for any cross-chain action.",
+      "size": 4,
+      "threshold": 2,
+      "compromised_at_incident": 2
+    },
+    {
+      "logical_id": "source_manager",
+      "chain": "source",
+      "address": "0x2dCCDB493827E15a5dC8f8b72147E6c4A5620857",
+      "type": "contract",
+      "role": "Validator-set governance + signature verification + withdrawal dispatch on Ethereum."
+    },
+    {
+      "logical_id": "source_bucket",
+      "chain": "source",
+      "address": "0x84943BE3eaeC8dB3915b56F23B7D2F69bbE96d62",
+      "type": "contract",
+      "role": "Custody pool — holds the locked ERC20 balances; releases only on manager call."
+    },
+    {
+      "logical_id": "destination_bridge",
+      "chain": "destination",
+      "address": "0xfD53b1B4AF84D59B20bF2C20CA89a6BeeAa2c628",
+      "type": "contract",
+      "role": "Harmony-side mint/burn router for wrapped representations."
+    },
+    {
+      "logical_id": "attacker",
+      "chain": "source",
+      "address": "0x0d043128146654C7683Fbf30ac98D7B2285DeD00",
+      "type": "user",
+      "role": "Lazarus Group (DPRK) attacker EOA cluster; received the 11 batched withdrawals across multiple recipient addresses."
+    }
+  ],
+  "asset_map": [
+    {
+      "symbol": "WETH",
+      "source_token": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      "destination_token": "0x6983D1E6DEf3690C4d616b13597A09e6193EA013",
+      "decimals": 18,
+      "destination_decimals": 18,
+      "amount_drained": "13100 * 10**18",
+      "notes": "Native ETH leg, custodied as WETH on the bucket. ~$14M at attack-time prices."
+    },
+    {
+      "symbol": "USDC",
+      "source_token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "destination_token": "0x985458E523dB3d53125813eD68c274899e9DfAb4",
+      "decimals": 6,
+      "destination_decimals": 6,
+      "amount_drained": "~36000000 * 10**6",
+      "notes": "Largest single asset drained — ~$36M."
+    },
+    {
+      "symbol": "USDT",
+      "source_token": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+      "destination_token": "0x3C2B8Be99c50593081EAA2A724F0B8285F5aba8f",
+      "decimals": 6,
+      "destination_decimals": 6,
+      "amount_drained": "~14000000 * 10**6",
+      "notes": "~$14M drained."
+    },
+    {
+      "symbol": "WBTC",
+      "source_token": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+      "destination_token": "0x3095c7557bCb296ccc6e363DE01b760bA031F2d9",
+      "decimals": 8,
+      "destination_decimals": 8,
+      "amount_drained": "~211 * 10**8",
+      "notes": "~$6M drained."
+    },
+    {
+      "symbol": "DAI",
+      "source_token": "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+      "destination_token": "0xEf977d2f931C1978Db5F6747666fa1eACB0d0339",
+      "decimals": 18,
+      "destination_decimals": 18,
+      "amount_drained": "~5000000 * 10**18",
+      "notes": "Bundled in batched receipts alongside USDC/USDT/WBTC."
+    }
+  ],
+  "router_mapping": [
+    {
+      "ethereum": {
+        "contract": "0x2dCCDB493827E15a5dC8f8b72147E6c4A5620857",
+        "function_signature": "execute(address,uint256,bytes,uint256,bytes[])",
+        "self_call_target": "unlock(address,address,uint256)",
+        "verifier_call": "MockMultisig._recover (2-of-4 ECDSA threshold)"
+      },
+      "harmony": {
+        "contract": "0xfD53b1B4AF84D59B20bF2C20CA89a6BeeAa2c628",
+        "function_signature": "withdraw / mint counterpart on Harmony chain",
+        "note": "Harmony-side counterpart is informational; this benchmark fuzzes the Ethereum-side custody only."
+      }
+    }
+  ],
+  "message_map": {
+    "message_id_field": "digest = keccak256(abi.encode(target, value, data, nonce, address(this)))",
+    "proof_field": "bytes[] sigs (>= 2 ECDSA signatures, ascending recovered-address order)",
+    "critical_default": "executed[digest] == false",
+    "critical_auth_map": "isSigner[recovered] && |unique_recovered| >= 2"
+  },
+  "invariants_for_fuzzer": [
+    {
+      "invariant_id": "inv_horizon_threshold_quorum",
+      "description": "Every Unlocked event must correspond to a prior `execute` call carrying >= 2 valid distinct signatures from the configured operator set."
+    },
+    {
+      "invariant_id": "inv_horizon_validator_set_authority",
+      "description": "Only addresses in the constructor's signer list may contribute to the threshold quorum. (On-chain enforced; off-chain assumption 'fewer than 2 keys compromised' is what the incident broke.)"
+    },
+    {
+      "invariant_id": "inv_horizon_manager_to_bucket_authority",
+      "description": "EthBucket.release reverts unless msg.sender == manager. The bucket trusts exactly one caller; the multi-sig validation lives upstream in the manager."
+    },
+    {
+      "invariant_id": "inv_horizon_asset_conservation_per_token",
+      "description": "totalLocked[token] >= cumulative released[token]; bucket cannot release more than it has custodied for any single token, even across 11 batched receipts."
+    },
+    {
+      "invariant_id": "inv_horizon_operator_isolation",
+      "description": "(Architectural / off-chain) Operator hot wallets must not be reachable from a single host or single phishing campaign. Production Harmony failed this — at least 2 of 4 keys lived close enough to a single attacker foothold to be compromised together."
+    }
+  ]
+}

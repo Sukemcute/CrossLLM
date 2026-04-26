@@ -1,0 +1,100 @@
+{
+  "schema_version": "1.0",
+  "benchmark_id": "wormhole_20220202",
+  "name": "Wormhole Bridge Exploit",
+  "incident_date_utc": "2022-02-02",
+  "loss_usd_estimate": 326000000,
+  "attack_type": "signature_forgery",
+  "vulnerability_classes": ["V1"],
+  "attack_stage": "source_chain",
+  "source_chain": {
+    "name": "solana",
+    "chain_id": 1,
+    "rpc_env": "SOLANA_RPC_URL"
+  },
+  "destination_chain": {
+    "name": "ethereum",
+    "chain_id": 1,
+    "rpc_env": "ETH_RPC_URL"
+  },
+  "fork": {
+    "block_number": 14268080,
+    "first_exploit_block": 14269000,
+    "repro_rpc_port": 8545
+  },
+  "contracts": {
+    "wormhole_core_eth": {
+      "address": "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B",
+      "chain": "destination",
+      "etherscan_url": "https://etherscan.io/address/0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B",
+      "role": "Wormhole Core Bridge on Ethereum — verifies guardian-signed VAAs (parseAndVerifyVM). Modelled on EVM by contracts/WormholeCore.sol."
+    },
+    "token_bridge_eth": {
+      "address": "0x3ee18B2214AFF97000D974cf647E7C347E8fa585",
+      "chain": "destination",
+      "etherscan_url": "https://etherscan.io/address/0x3ee18B2214AFF97000D974cf647E7C347E8fa585",
+      "role": "Wormhole Token Bridge on Ethereum — burns/mints wrapped assets in response to verified VAAs. Used by attacker to bridge 93,750 wETH back from Solana to Ethereum after the forged mint."
+    },
+    "weth_ethereum": {
+      "address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      "chain": "destination",
+      "etherscan_url": "https://etherscan.io/address/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      "role": "Underlying WETH custodied by the Token Bridge; backing for whETH issued on Solana."
+    }
+  },
+  "non_evm_simulation": {
+    "reason": "The exploit primary chain (Solana) is non-EVM and cannot be replayed in revm. The reconstruction in contracts/ models the trust boundary that broke (verify_signatures accepting an unauthenticated Sysvar Instructions account) on EVM via WormholeCore.verifySignaturesLegacy. Full Solana-side reproduction would require an SVM harness — see paper Section 6.",
+    "modelled_path": [
+      "Solana verify_signatures (vulnerable) -> WormholeCore.verifySignaturesLegacy",
+      "Solana complete_wrapped -> TokenBridge.completeTransfer",
+      "Wrapped whETH on Solana -> WrappedAsset on benchmark EVM"
+    ],
+    "out_of_scope": [
+      "Re-bridging the 93,750 forged whETH from Solana back to Ethereum (Module 3 single-chain fuzz only)."
+    ]
+  },
+  "root_cause_summary": {
+    "vulnerable_pattern": "Solana verify_signatures instruction accepted a caller-supplied `instructions` Sysvar account without validating it equalled the canonical Sysvar1nstructions1111 address. The post-verification record was trusted by complete_wrapped.",
+    "verification_bypass": "Attacker passed a forged instructions account whose contents claimed guardian signatures had been verified, then submitted a VAA to complete_wrapped which minted 120,000 whETH on Solana with no backing.",
+    "affected_logic": [
+      "Wormhole verify_signatures (Solana program)",
+      "Wormhole complete_wrapped (Solana program)",
+      "Modelled EVM analogue: WormholeCore.verifySignaturesLegacy / parseAndVerifyVM",
+      "Modelled EVM analogue: TokenBridge.completeTransfer"
+    ],
+    "notes": "The bug is a target-account-validation failure (verifying *which* account holds the signature record), not a cryptographic flaw in ECDSA itself. Classified as V1 because the cross-chain message authenticity invariant is the one violated."
+  },
+  "exploit_characteristics": {
+    "style": "VAA forgery via unauthenticated signature-record account",
+    "num_transactions_estimate": 4,
+    "notes": "One forged verify_signatures + one complete_wrapped on Solana (120,000 whETH minted), followed by ~93,750 wETH bridged back to Ethereum across multiple txs. Jump Crypto reimbursed the protocol on 2022-02-03."
+  },
+  "references": [
+    {
+      "title": "Extropy IO — Solana Wormhole hack post-mortem analysis",
+      "url": "https://extropy-io.medium.com/solanas-wormhole-hack-post-mortem-analysis-3b68b9e88e13"
+    },
+    {
+      "title": "Rekt News — Wormhole Rekt",
+      "url": "https://rekt.news/wormhole-rekt/"
+    },
+    {
+      "title": "Etherscan: Wormhole Token Bridge",
+      "url": "https://etherscan.io/address/0x3ee18B2214AFF97000D974cf647E7C347E8fa585"
+    },
+    {
+      "title": "Etherscan: Wormhole Core Bridge",
+      "url": "https://etherscan.io/address/0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"
+    }
+  ],
+  "status": {
+    "contracts_reconstructed": true,
+    "trace_curated": true,
+    "ready_for_module1_2_pipeline": true,
+    "ready_for_full_dual_evm_replay": false
+  },
+  "reporting": {
+    "table_row": 2,
+    "loss_usd_confidence": "estimate"
+  }
+}

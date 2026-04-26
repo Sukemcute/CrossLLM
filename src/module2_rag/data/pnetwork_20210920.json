@@ -1,0 +1,12 @@
+{
+  "exploit_id": "pnetwork_20210920",
+  "bridge": "pNetwork",
+  "date": "2021-09-20",
+  "vulnerability_class": "logic_bug",
+  "attack_stage": "off_chain",
+  "summary": "SmartAxe FSE'24 manually-labeled cross-chain bridge attack on pNetwork.",
+  "attack_trace": [
+    "Hex artifact bundle: references/FSE24-SmartAxe/manually-labeled dataset/Real_attack_dataset_format/pNetwork20210920/"
+  ],
+  "source": "smartaxe_fse24"
+}

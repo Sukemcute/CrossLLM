@@ -1,0 +1,14 @@
+{
+  "exploit_id": "thorchain_1_xscope",
+  "bridge": "THORChain # 1",
+  "vulnerability_class": "logic_bug",
+  "attack_stage": "destination_chain",
+  "summary": "XScope-catalog attack on THORChain # 1.",
+  "attack_trace": [
+    "See post-mortem: https://medium.com/thorchain/eth-parsing-error-and-exploit-3b343aa6466f"
+  ],
+  "references": [
+    "https://medium.com/thorchain/eth-parsing-error-and-exploit-3b343aa6466f"
+  ],
+  "source": "xscope_ase22"
+}

@@ -1,0 +1,103 @@
+{
+  "benchmark_id": "socket_20240116",
+  "summary": "Single-chain mapping for the Socket Gateway benchmark. Although Socket is a bridge aggregator (Bungee), the 2024-01-16 incident broke the in-chain swap path, so source_chain == destination_chain. Cross-chain mapping fields are kept for schema parity but collapse to ethereum.",
+  "bridge_name": "socket",
+  "source_chain": {
+    "name": "ethereum",
+    "chain_id": 1,
+    "contracts": {
+      "socket_gateway": "0x3a23F943181408EAC424116Af7b7790c94Cb97a5"
+    }
+  },
+  "destination_chain": {
+    "name": "ethereum",
+    "chain_id": 1,
+    "contracts": {
+      "socket_gateway": "0x3a23F943181408EAC424116Af7b7790c94Cb97a5"
+    },
+    "note": "Same contract — Socket Gateway dispatches both same-chain swaps and cross-chain bridges through the same proxy."
+  },
+  "entity_map": [
+    {
+      "logical_id": "gateway",
+      "chain": "source",
+      "address": "0x3a23F943181408EAC424116Af7b7790c94Cb97a5",
+      "type": "contract",
+      "role": "Aggregator proxy that dispatches to per-route swap implementations and holds user approvals."
+    },
+    {
+      "logical_id": "vulnerable_route",
+      "chain": "source",
+      "address": "",
+      "type": "contract",
+      "role": "Route #16 implementation. The bug-specific entry point. Modelled as SocketGateway.performAction in the benchmark contract."
+    },
+    {
+      "logical_id": "victim",
+      "chain": "source",
+      "address": "",
+      "type": "user",
+      "role": "Any user who had an outstanding approve(SocketGateway, ...) on a token at the time of the attack. ~219 victims observed in production."
+    },
+    {
+      "logical_id": "attacker",
+      "chain": "source",
+      "address": "0x50f9602e3105B5dDc56dE3D9f6BD98f30A28e2cF",
+      "type": "user",
+      "role": "Attacker EOA that drove the drain calls."
+    }
+  ],
+  "asset_map": [
+    {
+      "symbol": "USDC",
+      "source_token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "destination_token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "decimals": 6,
+      "notes": "Largest single asset class drained. Same-chain (no bridge crossing)."
+    },
+    {
+      "symbol": "WETH",
+      "source_token": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      "destination_token": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      "decimals": 18,
+      "notes": "Second-most drained asset. Same-chain."
+    },
+    {
+      "symbol": "USDT",
+      "source_token": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+      "destination_token": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+      "decimals": 6,
+      "notes": "Same-chain."
+    }
+  ],
+  "router_mapping": [
+    {
+      "ethereum": {
+        "contract": "0x3a23F943181408EAC424116Af7b7790c94Cb97a5",
+        "function_signature": "performAction(uint32,address,address,uint256,address,address,bytes)",
+        "vulnerable_param": "fromUser (5th argument)",
+        "fix": "require(msg.sender == fromUser)"
+      }
+    }
+  ],
+  "message_map": {
+    "message_id_field": "n/a (same-chain attack — no cross-chain message)",
+    "proof_field": "n/a",
+    "critical_default": "msg.sender unchecked against fromUser",
+    "critical_auth_map": "ERC20.allowance[victim][socketGateway]"
+  },
+  "invariants_for_fuzzer": [
+    {
+      "invariant_id": "inv_socket_caller_authorization",
+      "description": "performAction must require msg.sender == fromUser (or accept a signed permit binding the operation to a specific caller)."
+    },
+    {
+      "invariant_id": "inv_socket_approval_consent",
+      "description": "Tokens may only be pulled via transferFrom when the spender is acting on behalf of the original approver — i.e. ERC20.allowance[from][gateway] alone is not sufficient authorization without msg.sender == from."
+    },
+    {
+      "invariant_id": "inv_socket_balance_monotonicity_per_user",
+      "description": "For any user u who has not signed a transaction in block B, balanceOf(u) at end of block B >= balanceOf(u) at start of block B (modulo gas — no token movements)."
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "exploit_id": "anyswap_20210710",
+  "bridge": "Anyswap (Multichain V3)",
+  "date": "2021-07-10",
+  "loss_usd": 7900000,
+  "chains": [
+    "ethereum",
+    "bsc"
+  ],
+  "vulnerability_class": "key_compromise",
+  "attack_stage": "off_chain",
+  "summary": "Attacker observed signature reuse in Anyswap router V3, recovered the shared MPC private key, and drained two pools.",
+  "attack_trace": [
+    "Detect ECDSA nonce reuse across two router signatures",
+    "Recover private key via deterministic-k attack",
+    "Sign arbitrary swapOut messages and drain pools"
+  ],
+  "root_cause": "MPC implementation reused the deterministic k value across signed messages, leaking the private key shard.",
+  "references": [
+    "https://medium.com/multichainorg/anyswap-multichain-router-v3-exploit-statement-6833f1b7e6fb"
+  ],
+  "source": "curated"
+}

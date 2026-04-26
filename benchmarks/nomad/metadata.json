@@ -1,0 +1,87 @@
+{
+  "schema_version": "1.0",
+  "benchmark_id": "nomad_2022",
+  "name": "Nomad Token Bridge Exploit",
+  "incident_date_utc": "2022-08-01",
+  "loss_usd_estimate": 190000000,
+  "attack_type": "verification_bypass",
+  "vulnerability_classes": [
+    "V1",
+    "V3"
+  ],
+  "attack_stage": "destination_chain",
+  "source_chain": {
+    "name": "ethereum",
+    "chain_id": 1,
+    "rpc_env": "ETH_RPC_URL"
+  },
+  "destination_chain": {
+    "name": "moonbeam",
+    "chain_id": 1284,
+    "rpc_env": "MOONBEAM_RPC_URL"
+  },
+  "fork": {
+    "block_number": 15259100,
+    "first_exploit_block": 15259101,
+    "repro_rpc_port": 8545
+  },
+  "contracts": {
+    "replica_ethereum": {
+      "address": "0xB92336759618F55bd0F8313bd843604592E27bd8",
+      "role": "vulnerable message authentication in process() via acceptableRoot()"
+    },
+    "erc20_bridge_ethereum": {
+      "address": "0x88A69B4E698A4B090DF6CF5BD7B2D47325AD30A3",
+      "role": "bridge router/token handling path affected by forged messages"
+    },
+    "funds_recovery_wallet": {
+      "address": "0x94A84433101A10aEda762968f6995c574D1bF154",
+      "role": "official Nomad recovery wallet after incident",
+      "is_eoa": true
+    }
+  },
+  "root_cause_summary": {
+    "upgrade_date": "2022-06-21",
+    "vulnerable_pattern": "initialize() pre-approved committed root by setting confirmAt[_committedRoot] = 1 with _committedRoot=0x00",
+    "verification_bypass": "unproven messages defaulted to root=0x00 and acceptableRoot(0x00) returned true because block.timestamp >= 1",
+    "affected_logic": [
+      "Replica.initialize",
+      "Replica.acceptableRoot",
+      "Replica.process"
+    ]
+  },
+  "exploit_characteristics": {
+    "style": "copycat calldata replay with recipient substitution",
+    "num_transactions_estimate": 960,
+    "num_withdrawals_estimate": 1175,
+    "notes": "Hundreds of independent wallets copied the initial exploit calldata and replaced receiver addresses."
+  },
+  "references": [
+    {
+      "title": "Nomad Bridge Hack: Root Cause Analysis (official)",
+      "url": "https://medium.com/nomad-xyz-blog/nomad-bridge-hack-root-cause-analysis-875ad2e5aacd"
+    },
+    {
+      "title": "Halborn: The Nomad Bridge Hack - A Deeper Dive",
+      "url": "https://www.halborn.com/blog/post/the-nomad-bridge-hack-a-deeper-dive"
+    },
+    {
+      "title": "Etherscan: Nomad ERC20 Bridge",
+      "url": "https://etherscan.io/address/0x88a69b4e698a4b090df6cf5bd7b2d47325ad30a3"
+    },
+    {
+      "title": "Etherscan: Nomad official recovery wallet",
+      "url": "https://etherscan.io/address/0x94a84433101a10aeda762968f6995c574d1bf154"
+    }
+  ],
+  "status": {
+    "contracts_reconstructed": true,
+    "trace_curated": true,
+    "ready_for_module1_2_pipeline": true,
+    "ready_for_full_dual_evm_replay": false
+  },
+  "reporting": {
+    "table_row": 4,
+    "loss_usd_confidence": "estimate"
+  }
+}

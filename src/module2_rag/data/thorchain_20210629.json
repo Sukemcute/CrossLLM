@@ -1,0 +1,23 @@
+{
+  "exploit_id": "thorchain_20210629",
+  "bridge": "THORChain",
+  "date": "2021-06-29",
+  "loss_usd": 350000,
+  "chains": [
+    "ethereum",
+    "thorchain"
+  ],
+  "vulnerability_class": "logic_bug",
+  "attack_stage": "source_chain",
+  "summary": "Refund logic miscalculated outbound amount when input asset memo was malformed, letting attackers obtain refunds for assets they never sent.",
+  "attack_trace": [
+    "Submit asset deposit with crafted memo string",
+    "Trigger ETH parsing error in asgard vault router",
+    "Receive larger refund than deposited"
+  ],
+  "root_cause": "ETH router had inadequate input validation in transferOut function when handling malformed memos.",
+  "references": [
+    "https://medium.com/thorchain/eth-parsing-error-and-exploit-3b343aa6466f"
+  ],
+  "source": "curated"
+}

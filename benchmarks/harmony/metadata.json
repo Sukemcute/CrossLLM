@@ -1,0 +1,120 @@
+{
+  "schema_version": "1.0",
+  "benchmark_id": "harmony_horizon_20220623",
+  "name": "Harmony Horizon Bridge Exploit",
+  "incident_date_utc": "2022-06-23",
+  "loss_usd_estimate": 100000000,
+  "attack_type": "key_compromise",
+  "vulnerability_classes": ["V4"],
+  "attack_stage": "off_chain",
+  "source_chain": {
+    "name": "ethereum",
+    "chain_id": 1,
+    "rpc_env": "ETH_RPC_URL"
+  },
+  "destination_chain": {
+    "name": "harmony",
+    "chain_id": 1666600000,
+    "rpc_env": "HARMONY_RPC_URL"
+  },
+  "fork": {
+    "block_number": 15011934,
+    "first_exploit_block": 15011935,
+    "repro_rpc_port": 8545
+  },
+  "contracts": {
+    "horizon_eth_manager": {
+      "address": "0x2dCCDB493827E15a5dC8f8b72147E6c4A5620857",
+      "chain": "source",
+      "etherscan_url": "https://etherscan.io/address/0x2dCCDB493827E15a5dC8f8b72147E6c4A5620857",
+      "role": "Ethereum-side bridge manager. Held the 4 operator hot-wallet addresses and ran the 2-of-4 ECDSA threshold check before unlocking the bucket. Modelled by HorizonEthManager.sol extending the shared MockMultisig harness (N=4, K=2).",
+      "threshold": "2/4"
+    },
+    "horizon_eth_bucket": {
+      "address": "0x84943BE3eaeC8dB3915b56F23B7D2F69bbE96d62",
+      "chain": "source",
+      "etherscan_url": "https://etherscan.io/address/0x84943BE3eaeC8dB3915b56F23B7D2F69bbE96d62",
+      "role": "Custody pool that held the locked ETH/USDC/USDT/WBTC/DAI/etc. balances. Released funds only at the manager's request — modelled by EthBucket.sol with onlyManager guard."
+    },
+    "weth_ethereum": {
+      "address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      "chain": "source",
+      "etherscan_url": "https://etherscan.io/address/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      "role": "WETH / native ETH leg — 13,100 ETH (~$14M) drained."
+    },
+    "usdc_ethereum": {
+      "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "chain": "source",
+      "etherscan_url": "https://etherscan.io/address/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "role": "USDC — ~$36M drained, the largest single asset."
+    },
+    "usdt_ethereum": {
+      "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+      "chain": "source",
+      "etherscan_url": "https://etherscan.io/address/0xdAC17F958D2ee523a2206206994597C13D831ec7",
+      "role": "USDT — ~$14M drained."
+    },
+    "wbtc_ethereum": {
+      "address": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+      "chain": "source",
+      "etherscan_url": "https://etherscan.io/address/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+      "role": "WBTC — ~$6M drained."
+    },
+    "dai_ethereum": {
+      "address": "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+      "chain": "source",
+      "etherscan_url": "https://etherscan.io/address/0x6B175474E89094C44Da98b954EedeAC495271d0F",
+      "role": "DAI — drained alongside USDC/USDT/WBTC. Bundled in batched receipts."
+    },
+    "attacker": {
+      "address": "0x0d043128146654C7683Fbf30ac98D7B2285DeD00",
+      "chain": "source",
+      "role": "Placeholder for the attacker EOA that received the 11 batched withdrawals. Real attribution: Lazarus Group (DPRK), per Elliptic forensic analysis 2022-06-29.",
+      "is_eoa": true
+    }
+  },
+  "off_chain_compromise_note": {
+    "reason": "Same shape as Ronin (Sprint R): 2 of 4 operator hot-wallet keys leaked off-chain. The on-chain 2-of-4 ECDSA threshold check enforced its spec correctly — the failed assumption is 'fewer than 2 of the 4 hot wallets will be compromised at once'. Production hot-wallet management at Harmony was less well-documented than Ronin's Axie DAO delegate path, but the structural failure mode is identical.",
+    "implication": "Module 1 should infer the same `validator_set_authority` invariant as Ronin (modulo N/K). Module 2's RAG retrieval ought to surface the Ronin `key_compromise` scenario template here — Sprint R + Sprint H together stress whether the LLM generalises the multi-sig pattern across two structurally-similar incidents with different N/K.",
+    "modelled_by": "HorizonEthManager extends MockMultisig (N=4, K=2). Custody is delegated to a separate EthBucket so the (manager -> bucket) authority-delegation edge is explicit in the ATG."
+  },
+  "root_cause_summary": {
+    "vulnerable_pattern": "Bridge withdrawal authorisation requires 2-of-4 ECDSA signatures from a fixed operator set. The on-chain check is correct.",
+    "verification_bypass": "Off-chain: Harmony stored at least 2 of the 4 operator private keys on a hot-wallet infrastructure that fell to a malware-laden phishing campaign attributed to the Lazarus Group. Once 2 keys were on attacker-controlled hardware, the threshold was satisfied from a single attacker identity.",
+    "affected_logic": [
+      "HorizonEthManager._validateSignatures (modelled by MockMultisig.execute)",
+      "HorizonEthManager.unlock (self-callable only via the multi-sig)",
+      "EthBucket.release (only-manager guard correctly enforced)"
+    ],
+    "notes": "The 2-of-4 threshold is the most aggressively-low ratio in the off-chain plan (50%); compromising even a single additional key would have collapsed the security argument. Compared to Ronin's 5-of-9 (55.6%) the smaller absolute count (2 vs 5) reduces the attacker's burden disproportionately."
+  },
+  "exploit_characteristics": {
+    "style": "validator quorum collapse via private-key compromise, batched withdrawals",
+    "num_transactions_estimate": 11,
+    "notes": "11 batched withdrawal transactions executed across roughly 5 Ethereum blocks starting 15011935. The batching pattern is the per-asset distinction — each receipt corresponds to one (token, recipient, amount) tuple from the bucket."
+  },
+  "references": [
+    {
+      "title": "Harmony — Lessons from the Harmony Bridge Hack",
+      "url": "https://medium.com/harmony-one/lessons-from-the-harmony-bridge-hack-1c3a72b9d58b"
+    },
+    {
+      "title": "Elliptic — Harmony Horizon Bridge $100M Hack May Be Linked to Lazarus Group",
+      "url": "https://www.elliptic.co/blog/harmony-horizon-bridge-100-million-hack-may-be-linked-to-lazarus-group"
+    },
+    {
+      "title": "Etherscan: Horizon Eth Manager",
+      "url": "https://etherscan.io/address/0x2dCCDB493827E15a5dC8f8b72147E6c4A5620857"
+    }
+  ],
+  "status": {
+    "contracts_reconstructed": true,
+    "trace_curated": true,
+    "ready_for_module1_2_pipeline": true,
+    "ready_for_full_dual_evm_replay": false
+  },
+  "reporting": {
+    "table_row": 5,
+    "loss_usd_confidence": "estimate"
+  }
+}

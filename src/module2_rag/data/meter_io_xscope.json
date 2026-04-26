@@ -1,0 +1,14 @@
+{
+  "exploit_id": "meter_io_xscope",
+  "bridge": "meter.io",
+  "vulnerability_class": "fake_deposit",
+  "attack_stage": "destination_chain",
+  "summary": "XScope-catalog attack on meter.io.",
+  "attack_trace": [
+    "See post-mortem: https://halborn.com/explained-the-meter-io-hack-february-2022/"
+  ],
+  "references": [
+    "https://halborn.com/explained-the-meter-io-hack-february-2022/"
+  ],
+  "source": "xscope_ase22"
+}

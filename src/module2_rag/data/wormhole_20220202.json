@@ -1,0 +1,23 @@
+{
+  "exploit_id": "wormhole_20220202",
+  "bridge": "Wormhole",
+  "date": "2022-02-02",
+  "loss_usd": 326000000,
+  "chains": [
+    "solana",
+    "ethereum"
+  ],
+  "vulnerability_class": "signature_forgery",
+  "attack_stage": "destination_chain",
+  "summary": "Bypassed the Solana guardian signature verification by spoofing the sysvar account, allowing arbitrary mints of wrapped ETH on Solana.",
+  "attack_trace": [
+    "Submit verify_signatures with attacker-supplied sysvar instruction set",
+    "Bypass solana_program::sysvar instruction authority check",
+    "Mint 120k wETH on Solana without collateral on Ethereum"
+  ],
+  "root_cause": "Wormhole Solana program used a deprecated load_instruction_at without verifying sysvar instruction account, enabling forged guardian signatures.",
+  "references": [
+    "https://extropy-io.medium.com/solanas-wormhole-hack-post-mortem-analysis-3b68b9e88e13"
+  ],
+  "source": "curated"
+}

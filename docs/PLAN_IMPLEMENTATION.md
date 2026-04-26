@@ -9,9 +9,9 @@
 | Thành phần | Trạng thái |
 |------------|-----------|
 | Tài liệu / Paper | Hoàn chỉnh (paper.tex, docs, guide) |
-| Python (Module 1+2) | Skeleton — class/method signatures, `raise NotImplementedError` |
+| Python (Module 1+2) | **Đã triển khai core:** `extractor.py`, `atg_builder.py`, `invariant_synth.py`, `knowledge_base.py`, `embedder.py` (lazy-import `SentenceTransformer` trong `_encode_texts`), `scenario_gen.py`; có test cho Module 1/2 pass. **Còn thiếu:** dữ liệu đủ 51 exploits, benchmark artifacts đủ 12 bridge, và kiểm thử end-to-end với Module 3 trên từng benchmark. |
 | Rust (Module 3) | **Đã có:** `types.rs`, `config.rs` + CLI (gồm `--r-threshold`, `--max-corpus`, `--max-snapshots`, `--no-dynamic-snapshots`), `dual_evm.rs` (fork/execute + `capture_snapshot`/`restore_snapshot`), `mock_relay.rs`, `snapshot.rs` (SnapshotPool, shared-prefix `select_for_seed`), `mutator.rs`, `checker.rs` (+ `set_reward_weights` decay), `scenario_sim.rs` (+ `evaluate_waypoints`), `fuzz_loop.rs` (Alg. 1: corpus, chọn seed theo trọng số $R$, pool động), `main.rs` gọi `fuzz_loop::run` → `results.json`. |
-| Benchmarks | `benchmarks/README.md` có bảng 12 exploit (fork block, hướng tấn công). **Chưa** có đủ 12 thư mục benchmark đầy đủ (`metadata.json`, `contracts/`, `exploit_trace.json`, `mapping.json` theo từng bridge). |
+| Benchmarks | `benchmarks/README.md` có bảng 12 exploit (fork block, hướng tấn công). **Chưa** có đủ 12 thư mục benchmark đầy đủ; **Nomad** là gói tham chiếu (`metadata` + `schema_version`, `BENCHMARK_METADATA.schema.json`, `repro.sh`/`repro.ps1`, `Message.sol` + luồng `prove`→`process`). |
 | JSON schemas giao tiếp | **Đã định nghĩa:** `schemas/*.schema.json` (ATG, hypotheses, invariants, results) + `schemas/README.md`; mock fixtures trong `tests/fixtures/`. Cần **đồng bộ với Member A** (Python) trước khi coi Phase 0 schema là đóng băng. |
 | Dữ liệu 51 exploit | Chưa có nội dung record (`src/module2_rag/data/` gần như trống ngoài README) |
 
@@ -231,7 +231,7 @@ benchmarks/*/                  ← A: contracts + exploit_trace, B: mapping + fo
 |------|-----|------------|
 | ✅ Tạo `schemas/` với 3 file JSON schema | Cả hai | Schemas committed, đóng băng |
 | ✅ Tạo mock fixture JSON (atg_mock.json, hypotheses_mock.json) | Cả hai | Fixtures trong `tests/fixtures/` |
-| Tạo benchmark Nomad hoàn chỉnh | A: contracts + trace, B: mapping + metadata | `benchmarks/nomad/` đầy đủ |
+| ✅ Tạo benchmark Nomad hoàn chỉnh | A: contracts + trace, B: mapping + metadata | ✅ `benchmarks/nomad/`: `metadata.json` (kèm `schema_version` + `reporting`), `mapping.json`, `exploit_trace.json`, `contracts/` (`Message.sol`, `Replica`, `BridgeRouter`, `MockToken`), `repro.sh`/`repro.ps1`, `README.md`; `benchmarks/BENCHMARK_METADATA.schema.json` dùng chung |
 | Verify Python venv + `pip install` | A | requirements.txt hoạt động |
 | ✅ Verify `cargo check` biên dịch | B | Cargo.toml dependencies đúng |
 | Tạo `.env` với API keys thật | Cả hai | OpenAI + Alchemy hoạt động |
@@ -247,9 +247,9 @@ benchmarks/*/                  ← A: contracts + exploit_trace, B: mapping + fo
 
 | Tuần | File | Công việc | Test |
 |------|------|-----------|------|
-| 2-3 | `extractor.py` | Tích hợp OpenAI API, prompt engineering, parse JSON output. Dùng `response_format: json_object`. Retry loop 3 lần khi JSON lỗi. | Feed Nomad Lock.sol → assert output có entities, functions, asset_flows |
-| 4 | `atg_builder.py` | Nhận extraction output → xây ATG (nodes, edges, labels). Serialize/deserialize JSON. | Validate output against `atg.schema.json` |
-| 4 | `invariant_synth.py` | LLM sinh invariants từ ATG. Pipeline 3 bước: sinh → validate traces → check consistency. | Assert 4 categories present. Assert Solidity parseable. |
+| 2-3 | ✅ `extractor.py` | Tích hợp OpenAI API, prompt engineering, parse JSON output. Dùng `response_format: json_object`. Retry loop 3 lần khi JSON lỗi. | ✅ Test extractor (entities/functions/asset_flows) đã pass |
+| 4 | ✅ `atg_builder.py` | Nhận extraction output → xây ATG (nodes, edges, labels). Serialize/deserialize JSON. | ✅ Unit tests + serialize/deserialize đã pass |
+| 4 | ✅ `invariant_synth.py` | LLM sinh invariants từ ATG. Pipeline 3 bước: sinh → validate traces → check consistency. | ✅ Test category invariants (4 nhóm chính) đã pass |
 
 **Milestone tuần 4:** Chạy `python -c "from src.module1_semantic.extractor import SemanticExtractor; ..."` trên Nomad → sinh ra `atg.json` hợp lệ.
 
@@ -273,10 +273,10 @@ benchmarks/*/                  ← A: contracts + exploit_trace, B: mapping + fo
 
 | Tuần | File | Công việc | Test |
 |------|------|-----------|------|
-| 5-6 | `knowledge_base.py` | Load 51 exploit JSON records. Query theo vuln_class, attack_stage. | Assert 51 records. Filter tests. |
+| 5-6 | ✅ `knowledge_base.py` | Load 51 exploit JSON records. Query theo vuln_class, attack_stage. | ✅ Load/filter tests đã pass (hiện có sample records) |
 | 5-6 | `data/*.json` | **Thu thập dữ liệu:** viết 51 file JSON exploit (rekt.news, SlowMist, post-mortems). ~30 phút/record → ~25 giờ. Bắt đầu từ tuần 1 làm dần. | Schema validation mỗi file |
-| 7 | `embedder.py` | SentenceTransformer (all-MiniLM-L6-v2) → FAISS index. Build index, search top-k. | Query "fake proof verification bypass" → top result chứa Nomad |
-| 7 | `scenario_gen.py` | Xây prompt RAG: ATG + invariant + retrieved exploits → LLM sinh action sequence + waypoints. | Output validates against `hypotheses.schema.json` |
+| 7 | ✅ `embedder.py` | SentenceTransformer (all-MiniLM-L6-v2) → FAISS index. Build index, search top-k. | ✅ Search/index tests đã pass (có fallback numpy khi thiếu deps) |
+| 7 | ✅ `scenario_gen.py` | Xây prompt RAG: ATG + invariant + retrieved exploits → LLM sinh action sequence + waypoints. | ✅ Generator + waypoint extraction tests đã pass |
 
 **Milestone tuần 7:** Chạy `Module 1 → Module 2` trên Nomad → sinh `hypotheses.json` hợp lệ với >=3 kịch bản tấn công.
 
@@ -298,7 +298,7 @@ benchmarks/*/                  ← A: contracts + exploit_trace, B: mapping + fo
 | Task | Ai | Chi tiết |
 |------|-----|---------|
 | Build Rust binary | B | `cargo build --release` → binary sẵn sàng |
-| Orchestrator gọi binary | A | subprocess call: `./bridgesentry-fuzzer --atg atg.json --scenarios hypotheses.json --budget 600 --output results.json` |
+| ✅ Orchestrator gọi binary | A | subprocess call: `./bridgesentry-fuzzer --atg atg.json --scenarios hypotheses.json --budget 600 --output results.json` (đã tích hợp; có `--skip-fuzzer`) |
 | Test end-to-end Nomad | Cả hai | `python orchestrator.py --benchmark benchmarks/nomad/ --time-budget 60 --runs 1` → phát hiện >=1 violation |
 | Fix serialization issues | Cả hai | JSON encoding/decoding giữa Python ↔ Rust |
 | Error handling | A: Python side, B: Rust side | Xử lý crash, timeout, invalid input |
@@ -392,14 +392,14 @@ benchmarks/*/                  ← A: contracts + exploit_trace, B: mapping + fo
 
 | Tuần | Member A | Member B | Kiểm tra |
 |------|----------|----------|----------|
-| 1 | Schemas + Nomad contracts + mock fixtures | ✅ Schemas + revm PoC + Cargo fix | ✅ Schemas + mock fixtures đã commit · ✅ cargo check · revm PoC trong dual_evm (test fork RPC, #[ignore]) |
-| 2 | extractor.py: OpenAI integration | ✅ dual_evm.rs: fork 2 chains | extractor output JSON hợp lệ |
-| 3 | extractor.py: multi-step analysis hoàn chỉnh | ✅ dual_evm.rs: execute tx trên cả 2 chains | ✅ execute tx trên dual-EVM (`dual_evm.rs`) |
-| 4 | atg_builder.py + invariant_synth.py | ✅ snapshot.rs + dual_evm capture/restore | atg.json cho Nomad · ✅ snapshot round-trip (unit tests + `snapshot_restore_preserves_tracked_balances` #[ignore] RPC) |
-| 5 | knowledge_base.py + bắt đầu 51 records | ✅ mock_relay.rs: 4 modes | KB load test · relay mode tests |
-| 6 | Tiếp tục 51 records + embedder.py | ✅ config.rs + ✅ types.rs | ✅ Module 3: CLI + deserialize ATG/hypotheses · FAISS index (Module 2): chưa |
-| 7 | scenario_gen.py → hypotheses.json | ✅ mutator.rs + ✅ checker.rs + ✅ fuzz_loop (Alg.1: corpus, R, SnapshotPool) | hypotheses.json cho Nomad · fuzzer loop |
-| 8 | orchestrator.py tích hợp | main.rs CLI + binary build | END-TO-END NOMAD |
+| 1 | ✅ Schemas + Nomad contracts + mock fixtures | ✅ Schemas + revm PoC + Cargo fix | ✅ Schemas + mock fixtures đã commit · ✅ benchmark Nomad artifact đầy đủ · ✅ cargo check · revm PoC trong dual_evm (test fork RPC, #[ignore]) |
+| 2 | ✅ extractor.py: OpenAI integration (kèm offline heuristic) | ✅ dual_evm.rs: fork 2 chains | ✅ extractor output JSON hợp lệ |
+| 3 | ✅ extractor.py: multi-step analysis hoàn chỉnh | ✅ dual_evm.rs: execute tx trên cả 2 chains | ✅ execute tx trên dual-EVM (`dual_evm.rs`) |
+| 4 | ✅ atg_builder.py + ✅ invariant_synth.py | ✅ snapshot.rs + dual_evm capture/restore | atg.json cho Nomad: chưa (thiếu benchmark artifacts) · ✅ snapshot round-trip (unit tests + `snapshot_restore_preserves_tracked_balances` #[ignore] RPC) |
+| 5 | ✅ knowledge_base.py + bắt đầu 51 records (đã có sample records) | ✅ mock_relay.rs: 4 modes | ✅ KB load/filter tests · relay mode tests |
+| 6 | Tiếp tục 51 records + ✅ embedder.py | ✅ config.rs + ✅ types.rs | ✅ Module 3: CLI + deserialize ATG/hypotheses · ✅ FAISS/search test |
+| 7 | ✅ scenario_gen.py → hypotheses.json | ✅ mutator.rs + ✅ checker.rs + ✅ fuzz_loop (Alg.1: corpus, R, SnapshotPool) | hypotheses.json cho Nomad: chưa (chưa có benchmark Nomad đầy đủ) · fuzzer loop |
+| 8 | ✅ orchestrator.py tích hợp | main.rs CLI + binary build | END-TO-END NOMAD: chưa |
 | 9 | 4 benchmarks ưu tiên cao | Smoke test + debug | 5/12 benchmarks chạy |
 | 10 | 7 benchmarks còn lại | Benchmark testing | 12/12 benchmarks chạy |
 | 11 | Baseline: GPTScan | Baseline: ItyFuzz | Comparison data |

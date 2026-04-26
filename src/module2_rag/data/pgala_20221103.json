@@ -1,0 +1,22 @@
+{
+  "exploit_id": "pgala_20221103",
+  "bridge": "pGALA",
+  "date": "2022-11-03",
+  "loss_usd": 10000000,
+  "chains": [
+    "bsc"
+  ],
+  "vulnerability_class": "key_compromise",
+  "attack_stage": "source_chain",
+  "summary": "pNetwork accidentally redeployed bridge custodian contract with old GalaGames signer, letting attackers withdraw 1B pGALA on BSC.",
+  "attack_trace": [
+    "Detect mistakenly-active legacy custodian contract",
+    "Use legacy signer to mint pGALA on BSC",
+    "Sell on PancakeSwap, draining liquidity"
+  ],
+  "root_cause": "Operational error: legacy custodian was not retired; signing key still authoritative.",
+  "references": [
+    "https://medium.com/pnetwork/pgala-on-bsc-token-incident-2022-11-03-a09ac6cf68f3"
+  ],
+  "source": "curated"
+}

@@ -1,0 +1,23 @@
+{
+  "exploit_id": "ronin_20220323",
+  "bridge": "Ronin Network",
+  "date": "2022-03-23",
+  "loss_usd": 624000000,
+  "chains": [
+    "ethereum",
+    "ronin"
+  ],
+  "vulnerability_class": "key_compromise",
+  "attack_stage": "off_chain",
+  "summary": "Attacker compromised 5 of 9 Ronin validator private keys (4 from Sky Mavis nodes plus the Axie DAO validator) and submitted forged withdrawal transactions.",
+  "attack_trace": [
+    "Compromise Sky Mavis validator keys via spear-phishing",
+    "Reuse Axie DAO whitelisted RPC to sign as 5th validator",
+    "Submit withdraw signatures to bridge contract, drain ETH + USDC"
+  ],
+  "root_cause": "Ronin's 5/9 multi-sig threshold combined with operational permission flaws in the Axie DAO RPC allowed key collection without on-chain anomaly.",
+  "references": [
+    "https://roninblockchain.substack.com/p/community-alert-ronin-validators"
+  ],
+  "source": "curated"
+}

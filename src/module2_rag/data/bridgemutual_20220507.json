@@ -1,0 +1,23 @@
+{
+  "exploit_id": "bridgemutual_20220507",
+  "bridge": "Bridge Mutual",
+  "date": "2022-05-07",
+  "loss_usd": 2400000,
+  "chains": [
+    "bsc",
+    "polygon"
+  ],
+  "vulnerability_class": "oracle_manipulation",
+  "attack_stage": "source_chain",
+  "summary": "Stake price oracle pulled from a single thinly-traded pool, allowing attacker to manipulate price and claim oversized payouts.",
+  "attack_trace": [
+    "Flashloan large amount of underlying",
+    "Push pool price beyond reasonable bounds",
+    "Submit insurance claim using inflated price"
+  ],
+  "root_cause": "Oracle relied on single DEX spot pool with low liquidity, no TWAP buffer.",
+  "references": [
+    "https://medium.com/bridgemutual/bridge-mutual-bridge-incident-may-7-2022-5deb09f8a3a5"
+  ],
+  "source": "curated"
+}

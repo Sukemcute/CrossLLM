@@ -1,0 +1,144 @@
+{
+  "benchmark_id": "orbit_20240101",
+  "summary": "Cross-chain mapping for the Orbit Bridge benchmark. Ethereum holds the custodial WBTC/ETH/USDT/USDC/DAI balance via OrbitVault; Orbit chain (chain_id 9001) holds the wrapped representations. The 2024-01-01 attack drained the Ethereum-side custody only — Orbit-side balances were unaffected, but the wrapped tokens on Orbit were left unbacked.",
+  "bridge_name": "orbit",
+  "source_chain": {
+    "name": "ethereum",
+    "chain_id": 1,
+    "contracts": {
+      "orbit_vault": "0x1Bf68A9d1EaEe7826b3593C20a0ca93293cb489a"
+    }
+  },
+  "destination_chain": {
+    "name": "orbit",
+    "chain_id": 9001,
+    "contracts": {
+      "orbit_chain_bridge": "0x000000000000000000000000000000000000ad01",
+      "note": "Orbit-chain-side counterpart. Receives wrapped representation mint instructions from off-chain relayer when Ethereum-side `lock` events are observed. The 2024-01-01 attack drained the Ethereum custody only — Orbit-side balances were untouched, but the existing wrapped tokens on Orbit were left unbacked."
+    }
+  },
+  "entity_map": [
+    {
+      "logical_id": "farmer_set",
+      "chain": "offchain",
+      "address": "",
+      "type": "validator_set",
+      "role": "Ten ECDSA farmer (validator) addresses administered by Ozys-affiliated staff and partner organisations. Threshold 7-of-10 for any cross-chain action.",
+      "size": 10,
+      "threshold": 7,
+      "compromised_at_incident": 7,
+      "compromise_concentration_ratio": "70%"
+    },
+    {
+      "logical_id": "source_orbit_vault",
+      "chain": "source",
+      "address": "0x1Bf68A9d1EaEe7826b3593C20a0ca93293cb489a",
+      "type": "contract",
+      "role": "Ethereum-side validator-quorum manager + custody pool. Holds the locked ERC20 balances and runs the 7-of-10 threshold check before unlocking."
+    },
+    {
+      "logical_id": "destination_bridge",
+      "chain": "destination",
+      "address": "0x000000000000000000000000000000000000ad01",
+      "type": "contract",
+      "role": "Orbit-chain-side mint/burn router for wrapped representations."
+    },
+    {
+      "logical_id": "attacker",
+      "chain": "source",
+      "address": "0x70e8C8139d1ceF162D5ba3B286380EB5913098c4",
+      "type": "user",
+      "role": "Attacker EOA cluster that received the 5 single-block drain transactions in 18900155. Suspected Lazarus per Match Systems."
+    }
+  ],
+  "asset_map": [
+    {
+      "symbol": "WBTC",
+      "source_token": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+      "destination_token": "0x0a0000000000000000000000000000000000000b",
+      "decimals": 8,
+      "destination_decimals": 8,
+      "amount_drained": "~1100 * 10**8",
+      "notes": "Largest single asset — ~$30M at attack-time prices."
+    },
+    {
+      "symbol": "WETH",
+      "source_token": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      "destination_token": "0x0a0000000000000000000000000000000000000c",
+      "decimals": 18,
+      "destination_decimals": 18,
+      "amount_drained": "~4500 * 10**18",
+      "notes": "Native ETH leg, custodied as WETH. ~$10M drained."
+    },
+    {
+      "symbol": "USDT",
+      "source_token": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+      "destination_token": "0x0a0000000000000000000000000000000000000d",
+      "decimals": 6,
+      "destination_decimals": 6,
+      "amount_drained": "~10000000 * 10**6",
+      "notes": "~$10M drained."
+    },
+    {
+      "symbol": "USDC",
+      "source_token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "destination_token": "0x0a0000000000000000000000000000000000000e",
+      "decimals": 6,
+      "destination_decimals": 6,
+      "amount_drained": "~10000000 * 10**6",
+      "notes": "~$10M drained."
+    },
+    {
+      "symbol": "DAI",
+      "source_token": "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+      "destination_token": "0x0a0000000000000000000000000000000000000f",
+      "decimals": 18,
+      "destination_decimals": 18,
+      "amount_drained": "~10000000 * 10**18",
+      "notes": "~$10M drained."
+    }
+  ],
+  "router_mapping": [
+    {
+      "ethereum": {
+        "contract": "0x1Bf68A9d1EaEe7826b3593C20a0ca93293cb489a",
+        "function_signature": "execute(address,uint256,bytes,uint256,bytes[])",
+        "self_call_target": "unlock(address,address,uint256)",
+        "verifier_call": "MockMultisig._recover (7-of-10 ECDSA threshold)"
+      },
+      "orbit": {
+        "contract": "0x000000000000000000000000000000000000ad01",
+        "function_signature": "withdraw / mint counterpart on Orbit chain",
+        "note": "Orbit-side counterpart is informational; this benchmark fuzzes the Ethereum-side custody only."
+      }
+    }
+  ],
+  "message_map": {
+    "message_id_field": "digest = keccak256(abi.encode(target, value, data, nonce, address(this)))",
+    "proof_field": "bytes[] sigs (>= 7 ECDSA signatures, ascending recovered-address order)",
+    "critical_default": "executed[digest] == false",
+    "critical_auth_map": "isSigner[recovered] && |unique_recovered| >= 7"
+  },
+  "invariants_for_fuzzer": [
+    {
+      "invariant_id": "inv_orbit_threshold_quorum",
+      "description": "Every Unlocked event must correspond to a prior `execute` call carrying >= 7 valid distinct signatures from the configured farmer set."
+    },
+    {
+      "invariant_id": "inv_orbit_validator_set_authority",
+      "description": "Only addresses in the constructor's signer list (size 10) may contribute to the threshold quorum. (On-chain enforced; off-chain assumption 'fewer than 7 farmer keys compromised at once' is what the incident broke.)"
+    },
+    {
+      "invariant_id": "inv_orbit_asset_conservation_per_token",
+      "description": "totalLocked[token] >= cumulative unlocked[token]; vault cannot release more than it has custodied for any single token, even across 5 single-block batched receipts."
+    },
+    {
+      "invariant_id": "inv_orbit_digest_uniqueness",
+      "description": "Each (target, value, data, nonce, vault_address) tuple may unlock at most once — replay protection on the digest cache."
+    },
+    {
+      "invariant_id": "inv_orbit_farmer_isolation",
+      "description": "(Architectural / off-chain) 7 of 10 farmer hosts must not be reachable from a single attacker foothold. Production Orbit failed this — 70% concentration ratio in one campaign is the highest in the off-chain benchmark suite."
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "exploit_id": "polynetwork_xscope",
+  "bridge": "Polynetwork",
+  "vulnerability_class": "fake_deposit",
+  "attack_stage": "destination_chain",
+  "summary": "XScope-catalog attack on Polynetwork.",
+  "attack_trace": [
+    "See post-mortem: https://blocksecteam.medium.com/the-further-analysis-of-the-poly-network-attack-6c459199c057"
+  ],
+  "references": [
+    "https://blocksecteam.medium.com/the-further-analysis-of-the-poly-network-attack-6c459199c057"
+  ],
+  "source": "xscope_ase22"
+}
