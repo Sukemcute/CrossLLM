@@ -1,0 +1,97 @@
+{
+  "benchmark_id": "gempad_20240413",
+  "summary": "Single-chain mapping for the GemPad locker benchmark. Although GemPad runs across multiple chains independently (BSC, ETH, others), the 2024-04 incident was BSC-only — source_chain == destination_chain. Cross-chain mapping fields are kept for schema parity but collapse to BSC.",
+  "bridge_name": "gempad",
+  "source_chain": {
+    "name": "bsc",
+    "chain_id": 56,
+    "contracts": {
+      "gempad_locker": "0x4EE438bE38f8682AbB089F2bfeA48851C5e71Eae"
+    }
+  },
+  "destination_chain": {
+    "name": "bsc",
+    "chain_id": 56,
+    "contracts": {
+      "gempad_locker": "0x4EE438bE38f8682AbB089F2bfeA48851C5e71Eae"
+    },
+    "note": "Same contract — GemPad's BSC locker is the only contract relevant to the 2024-04 incident."
+  },
+  "entity_map": [
+    {
+      "logical_id": "locker",
+      "chain": "destination",
+      "address": "0x4EE438bE38f8682AbB089F2bfeA48851C5e71Eae",
+      "type": "contract",
+      "role": "GemPad token-locker on BSC. Holds project LP and team-allocation locks; the entire benchmark surface."
+    },
+    {
+      "logical_id": "victim_projects",
+      "chain": "destination",
+      "address": "",
+      "type": "user_set",
+      "role": "Project teams who locked liquidity / team tokens with GemPad. Each created at least one lock entry whose `owner` field the attacker hijacked."
+    },
+    {
+      "logical_id": "attacker",
+      "chain": "destination",
+      "address": "0x6dA3f9C6f4b0fE3fF6C32bC2c4F8d3a9Ce8F4b0E",
+      "type": "user",
+      "role": "Attacker EOA that called `transferLockOwnership(lockId, attacker)` followed by `withdraw(lockId)` for ~8 lock positions."
+    }
+  ],
+  "asset_map": [
+    {
+      "symbol": "PROJECT-LP-1",
+      "source_token": "0xeF95dF21F3b0EA0F1f2eb1A95fB04A5c7d76E3b7",
+      "destination_token": "0xeF95dF21F3b0EA0F1f2eb1A95fB04A5c7d76E3b7",
+      "decimals": 18,
+      "destination_decimals": 18,
+      "amount_drained": "varies per project",
+      "notes": "Representative PancakeSwap LP token locked by a project. Multiple LPs drained — the placeholder address stands in for the cluster."
+    },
+    {
+      "symbol": "PROJECT-TEAM-1",
+      "source_token": "0xfEa12B5e7C0Fb1Cab7B6b8FCe9D1aA5E5c9F8d12",
+      "destination_token": "0xfEa12B5e7C0Fb1Cab7B6b8FCe9D1aA5E5c9F8d12",
+      "decimals": 18,
+      "destination_decimals": 18,
+      "amount_drained": "varies per project",
+      "notes": "Representative team-allocation token locked by a project."
+    }
+  ],
+  "router_mapping": [
+    {
+      "bsc": {
+        "contract": "0x4EE438bE38f8682AbB089F2bfeA48851C5e71Eae",
+        "function_signature": "transferLockOwnership(uint256,address)",
+        "vulnerable_param": "newOwner — combined with missing auth check, anyone can hijack any lock's owner",
+        "fix": "require(msg.sender == locks[lockId].owner)"
+      }
+    }
+  ],
+  "message_map": {
+    "message_id_field": "n/a (same-chain attack — no cross-chain message)",
+    "proof_field": "n/a",
+    "critical_default": "msg.sender unchecked against locks[lockId].owner in transferLockOwnership",
+    "critical_auth_map": "GemPadLocker.locks[lockId].owner"
+  },
+  "invariants_for_fuzzer": [
+    {
+      "invariant_id": "inv_gempad_lock_owner_authority",
+      "description": "transferLockOwnership(lockId, newOwner) must require msg.sender == locks[lockId].owner. The `withdraw` function's authority depends on this field being trustworthy."
+    },
+    {
+      "invariant_id": "inv_gempad_post_lock_immutability",
+      "description": "Once a lock is created, its `owner` field may only change via an authorised path (signed by current owner OR via a time-locked governance step). Direct rewrites by arbitrary callers must revert."
+    },
+    {
+      "invariant_id": "inv_gempad_asset_conservation_per_lock",
+      "description": "A Lock may release at most `amount` tokens, exactly once, to the original depositor (Lock.owner at the time of `lock()`). Releasing to a hijacked owner violates the spirit of asset conservation per user even though the per-token sum is preserved."
+    },
+    {
+      "invariant_id": "inv_gempad_unlock_time_respected",
+      "description": "withdraw must require block.timestamp >= unlockTime. (This invariant is honoured — it is not the bug surface.)"
+    }
+  ]
+}
