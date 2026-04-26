@@ -41,3 +41,6 @@ results/
 
 # Docker
 docker-compose.override.yml
+
+# Notting text file
+Noting/
