@@ -1,0 +1,423 @@
+{
+  "bridge_name": "wormhole",
+  "version": "1.0",
+  "nodes": [
+    {
+      "node_id": "TokenBridge",
+      "node_type": "contract",
+      "chain": "EVM",
+      "address": "TokenBridge",
+      "functions": []
+    },
+    {
+      "node_id": "WormholeCore",
+      "node_type": "core",
+      "chain": "EVM",
+      "address": "core",
+      "functions": []
+    },
+    {
+      "node_id": "WrappedAsset",
+      "node_type": "token",
+      "chain": "EVM",
+      "address": "wrapped",
+      "functions": []
+    },
+    {
+      "node_id": "WormholeCore",
+      "node_type": "core",
+      "chain": "Ethereum",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "WrappedAsset",
+      "node_type": "token",
+      "chain": "Ethereum",
+      "address": "0x0",
+      "functions": []
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "e1",
+      "src": "TokenBridge",
+      "dst": "recipient (from VAA)",
+      "label": "mint",
+      "token": "wrapped asset (address from wrappedAssets mapping)",
+      "conditions": [
+        "core.parseAndVerifyVM returns (valid == true)",
+        "!completed[vm.hash]",
+        "wrapped != address(0)"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "core.parseAndVerifyVM returns (valid == true)"
+          }
+        },
+        {
+          "type": "hashlock",
+          "params": {
+            "expression": "!completed[vm.hash]"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "wrapped != address(0)"
+          }
+        }
+      ],
+      "function_signature": "completeTransfer(bytes)"
+    },
+    {
+      "edge_id": "e2",
+      "src": "null (mint authority)",
+      "dst": "to",
+      "label": "mint",
+      "token": "WrappedAsset",
+      "conditions": [
+        "m",
+        "s",
+        "g",
+        ".",
+        "s",
+        "e",
+        "n",
+        "d",
+        "e",
+        "r",
+        " ",
+        "=",
+        "=",
+        " ",
+        "m",
+        "i",
+        "n",
+        "t",
+        "e",
+        "r"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "m"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "g"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "."
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "d"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "="
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "="
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "m"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "i"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        }
+      ],
+      "function_signature": "mint(address,uint256)"
+    }
+  ],
+  "invariants": [
+    {
+      "invariant_id": "asset_conservation_1",
+      "category": "asset_conservation",
+      "description": "The total amount of source tokens locked in TokenBridge must equal the total amount of wrapped tokens minted on the destination chain plus all collected fees.",
+      "predicate": "totalLockedSource == totalMintedDest + totalFeesCollected",
+      "solidity_assertion": "assert(totalLockedSource == totalMintedDest + totalFeesCollected);",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_2",
+      "category": "asset_conservation",
+      "description": "For each individual transfer, the minted amount cannot exceed the net locked amount after fee deduction.",
+      "predicate": "mintedAmount <= lockedAmount - feeAmount",
+      "solidity_assertion": "require(mintedAmount <= lockedAmount - feeAmount, \"Mint exceeds net locked amount\");",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_3",
+      "category": "asset_conservation",
+      "description": "After a successful mint, the locked balance for that transfer is cleared to zero.",
+      "predicate": "lockedBalances[transferId] == 0",
+      "solidity_assertion": "assert(lockedBalances[transferId] == 0);",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_4",
+      "category": "asset_conservation",
+      "description": "When a refund is claimed, the sender's locked balance is restored and the fee pool is reduced accordingly.",
+      "predicate": "lockedBalances[sender] == previousLocked + refundAmount && feeBalance == previousFee - feeRefunded",
+      "solidity_assertion": "require(lockedBalances[sender] == previousLocked + refundAmount, \"Refund balance mismatch\"); require(feeBalance == previousFee - feeRefunded, \"Fee refund mismatch\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_5",
+      "category": "asset_conservation",
+      "description": "The cumulative fees collected can never exceed the cumulative amount locked on the source chain.",
+      "predicate": "totalFeesCollected <= totalLockedSource",
+      "solidity_assertion": "assert(totalFeesCollected <= totalLockedSource);",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "authorization_1",
+      "category": "authorization",
+      "description": "Minting via VAA is allowed only when core.parseAndVerifyVM returns true.",
+      "predicate": "core.parseAndVerifyVM(vm) == true",
+      "solidity_assertion": "require(core.parseAndVerifyVM(vm), \"Invalid VAA\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "authorization_2",
+      "category": "authorization",
+      "description": "The wrapped asset address resolved from the VAA must be non‑zero.",
+      "predicate": "wrapped != address(0)",
+      "solidity_assertion": "require(wrapped != address(0), \"Wrapped address zero\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "authorization_3",
+      "category": "authorization",
+      "description": "Only the TokenBridge contract may invoke the internal mint function (edge e2).",
+      "predicate": "msg.sender == address(TokenBridge)",
+      "solidity_assertion": "require(msg.sender == address(TokenBridge), \"Unauthorized mint caller\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "authorization_4",
+      "category": "authorization",
+      "description": "Fee deduction for a transfer can be performed only by the TokenBridge contract.",
+      "predicate": "msg.sender == address(TokenBridge) && feeCollected[transferId] > 0",
+      "solidity_assertion": "assert(msg.sender == address(TokenBridge) && feeCollected[transferId] > 0);",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "authorization_5",
+      "category": "authorization",
+      "description": "A VAA must be signed by at least the required guardian quorum before it can be processed.",
+      "predicate": "vm.signatures.length >= guardianQuorum",
+      "solidity_assertion": "require(vm.signatures.length >= guardianQuorum, \"Insufficient guardian signatures\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_1",
+      "category": "uniqueness",
+      "description": "A VAA hash can be processed at most once.",
+      "predicate": "!completed[vmHash] before processing, then completed[vmHash] = true",
+      "solidity_assertion": "require(!completed[vmHash], \"VAA already completed\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_2",
+      "category": "uniqueness",
+      "description": "The nonce of a VAA on a given emitter chain must be unique.",
+      "predicate": "!processedNonces[emitterChain][vm.nonce]",
+      "solidity_assertion": "require(!processedNonces[emitterChain][vm.nonce], \"Duplicate nonce\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_3",
+      "category": "uniqueness",
+      "description": "The pair (sourceChain, sourceTxHash) can be minted only once.",
+      "predicate": "!mintedTransfers[sourceChain][sourceTxHash]",
+      "solidity_assertion": "require(!mintedTransfers[sourceChain][sourceTxHash], \"Transfer already minted\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_4",
+      "category": "uniqueness",
+      "description": "After a successful mint, the completed flag for the VAA hash is set to true and never cleared.",
+      "predicate": "completed[vmHash] == true",
+      "solidity_assertion": "assert(completed[vmHash]);",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_1",
+      "category": "timeliness",
+      "description": "A refund can be claimed only after the lock timeout has elapsed.",
+      "predicate": "block.timestamp >= lockTimestamp[transferId] + timeout",
+      "solidity_assertion": "require(block.timestamp >= lockTimestamp[transferId] + timeout, \"Lock period not expired\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_2",
+      "category": "timeliness",
+      "description": "A VAA whose timestamp is older than the allowed clock‑drift is rejected.",
+      "predicate": "block.timestamp <= vm.timestamp + maxClockDrift",
+      "solidity_assertion": "require(block.timestamp <= vm.timestamp + maxClockDrift, \"VAA too old\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_3",
+      "category": "timeliness",
+      "description": "Minting must occur before the VAA expires (validity period).",
+      "predicate": "block.timestamp <= vm.timestamp + maxValidityPeriod",
+      "solidity_assertion": "require(block.timestamp <= vm.timestamp + maxValidityPeriod, \"VAA expired\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_4",
+      "category": "timeliness",
+      "description": "After a successful refund, the lock timestamp for that transfer is cleared.",
+      "predicate": "lockTimestamp[transferId] == 0 after refund",
+      "solidity_assertion": "assert(lockTimestamp[transferId] == 0);",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "fee_integrity_1",
+      "category": "asset_conservation",
+      "description": "The fee taken for a transfer cannot exceed the amount that was locked.",
+      "predicate": "feeAmount <= lockedAmount",
+      "solidity_assertion": "require(feeAmount <= lockedAmount, \"Fee exceeds locked amount\");",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    }
+  ]
+}

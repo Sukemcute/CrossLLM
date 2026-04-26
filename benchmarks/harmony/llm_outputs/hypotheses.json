@@ -1,0 +1,1546 @@
+{
+  "bridge_name": "harmony",
+  "scenarios": [
+    {
+      "scenario_id": "harmony_invariant_break_001",
+      "target_invariant": "asset_conservation_total_locked_equals_minted",
+      "vulnerability_class": "signature_replay_and_insufficient_lock_check",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "SignerSet",
+          "function": "signDepositHash",
+          "params": {
+            "depositHash": "0xdeadbeefcafebabef00dbabe1234567890abcdef1234567890abcdef12345678",
+            "signerIndices": [
+              0,
+              1,
+              2
+            ],
+            "signatures": [
+              "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            ]
+          },
+          "description": "Attacker, who controls a quorum of the SignerSet, produces a valid signature bundle for a stale depositId that was already processed and unlocked on the source chain.",
+          "step": 1
+        },
+        {
+          "chain": "harmony",
+          "contract": "WrappedToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAttackerEoa00000000000000000000000000000000",
+            "amount": "1000000e18",
+            "depositId": "12345",
+            "signatures": [
+              "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            ]
+          },
+          "relay_mode": "replay",
+          "description": "Using the replayed signatures, the attacker calls the mint function on the destination chain, causing 1,000,000 wrapped tokens to be minted without a corresponding increase in totalLocked on Ethereum.",
+          "step": 2
+        },
+        {
+          "chain": "ethereum",
+          "contract": "HorizonEthManager",
+          "function": "setRelayVerified",
+          "params": {
+            "depositId": "12345",
+            "verified": true
+          },
+          "relay_mode": "tampered",
+          "description": "Attacker (or a compromised relay operator) forces the manager contract to mark the stale depositId as verified, bypassing the usual off‑chain verification step required before minting.",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "meterio_20220205",
+        "metpassport_20220206"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker, who controls a quorum of the SignerSet, produces a valid signature bundle for a stale depositId that was already processed and unlocked on the source chain."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Using the replayed signatures, the attacker calls the mint function on the destination chain, causing 1,000,000 wrapped tokens to be minted without a corresponding increase in totalLocked on Ethereum."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker (or a compromised relay operator) forces the manager contract to mark the stale depositId as verified, bypassing the usual off‑chain verification step required before minting."
+        }
+      ]
+    },
+    {
+      "scenario_id": "harmony_negative_balance_transferFrom_exploit_01",
+      "target_invariant": "asset_conservation_no_negative_balance",
+      "vulnerability_class": "logic_bug_missing_balance_check",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "WrappedToken",
+          "function": "approve",
+          "params": {
+            "spender": "0xAttackerAddress",
+            "amount": "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+          },
+          "description": "Victim (EOA 0xVictimAddress) grants attacker an effectively unlimited allowance. The approve call succeeds because the token follows the standard ERC20 interface.",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "WrappedToken",
+          "function": "transferFrom",
+          "params": {
+            "from": "0xVictimAddress",
+            "to": "0xAttackerAddress",
+            "amount": "0x64",
+            "note": "Attacker attempts to transfer 100 (0x64) tokens while victim only holds 10 (0xA) tokens."
+          },
+          "description": "Attacker invokes transferFrom using edge e7. The WrappedToken implementation mistakenly omits the `require(balanceOf[from] >= amount)` check (logic bug), allowing the subtraction to underflow and set victim's balance to a negative signed integer.",
+          "step": 2
+        }
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Victim (EOA 0xVictimAddress) grants attacker an effectively unlimited allowance. The approve call succeeds because the token follows the standard ERC20 interface."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker invokes transferFrom using edge e7. The WrappedToken implementation mistakenly omits the `require(balanceOf[from] >= amount)` check (logic bug), allowing the subtraction to underflow and set victim's balance to a negative signed integer."
+        }
+      ],
+      "retrieved_exploits": [
+        "meterio_20220205",
+        "metpassport_20220206"
+      ]
+    },
+    {
+      "scenario_id": "harmony_reentrancy_unlock_exceed_locked_001",
+      "target_invariant": "asset_conservation_unlock_not_exceed_locked",
+      "vulnerability_class": "reentrancy_unchecked_external_call",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "Token",
+          "function": "approve",
+          "params": {
+            "spender": "0x<manager_address_placeholder>",
+            "amount": "100"
+          },
+          "description": "Attacker approves HorizonEthManager to transfer 100 of the underlying token.",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "HorizonEthManager",
+          "function": "deposit",
+          "params": {
+            "token": "0x<token_address_placeholder>",
+            "from": "0x<attacker_address>",
+            "amount": "100"
+          },
+          "description": "Lock 100 tokens into EthBucket; totalLocked[token] becomes 100.",
+          "step": 2
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MalRecipient",
+          "function": "receiveTokens",
+          "params": {
+            "token": "0x<token_address_placeholder>",
+            "amount": "100"
+          },
+          "description": "Malicious contract that, upon receiving the first unlock transfer, immediately calls HorizonEthManager.release again (reentrancy).",
+          "step": 3
+        },
+        {
+          "chain": "ethereum",
+          "contract": "HorizonEthManager",
+          "function": "release",
+          "params": {
+            "token": "0x<token_address_placeholder>",
+            "recipient": "0x<malicious_contract_address>",
+            "amount": "100"
+          },
+          "relay_mode": "faithful",
+          "description": "First unlock call; passes require(amount <= totalLocked) because totalLocked == 100. Before totalLocked is decremented, the external call to MalRecipient triggers a re‑entrant second release of the same amount.",
+          "step": 4
+        },
+        {
+          "chain": "ethereum",
+          "contract": "HorizonEthManager",
+          "function": "release",
+          "params": {
+            "token": "0x<token_address_placeholder>",
+            "recipient": "0x<malicious_contract_address>",
+            "amount": "100"
+          },
+          "relay_mode": "reentrancy",
+          "description": "Re‑entrant second unlock executed while totalLocked is still 100, allowing another 100 tokens to be transferred.",
+          "step": 5
+        }
+      ],
+      "state_predicates": [
+        {
+          "predicate": "totalLocked[0x<token_address_placeholder>] == 100",
+          "description": "State after first release call but before totalLocked update."
+        },
+        {
+          "predicate": "totalLocked[0x<token_address_placeholder>] == 0",
+          "description": "Final state after both releases; totalLocked is zero."
+        },
+        {
+          "predicate": "withdrawn_total[0x<token_address_placeholder>] == 200",
+          "description": "Total amount released to recipient exceeds the amount ever locked, violating the invariant."
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "orbit_20240101"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker approves HorizonEthManager to transfer 100 of the underlying token."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Lock 100 tokens into EthBucket; totalLocked[token] becomes 100."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Malicious contract that, upon receiving the first unlock transfer, immediately calls HorizonEthManager.release again (reentrancy)."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "First unlock call; passes require(amount <= totalLocked) because totalLocked == 100. Before totalLocked is decremented, the external call to MalRecipient triggers a re‑entrant second release of the same amount."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Re‑entrant second unlock executed while totalLocked is still 100, allowing another 100 tokens to be transferred."
+        }
+      ]
+    },
+    {
+      "scenario_id": "harmony_mint_without_lock_001",
+      "target_invariant": "asset_conservation_mint_only_after_lock",
+      "vulnerability_class": "signature_forgery_and_relay_tampering",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "SignerSet",
+          "function": "submitSignature(bytes32 depositHash, bytes signature)",
+          "params": {
+            "depositHash": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            "signature": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "description": "Attacker injects a forged signature for a non‑existent deposit hash into the signer set. The contract does not validate that the corresponding lock event exists.",
+          "mode": "faithful",
+          "state_predicates": [
+            "lockRecorded[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == false"
+          ],
+          "step": 1
+        },
+        {
+          "chain": "harmony",
+          "contract": "WrappedToken",
+          "function": "mint(address to, uint256 amount, bytes32 depositId, bytes[] signatures)",
+          "params": {
+            "to": "0xAttackerAddress00000000000000000000000000000000",
+            "amount": "1000000000000000000000",
+            "depositId": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            "signatures": [
+              "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          },
+          "description": "Relay (tampered) forwards a mint request containing the forged signature. The WrappedToken contract only checks signature validity, which is bypassed, and mints wrapped tokens.",
+          "mode": "tampered",
+          "state_predicates": [
+            "mintedWrappedForDeposit[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == 1000000000000000000000"
+          ],
+          "step": 2
+        },
+        {
+          "chain": "ethereum",
+          "contract": "EthBucket",
+          "function": "lockRecorded(uint256 depositId)",
+          "params": {
+            "depositId": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+          },
+          "description": "Read‑only check confirming that no lock event was ever recorded for the fabricated deposit identifier.",
+          "mode": "faithful",
+          "state_predicates": [
+            "lockRecorded[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == false"
+          ],
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "qubit_20220127",
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker injects a forged signature for a non‑existent deposit hash into the signer set. The contract does not validate that the corresponding lock event exists."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Relay (tampered) forwards a mint request containing the forged signature. The WrappedToken contract only checks signature validity, which is bypassed, and mints wrapped tokens."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Read‑only check confirming that no lock event was ever recorded for the fabricated deposit identifier."
+        }
+      ]
+    },
+    {
+      "scenario_id": "harmony_refund_total_locked_underflow_001",
+      "target_invariant": "asset_conservation_refund_preserves_total",
+      "vulnerability_class": "refund_logic_missing_state_update",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "ethereum",
+          "contract": "EthBucket",
+          "function": "lock",
+          "params": {
+            "token": "Token",
+            "from": "0xAttackerEOA",
+            "amount": 1000
+          },
+          "relay_mode": "faithful",
+          "waypoint": "EthBucket.totalLocked(Token) == 1000",
+          "description": "Step 1"
+        },
+        {
+          "step": 2,
+          "chain": "ethereum",
+          "contract": "HorizonEthManager",
+          "function": "release",
+          "params": {
+            "token": "Token",
+            "recipient": "0xAttackerEOA",
+            "amount": 1000,
+            "depositId": "0xdeadbeef01"
+          },
+          "relay_mode": "tampered",
+          "waypoint": "Token.balanceOf(0xAttackerEOA) == 1000 && EthBucket.totalLocked(Token) == 1000",
+          "description": "Step 2"
+        },
+        {
+          "step": 3,
+          "chain": "ethereum",
+          "contract": "WrappedToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAttackerEOA",
+            "amount": 1000,
+            "depositId": "0xdeadbeef01",
+            "signatures": "valid_quorum_signatures_from_SignerSet"
+          },
+          "relay_mode": "faithful",
+          "waypoint": "WrappedToken.balanceOf(0xAttackerEOA) == 1000",
+          "description": "Step 3"
+        },
+        {
+          "step": 4,
+          "chain": "ethereum",
+          "contract": "HorizonEthManager",
+          "function": "release",
+          "params": {
+            "token": "Token",
+            "recipient": "0xAttackerEOA",
+            "amount": 1000,
+            "depositId": "0xdeadbeef01"
+          },
+          "relay_mode": "replay",
+          "waypoint": "Token.balanceOf(0xAttackerEOA) == 2000 && EthBucket.totalLocked(Token) == 1000",
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "thorchain_20210629",
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "harmony_manager_upgrade_bypass_001",
+      "target_invariant": "authorization_only_manager_can_unlock",
+      "vulnerability_class": "governance_upgrade_backdoor",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "HorizonEthManager",
+          "function": "setManager(address newManager)",
+          "params": {
+            "newManager": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa"
+          },
+          "mode": "faithful",
+          "waypoint": "manager == 0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "ethereum",
+          "contract": "EthBucket",
+          "function": "release(address token, address recipient, uint256 amount)",
+          "params": {
+            "token": "0xTokenAddressPlaceholder",
+            "recipient": "0xAttackerEOAPlaceholder",
+            "amount": "1000000000000000000"
+          },
+          "mode": "faithful",
+          "waypoint": "EthBucket.totalLocked(0xTokenAddressPlaceholder) < previous_totalLocked && balanceOf(0xAttackerEOAPlaceholder, 0xTokenAddressPlaceholder) >= 1e18",
+          "step": 2,
+          "description": "Step 2"
+        }
+      ],
+      "retrieved_exploits": [
+        "ronin_20220323",
+        "polynetwork_20210810",
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        }
+      ]
+    },
+    {
+      "scenario_id": "harmony_sig_replay_mint_2024_01",
+      "target_invariant": "authorization_mint_requires_valid_signature",
+      "vulnerability_class": "signature_forgery_replay",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "EthBucket",
+          "function": "deposit(address token, address from, uint256 amount)",
+          "params": {
+            "token": "0x<token_address_placeholder>",
+            "from": "0x<attacker_eoa>",
+            "amount": "1 ether"
+          },
+          "description": "Create a legitimate deposit to generate a valid depositHash and obtain the quorum of off‑chain signatures.",
+          "waypoint": "SignerSet.quorumReached(depositHash) == true",
+          "step": 1
+        },
+        {
+          "chain": "relay",
+          "contract": "HarmonyRelay",
+          "function": "relayMessage(bytes payload)",
+          "params": {
+            "payload": {
+              "depositHash": "<legit_deposit_hash>",
+              "signatures": "<captured_quorum_signatures>",
+              "amount": "1000 ether",
+              "recipient": "0x<attacker_eoa>"
+            }
+          },
+          "relay_mode": "tampered",
+          "description": "Intercept the off‑chain relay and replace the amount field with a large value while keeping the original signatures.",
+          "waypoint": "relayMessage.modified == true && relayMessage.payload.amount == 1000 ether",
+          "step": 2
+        },
+        {
+          "chain": "harmony",
+          "contract": "WrappedToken",
+          "function": "mint(address to, uint256 amount, bytes32 depositHash, bytes[] signatures)",
+          "params": {
+            "to": "0x<attacker_eoa>",
+            "amount": "1000 ether",
+            "depositHash": "<legit_deposit_hash>",
+            "signatures": "<captured_quorum_signatures>"
+          },
+          "description": "Call the mint function with the tampered payload; the contract only checks isValidSignature(depositHash, signatures) which returns true, allowing arbitrary mint.",
+          "waypoint": "isValidSignature(<legit_deposit_hash>, <captured_quorum_signatures>) == true && WrappedToken.totalSupply() >= 1000 ether",
+          "step": 3
+        },
+        {
+          "chain": "harmony",
+          "contract": "WrappedToken",
+          "function": "transfer(address to, uint256 amount)",
+          "params": {
+            "to": "0x<attacker_eoa>",
+            "amount": "1000 ether"
+          },
+          "description": "Move the freshly minted wrapped tokens to the attacker’s address.",
+          "waypoint": "balanceOf[0x<attacker_eoa>] >= 1000 ether",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "chainswap_20210711",
+        "wormhole_20220202"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Create a legitimate deposit to generate a valid depositHash and obtain the quorum of off‑chain signatures."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Intercept the off‑chain relay and replace the amount field with a large value while keeping the original signatures."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Call the mint function with the tampered payload; the contract only checks isValidSignature(depositHash, signatures) which returns true, allowing arbitrary mint."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Move the freshly minted wrapped tokens to the attacker’s address."
+        }
+      ]
+    },
+    {
+      "scenario_id": "harmony_release_without_valid_relay_001",
+      "target_invariant": "authorization_release_requires_relay_verified",
+      "vulnerability_class": "relay_verification_bypass",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "HorizonEthManager",
+          "function": "setManager(address newManager)",
+          "params": {
+            "newManager": "0xAttackerEOA00000000000000000000000000000001"
+          },
+          "mode": "tampered",
+          "description": "Attacker exploits missing access control on manager update to become the authorized manager.",
+          "waypoint": "manager == 0xAttackerEOA00000000000000000000000000000001",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "HorizonEthManager",
+          "function": "relayVerify(uint256 depositId, bytes[] signatures)",
+          "params": {
+            "depositId": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            "signatures": [
+              "0xdeadbeef... (forged signature 1)",
+              "0xdeadbeef... (forged signature 2)",
+              "0xdeadbeef... (forged signature 3)"
+            ]
+          },
+          "mode": "tampered",
+          "description": "Attacker submits a fabricated quorum of signatures; the contract fails to validate them due to a bug, marking the relay as verified.",
+          "waypoint": "relayVerified[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == true",
+          "step": 2
+        },
+        {
+          "chain": "ethereum",
+          "contract": "EthBucket",
+          "function": "release(address token, address recipient, uint256 amount)",
+          "params": {
+            "token": "0xTokenAddressPlaceholder000000000000000000000000",
+            "recipient": "0xAttackerEOA00000000000000000000000000000001",
+            "amount": "1000000000000000000000"
+          },
+          "mode": "faithful",
+          "description": "As the now‑authorized manager, attacker calls release. The contract checks only `msg.sender == manager` and `relayVerified[depositId]` (which is true from step 2), allowing an unlock of tokens that were never locked.",
+          "waypoint": "balanceOf[0xAttackerEOA00000000000000000000000000000001] >= 1000000000000000000000",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_20220801",
+        "polynetwork_20210810"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker exploits missing access control on manager update to become the authorized manager."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker submits a fabricated quorum of signatures; the contract fails to validate them due to a bug, marking the relay as verified."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "As the now‑authorized manager, attacker calls release. The contract checks only `msg.sender == manager` and `relayVerified[depositId]` (which is true from step 2), allowing an unlock of tokens that were never locked."
+        }
+      ]
+    },
+    {
+      "scenario_id": "harmony_unchecked_transfer_underflow_001",
+      "target_invariant": "authorization_transfer_requires_sufficient_balance",
+      "vulnerability_class": "unchecked_arithmetic",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "ethereum",
+          "contract": "WrappedToken",
+          "function": "transfer(address,uint256)",
+          "params": {
+            "to": "0x00000000000000000000000000000000VictimAddr",
+            "amount": "1000000000000000000000000000000000000"
+          },
+          "description": "Attacker with zero WrappedToken balance calls transfer with an amount far larger than its balance, exploiting unchecked subtraction that underflows.",
+          "waypoint": "WrappedToken.balanceOf[0xAttackerAddress] == 0"
+        },
+        {
+          "step": 2,
+          "chain": "ethereum",
+          "contract": "WrappedToken",
+          "function": "balanceOf(address)",
+          "params": {
+            "account": "0xAttackerAddress"
+          },
+          "description": "Read post‑transfer balance to show that the attacker’s balance wrapped around (underflow) and is now a huge value despite having started at zero.",
+          "waypoint": "WrappedToken.balanceOf[0xAttackerAddress] < 1000000000000000000000000000000000000 && WrappedToken.balanceOf[0xVictimAddr] == 1000000000000000000000000000000000000"
+        }
+      ],
+      "retrieved_exploits": [
+        "metpassport_20220206",
+        "meterio_20220205"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker with zero WrappedToken balance calls transfer with an amount far larger than its balance, exploiting unchecked subtraction that underflows."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Read post‑transfer balance to show that the attacker’s balance wrapped around (underflow) and is now a huge value despite having started at zero."
+        }
+      ]
+    },
+    {
+      "scenario_id": "harmony_transferFrom_allowance_bypass_001",
+      "target_invariant": "authorization_transferfrom_requires_allowance",
+      "vulnerability_class": "storage_collision_allowance_overwrite",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "HorizonEthManager",
+          "function": "release",
+          "params": {
+            "token": "WrappedToken",
+            "recipient": "0xVictimAddress",
+            "amount": 1000
+          },
+          "description": "Manager (authorized) releases 1,000 wrapped tokens to the victim, creating a positive balance for the victim.",
+          "state_predicate": "balanceOf[0xVictimAddress] >= 1000",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "EthBucket",
+          "function": "deposit",
+          "params": {
+            "token": "WrappedToken",
+            "from": "0xAttackerAddress",
+            "amount": 1
+          },
+          "description": "Attacker calls the deposit function. Due to a storage‑layout collision between `totalLocked` and the ERC‑20 `allowance` mapping, the write overwrites `allowance[0xVictimAddress][0xAttackerAddress]` with a large value.",
+          "state_predicate": "allowance[0xVictimAddress][0xAttackerAddress] >= 1000",
+          "step": 2
+        },
+        {
+          "chain": "ethereum",
+          "contract": "WrappedToken",
+          "function": "transferFrom",
+          "params": {
+            "from": "0xVictimAddress",
+            "to": "0xAttackerAddress",
+            "amount": 1000
+          },
+          "description": "Attacker invokes `transferFrom` using the inflated allowance to move the victim's 1,000 wrapped tokens to the attacker.",
+          "state_predicate": "balanceOf[0xAttackerAddress] >= 1000 && allowance[0xVictimAddress][0xAttackerAddress] >= 1000",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "lifinance_20220320",
+        "socket_20240116"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Manager (authorized) releases 1,000 wrapped tokens to the victim, creating a positive balance for the victim."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker calls the deposit function. Due to a storage‑layout collision between `totalLocked` and the ERC‑20 `allowance` mapping, the write overwrites `allowance[0xVictimAddress][0xAttackerAddress]` with a large value."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker invokes `transferFrom` using the inflated allowance to move the victim's 1,000 wrapped tokens to the attacker."
+        }
+      ]
+    },
+    {
+      "scenario_id": "harmony_nonce_replay_001",
+      "target_invariant": "uniqueness_nonce_processed_once",
+      "vulnerability_class": "nonce_replay",
+      "confidence": 0.85,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "EthBucket",
+          "function": "deposit(address token, address from, uint256 amount)",
+          "params": {
+            "token": "0xTokenAddr0000000000000000000000000000000000",
+            "from": "0xAttacker00000000000000000000000000000000",
+            "amount": "1000"
+          },
+          "description": "Attacker locks 1000 Token in the Ethereum bucket, emitting Deposit event with nonce N=42.",
+          "state_predicate": "EthBucket.totalLocked[0xTokenAddr0000000000000000000000000000000000] >= 1000 && processedNonce[42] == false",
+          "step": 1
+        },
+        {
+          "chain": "harmony",
+          "contract": "HorizonEthManager",
+          "function": "processDeposit(uint256 nonce, address token, address to, uint256 amount, bytes[] signatures)",
+          "params": {
+            "nonce": "42",
+            "token": "0xTokenAddr0000000000000000000000000000000000",
+            "to": "0xAttacker00000000000000000000000000000000",
+            "amount": "1000",
+            "signatures": "[0xsig1,0xsig2,0xsig3]"
+          },
+          "relay_mode": "faithful",
+          "description": "First legitimate processing of the deposit proof (relay delivers a faithful, correctly signed message). The manager mints 1000 WrappedToken to the attacker and marks processedNonce[42] = true.",
+          "state_predicate": "processedNonce[42] == true && WrappedToken.balanceOf(0xAttacker00000000000000000000000000000000) == 1000",
+          "step": 2
+        },
+        {
+          "chain": "harmony",
+          "contract": "HorizonEthManager",
+          "function": "processDeposit(uint256 nonce, address token, address to, uint256 amount, bytes[] signatures)",
+          "params": {
+            "nonce": "42",
+            "token": "0xTokenAddr0000000000000000000000000000000000",
+            "to": "0xAttacker00000000000000000000000000000000",
+            "amount": "1000",
+            "signatures": "[0xsig1,0xsig2,0xsig3]"
+          },
+          "relay_mode": "replay",
+          "description": "Attacker re‑broadcasts the same deposit proof via a tampered relay (replay mode). The manager fails to re‑check the nonce uniqueness and mints another 1000 WrappedToken.",
+          "state_predicate": "WrappedToken.balanceOf(0xAttacker00000000000000000000000000000000) == 2000 && processedNonce[42] == true && !processedNonce[42] /* invariant violated */",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "qubit_20220127"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker locks 1000 Token in the Ethereum bucket, emitting Deposit event with nonce N=42."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "First legitimate processing of the deposit proof (relay delivers a faithful, correctly signed message). The manager mints 1000 WrappedToken to the attacker and marks processedNonce[42] = true."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker re‑broadcasts the same deposit proof via a tampered relay (replay mode). The manager fails to re‑check the nonce uniqueness and mints another 1000 WrappedToken."
+        }
+      ]
+    },
+    {
+      "scenario_id": "harmony_uniqueness_depositid_replay_01",
+      "target_invariant": "uniqueness_depositid_unique",
+      "vulnerability_class": "replay_mint",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "ethereum",
+          "contract": "EthBucket",
+          "function": "deposit",
+          "params": {
+            "token": "0xTokenAddressPlaceholder",
+            "from": "0xAttackerAddress",
+            "amount": "1000000000000000000"
+          },
+          "mode": "faithful",
+          "state_predicate": "totalLocked[0xTokenAddressPlaceholder] >= 1000000000000000000",
+          "description": "Step 1"
+        },
+        {
+          "step": 2,
+          "chain": "ethereum",
+          "contract": "SignerSet",
+          "function": "signDeposit",
+          "params": {
+            "depositId": "0xDeadBeef1234",
+            "depositHash": "0xHashOfDeposit"
+          },
+          "mode": "faithful",
+          "state_predicate": "isValidSignature(0xHashOfDeposit, signatures) == true",
+          "description": "Step 2"
+        },
+        {
+          "step": 3,
+          "chain": "harmony",
+          "contract": "WrappedToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": "1000000000000000000",
+            "depositId": "0xDeadBeef1234",
+            "signatures": "0xValidSignatures"
+          },
+          "mode": "faithful",
+          "state_predicate": "minted[0xDeadBeef1234] == true",
+          "description": "Step 3"
+        },
+        {
+          "step": 4,
+          "chain": "harmony",
+          "contract": "WrappedToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": "1000000000000000000",
+            "depositId": "0xDeadBeef1234",
+            "signatures": "0xValidSignatures"
+          },
+          "mode": "replay",
+          "state_predicate": "minted[0xDeadBeef1234] == true && totalSupply >= 2000000000000000000",
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "qubit_20220127",
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "harmony_double_release_2024_09",
+      "target_invariant": "uniqueness_release_processed_once",
+      "vulnerability_class": "relay_replay_without_release_flag",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "EthBucket",
+          "function": "deposit",
+          "params": {
+            "token": "0xToken",
+            "from": "0xAttacker",
+            "amount": "1000"
+          },
+          "description": "Attacker locks 1000 tokens, creating deposit identifier D.",
+          "state_predicate": "totalLocked[0xToken] >= 1000",
+          "step": 1
+        },
+        {
+          "chain": "harmony",
+          "contract": "HorizonEthManager",
+          "function": "relayVerify",
+          "params": {
+            "depositId": "0xD",
+            "signature": "0xFakeSig"
+          },
+          "mode": "tampered",
+          "description": "Attacker submits a tampered relay message that incorrectly marks the deposit as verified.",
+          "state_predicate": "relayVerified[0xD] == true",
+          "step": 2
+        },
+        {
+          "chain": "ethereum",
+          "contract": "HorizonEthManager",
+          "function": "release",
+          "params": {
+            "depositId": "0xD",
+            "token": "0xToken",
+            "recipient": "0xAttacker",
+            "amount": "1000"
+          },
+          "description": "First release call; manager invokes EthBucket.release, unlocking tokens to attacker.",
+          "state_predicate": "released[0xD] == true && balanceOf[0xAttacker] >= 1000",
+          "step": 3
+        },
+        {
+          "chain": "harmony",
+          "contract": "HorizonEthManager",
+          "function": "relayVerify",
+          "params": {
+            "depositId": "0xD",
+            "signature": "0xFakeSig"
+          },
+          "mode": "replay",
+          "description": "Attacker replays the same relay verification, resetting relayVerified flag for D.",
+          "state_predicate": "relayVerified[0xD] == true",
+          "step": 4
+        },
+        {
+          "chain": "ethereum",
+          "contract": "HorizonEthManager",
+          "function": "release",
+          "params": {
+            "depositId": "0xD",
+            "token": "0xToken",
+            "recipient": "0xAttacker",
+            "amount": "1000"
+          },
+          "description": "Second release call; due to missing uniqueness guard, tokens are unlocked again, violating the invariant.",
+          "state_predicate": "balanceOf[0xAttacker] >= 2000",
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "wormhole_xscope"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker locks 1000 tokens, creating deposit identifier D."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker submits a tampered relay message that incorrectly marks the deposit as verified."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "First release call; manager invokes EthBucket.release, unlocking tokens to attacker."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Attacker replays the same relay verification, resetting relayVerified flag for D."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Second release call; due to missing uniqueness guard, tokens are unlocked again, violating the invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "harmony_replay_mint_uniqueness_break_001",
+      "target_invariant": "uniqueness_mint_unique_per_deposit",
+      "vulnerability_class": "replay_attack_signature_reuse",
+      "confidence": 0.93,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "EthBucket",
+          "function": "deposit(address token, address from, uint256 amount)",
+          "params": {
+            "token": "0x<token_address_placeholder>",
+            "from": "0x<attacker_eoa>",
+            "amount": "1000000000000000000"
+          },
+          "relay_mode": "faithful",
+          "waypoint": "lockRecorded[0x<depositHash_H>] == true",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "harmony",
+          "contract": "WrappedToken",
+          "function": "mint(address to, uint256 amount)",
+          "params": {
+            "to": "0x<attacker_eoa>",
+            "amount": "1000000000000000000"
+          },
+          "relay_mode": "faithful",
+          "waypoint": "mintedAmount[0x<depositHash_H>] == 1000000000000000000",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "harmony",
+          "contract": "WrappedToken",
+          "function": "mint(address to, uint256 amount)",
+          "params": {
+            "to": "0x<attacker_eoa>",
+            "amount": "1000000000000000000"
+          },
+          "relay_mode": "replay",
+          "waypoint": "mintedAmount[0x<depositHash_H>] == 2000000000000000000",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "qubit_20220127",
+        "meterio_20220205",
+        "metpassport_20220206"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "harmony_timeliness_refund_pre_timeout_01",
+      "target_invariant": "timeliness_refund_after_timeout",
+      "vulnerability_class": "relay_timestamp_manipulation",
+      "confidence": 0.85,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "HorizonEthManager",
+          "function": "deposit(address token, uint256 amount)",
+          "params": {
+            "token": "0x<token_address_placeholder>",
+            "amount": "1000"
+          },
+          "mode": "faithful",
+          "waypoint": "lockTimestamp[1] == block.timestamp",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "ethereum",
+          "contract": "SignerSet",
+          "function": "relayVerifyAndExecute(bytes payload)",
+          "params": {
+            "payload": {
+              "action": "refund",
+              "depositId": 1,
+              "fakeCurrentTime": "lockTimestamp[1] + TIMEOUT - 1",
+              "signatures": "valid_manager_quorum_signatures"
+            }
+          },
+          "mode": "tampered",
+          "waypoint": "block.timestamp < lockTimestamp[1] + TIMEOUT && refundExecuted[1] == true",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "ethereum",
+          "contract": "EthBucket",
+          "function": "unlock(address token, address recipient, uint256 amount)",
+          "params": {
+            "token": "0x<token_address_placeholder>",
+            "recipient": "0x<attacker_address>",
+            "amount": "1000"
+          },
+          "mode": "faithful",
+          "waypoint": "balanceOf[0x<attacker_address>] == 1000 && totalLocked[0x<token_address_placeholder>] == totalLockedBefore - 1000",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "thorchain_20210628",
+        "thorchain_20210629"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "harmony_timeliness_mint_after_timeout_001",
+      "target_invariant": "timeliness_cannot_mint_after_timeout",
+      "vulnerability_class": "timeliness_logic_bug",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "EthBucket",
+          "function": "lock(address token, uint256 amount)",
+          "params": {
+            "token": "0x<token_address_placeholder>",
+            "amount": "1000e18"
+          },
+          "description": "Depositor (attacker) locks 1000 tokens; manager records lockTimestamp[depositId] = block.timestamp.",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "HorizonEthManager",
+          "function": "recordLock(uint256 depositId, bytes calldata proof)",
+          "params": {
+            "depositId": "1",
+            "proof": "0x<valid_proof_placeholder>"
+          },
+          "description": "Manager emits event that off‑chain relayers will consume. State predicate: lockTimestamp[1] == T0.",
+          "step": 2
+        },
+        {
+          "chain": "ethereum",
+          "contract": "Relay",
+          "function": "submitMint(bytes calldata depositProof)",
+          "params": {
+            "depositProof": "0x<proof_of_depositId_1>"
+          },
+          "relay_mode": "tampered",
+          "description": "After TIMEOUT has elapsed (block.timestamp > T0 + TIMEOUT), attacker or compromised signer submits the same deposit proof to the destination side. No timestamp check in WrappedToken.mint, so mint proceeds.",
+          "step": 3
+        },
+        {
+          "chain": "ethereum",
+          "contract": "WrappedToken",
+          "function": "mint(address to, uint256 amount)",
+          "params": {
+            "to": "0x<attacker_address>",
+            "amount": "1000e18"
+          },
+          "description": "Wrapped tokens are minted despite the deposit being timed‑out. State predicate: block.timestamp > lockTimestamp[1] + TIMEOUT && WrappedToken.totalSupply increased by 1000e18.",
+          "step": 4
+        },
+        {
+          "chain": "ethereum",
+          "contract": "WrappedToken",
+          "function": "transfer(address to, uint256 amount)",
+          "params": {
+            "to": "0x<attacker_address>",
+            "amount": "1000e18"
+          },
+          "description": "Attacker moves minted tokens to own wallet, completing profit extraction.",
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "qubit_20220127"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Depositor (attacker) locks 1000 tokens; manager records lockTimestamp[depositId] = block.timestamp."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Manager emits event that off‑chain relayers will consume. State predicate: lockTimestamp[1] == T0."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "After TIMEOUT has elapsed (block.timestamp > T0 + TIMEOUT), attacker or compromised signer submits the same deposit proof to the destination side. No timestamp check in WrappedToken.mint, so mint proceeds."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Wrapped tokens are minted despite the deposit being timed‑out. State predicate: block.timestamp > lockTimestamp[1] + TIMEOUT && WrappedToken.totalSupply increased by 1000e18."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Attacker moves minted tokens to own wallet, completing profit extraction."
+        }
+      ]
+    },
+    {
+      "scenario_id": "harmony_timeliness_manager_early_release_001",
+      "target_invariant": "timeliness_manager_can_force_release_after_timeout",
+      "vulnerability_class": "logic_time_manipulation",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "SignerSet",
+          "function": "submitRelay(bytes calldata data)",
+          "params": {
+            "depositId": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            "lockTimestamp": 0,
+            "signature": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "relay_mode": "tampered",
+          "waypoint": "lockTimestamp[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == 0",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "ethereum",
+          "contract": "EthBucket",
+          "function": "setManager(address newManager)",
+          "params": {
+            "newManager": "0x1111111111111111111111111111111111111111"
+          },
+          "relay_mode": "faithful",
+          "waypoint": "manager == 0x1111111111111111111111111111111111111111",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "ethereum",
+          "contract": "HorizonEthManager",
+          "function": "forceRelease(uint256 depositId, address token, address recipient, uint256 amount)",
+          "params": {
+            "depositId": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            "token": "0x<token_address_placeholder>",
+            "recipient": "0x1111111111111111111111111111111111111111",
+            "amount": "1000000000000000000000"
+          },
+          "relay_mode": "faithful",
+          "waypoint": "totalLocked[0x<token_address_placeholder>] >= 1000000000000000000000 && block.timestamp < lockTimestamp[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] + TIMEOUT",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "thorchain_20210629",
+        "polynetwork_20210810"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "harmony_timeliness_nonce_replay_001",
+      "target_invariant": "timeliness_prevent_replay_after_timeout",
+      "vulnerability_class": "nonce_reset_on_refund",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "EthBucket",
+          "function": "deposit",
+          "params": {
+            "token": "0xTokenAddr0000000000000000000000000000000000",
+            "from": "0xAttacker00000000000000000000000000000000",
+            "amount": "100"
+          },
+          "description": "Attacker locks 100 tokens; contract creates depositId 0xdeadbeef and nonce 1, sets lockTimestamp[0xdeadbeef] = block.timestamp.",
+          "state_predicate": "totalLocked[0xTokenAddr0000000000000000000000000000000000] == 100 && lockTimestamp[0xdeadbeef] == block.timestamp",
+          "step": 1
+        },
+        {
+          "chain": "harmony",
+          "contract": "HorizonEthManager",
+          "function": "processDeposit",
+          "params": {
+            "depositId": "0xdeadbeef",
+            "nonce": "1",
+            "amount": "100",
+            "recipient": "0xAttacker00000000000000000000000000000000"
+          },
+          "relay_mode": "faithful",
+          "description": "Off‑chain relay forwards the lock proof; manager verifies signatures, calls WrappedToken.mint, and sets processedNonce[1] = true.",
+          "state_predicate": "processedNonce[1] == true && mintedWrappedForDeposit[0xdeadbeef] == 100",
+          "step": 2
+        },
+        {
+          "chain": "harmony",
+          "contract": "HorizonEthManager",
+          "function": "refundDeposit",
+          "params": {
+            "depositId": "0xdeadbeef",
+            "nonce": "1"
+          },
+          "description": "After TIMEOUT passes, attacker (or anyone) triggers a refund. The buggy implementation incorrectly clears processedNonce[1] = false while returning the original tokens.",
+          "state_predicate": "processedNonce[1] == false && totalLocked[0xTokenAddr0000000000000000000000000000000000] == 0",
+          "step": 3
+        },
+        {
+          "chain": "harmony",
+          "contract": "HorizonEthManager",
+          "function": "processDeposit",
+          "params": {
+            "depositId": "0xdeadbeef",
+            "nonce": "1",
+            "amount": "100",
+            "recipient": "0xAttacker00000000000000000000000000000000"
+          },
+          "relay_mode": "replay",
+          "description": "Attacker re‑submits the same signed deposit proof (replay attack). Because processedNonce[1] was cleared, the manager mints another 100 WrappedTokens.",
+          "state_predicate": "mintedWrappedForDeposit[0xdeadbeef] == 200 && balanceOf[0xAttacker00000000000000000000000000000000] == 200",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "pnetwork_20210919",
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker locks 100 tokens; contract creates depositId 0xdeadbeef and nonce 1, sets lockTimestamp[0xdeadbeef] = block.timestamp."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Off‑chain relay forwards the lock proof; manager verifies signatures, calls WrappedToken.mint, and sets processedNonce[1] = true."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "After TIMEOUT passes, attacker (or anyone) triggers a refund. The buggy implementation incorrectly clears processedNonce[1] = false while returning the original tokens."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Attacker re‑submits the same signed deposit proof (replay attack). Because processedNonce[1] was cleared, the manager mints another 100 WrappedTokens."
+        }
+      ]
+    },
+    {
+      "scenario_id": "harmony_timeliness_unlock_tampered_relay_001",
+      "target_invariant": "timeliness_unlock_cannot_exceed_timeout_window",
+      "vulnerability_class": "relay_tampering_timestamp_manipulation",
+      "confidence": 0.93,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "ethereum",
+          "contract": "EthBucket",
+          "function": "deposit(address token, uint256 amount)",
+          "params": {
+            "token": "Token",
+            "amount": 1000000000000000000
+          },
+          "mode": "faithful",
+          "waypoint_predicate": "lockTimestamp[depositId] == block.timestamp && totalLocked[Token] >= 1000000000000000000",
+          "description": "Step 1"
+        },
+        {
+          "step": 2,
+          "chain": "ethereum",
+          "contract": "SignerSet",
+          "function": "submitRelay(uint256 depositId, uint256 fakeTimestamp, bool verified, bytes signatures)",
+          "params": {
+            "depositId": "depositId",
+            "fakeTimestamp": "block.timestamp - TIMEOUT - 1",
+            "verified": true,
+            "signatures": "0xdeadbeef... (forged quorum signatures)"
+          },
+          "mode": "tampered",
+          "waypoint_predicate": "lockTimestamp[depositId] == block.timestamp - TIMEOUT - 1 && relayVerified[depositId] == true",
+          "description": "Step 2"
+        },
+        {
+          "step": 3,
+          "chain": "ethereum",
+          "contract": "EthBucket",
+          "function": "release(address token, address recipient, uint256 amount)",
+          "params": {
+            "token": "Token",
+            "recipient": "0xAttackerAddress1234567890abcdef1234567890abcdef",
+            "amount": 1000000000000000000
+          },
+          "mode": "faithful",
+          "waypoint_predicate": "block.timestamp < lockTimestamp[depositId] + TIMEOUT == false && msg.sender != manager && totalLocked[Token] >= amount",
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810",
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    }
+  ]
+}

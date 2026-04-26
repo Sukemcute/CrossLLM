@@ -1,0 +1,644 @@
+{
+  "bridge_name": "polynetwork",
+  "version": "1.0",
+  "nodes": [
+    {
+      "node_id": "EthCrossChainData",
+      "node_type": "contract",
+      "chain": "Ethereum",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "EthCrossChainManager",
+      "node_type": "contract",
+      "chain": "Ethereum",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "EthCrossChainData",
+      "node_type": "contract",
+      "chain": "Ethereum",
+      "address": "",
+      "functions": []
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "e1",
+      "src": "EthCrossChainManager",
+      "dst": "recipient",
+      "label": "withdraw",
+      "token": "native",
+      "conditions": [
+        "r",
+        "e",
+        "q",
+        "u",
+        "i",
+        "r",
+        "e",
+        "(",
+        "!",
+        "d",
+        "a",
+        "t",
+        "a",
+        ".",
+        "p",
+        "r",
+        "o",
+        "c",
+        "e",
+        "s",
+        "s",
+        "e",
+        "d",
+        "(",
+        "n",
+        "o",
+        "n",
+        "c",
+        "e",
+        ")",
+        ",",
+        " ",
+        "\"",
+        "E",
+        "t",
+        "h",
+        "C",
+        "r",
+        "o",
+        "s",
+        "s",
+        "C",
+        "h",
+        "a",
+        "i",
+        "n",
+        "M",
+        "a",
+        "n",
+        "a",
+        "g",
+        "e",
+        "r",
+        ":",
+        " ",
+        "r",
+        "e",
+        "p",
+        "l",
+        "a",
+        "y",
+        "\"",
+        ")"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "q"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "u"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "i"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "("
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "!"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "d"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "."
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "p"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "d"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "("
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": ")"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": ","
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "\""
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "E"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "h"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "C"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "C"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "h"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "i"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "M"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "g"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": ":"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "p"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "l"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "y"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "\""
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": ")"
+          }
+        }
+      ],
+      "function_signature": "signedWithdraw(address,uint256,uint256)"
+    }
+  ],
+  "invariants": [
+    {
+      "invariant_id": "asset_conservation_locked_equals_minted_minus_fees",
+      "category": "asset_conservation",
+      "description": "For every user, the amount of native tokens locked on Ethereum must equal the amount minted on the destination chain minus accumulated bridge fees.",
+      "predicate": "lockedBalance[user] == mintedBalance[user] - feeBalance[user]",
+      "solidity_assertion": "require(lockedBalance[msg.sender] == mintedBalance[msg.sender] - feeBalance[msg.sender], \"Invariant violation: locked != minted - fees\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_total_supply_consistency",
+      "category": "asset_conservation",
+      "description": "The total native token supply on Ethereum plus the total minted supply on the destination chain must remain constant, accounting for bridge fees.",
+      "predicate": "totalSupplyEth == totalSupplyDest + totalFeesCollected",
+      "solidity_assertion": "assert(totalSupplyEth == totalSupplyDest + totalFeesCollected);",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_no_negative_balances",
+      "category": "asset_conservation",
+      "description": "Locked, minted and fee balances can never become negative.",
+      "predicate": "lockedBalance[user] >= 0 && mintedBalance[user] >= 0 && feeBalance[user] >= 0",
+      "solidity_assertion": "require(lockedBalance[msg.sender] >= 0 && mintedBalance[msg.sender] >= 0 && feeBalance[msg.sender] >= 0, \"Invariant violation: negative balance\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_fee_non_negative",
+      "category": "asset_conservation",
+      "description": "The bridge fee accumulated for any user must be non‑negative and never exceed the amount locked.",
+      "predicate": "feeBalance[user] >= 0 && feeBalance[user] <= lockedBalance[user]",
+      "solidity_assertion": "assert(feeBalance[msg.sender] >= 0 && feeBalance[msg.sender] <= lockedBalance[msg.sender]);",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "authorization_withdraw_requires_verified_relay",
+      "category": "authorization",
+      "description": "A withdraw call can only succeed if the relay message has been verified by the EthCrossChainManager contract.",
+      "predicate": "relayVerified[nonce] == true",
+      "solidity_assertion": "require(relayVerified[_nonce], \"Relay not verified\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "authorization_withdraw_requires_sufficient_locked",
+      "category": "authorization",
+      "description": "The contract must hold at least the amount being withdrawn in its locked balance.",
+      "predicate": "lockedBalance[user] >= withdrawAmount",
+      "solidity_assertion": "require(lockedBalance[msg.sender] >= _amount, \"Insufficient locked balance\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "authorization_withdraw_requires_correct_token_type",
+      "category": "authorization",
+      "description": "Withdraw can only be executed for the token type declared in the edge (native).",
+      "predicate": "token == TokenType.NATIVE",
+      "solidity_assertion": "assert(token == TokenType.NATIVE);",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "authorization_withdraw_requires_manager_signature",
+      "category": "authorization",
+      "description": "The EthCrossChainManager must have signed the withdraw request; its address must match the stored manager address.",
+      "predicate": "msg.sender == ethCrossChainManager",
+      "solidity_assertion": "require(msg.sender == ethCrossChainManager, \"Caller is not manager\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_nonce_processed_once",
+      "category": "uniqueness",
+      "description": "Each nonce can be marked as processed at most once.",
+      "predicate": "processedNonce[nonce] == false => processedNonce[nonce] = true",
+      "solidity_assertion": "require(!processedNonce[_nonce], \"Nonce already processed\"); processedNonce[_nonce] = true;",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_message_id_processed_once",
+      "category": "uniqueness",
+      "description": "A relay message identified by its hash may be consumed only a single time.",
+      "predicate": "processedMessage[msgHash] == false => processedMessage[msgHash] = true",
+      "solidity_assertion": "require(!processedMessage[msgHash], \"Message already processed\"); processedMessage[msgHash] = true;",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_no_duplicate_withdraw_for_same_nonce",
+      "category": "uniqueness",
+      "description": "Calling withdraw with a previously used nonce must revert.",
+      "predicate": "processedNonce[nonce] == false",
+      "solidity_assertion": "require(!processedNonce[_nonce], \"Duplicate withdraw\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_relay_message_id_unique",
+      "category": "uniqueness",
+      "description": "The combination (chainId, nonce) uniquely identifies a relay message.",
+      "predicate": "uniqueMessage[chainId][nonce] == false => uniqueMessage[chainId][nonce] = true",
+      "solidity_assertion": "require(!uniqueMessage[_chainId][_nonce], \"Message ID not unique\"); uniqueMessage[_chainId][_nonce] = true;",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_refund_allowed_after_timeout",
+      "category": "timeliness",
+      "description": "A user may call refund only after the lock timeout has elapsed.",
+      "predicate": "block.timestamp >= lockTimestamp[user] + lockTimeout",
+      "solidity_assertion": "require(block.timestamp >= lockTimestamp[msg.sender] + lockTimeout, \"Lock period not expired\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_refund_prevented_before_timeout",
+      "category": "timeliness",
+      "description": "Refund attempts before the timeout must be rejected.",
+      "predicate": "block.timestamp < lockTimestamp[user] + lockTimeout => revert",
+      "solidity_assertion": "require(block.timestamp < lockTimestamp[msg.sender] + lockTimeout, \"Refund not allowed before timeout\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_withdraw_not_allowed_past_expiration",
+      "category": "timeliness",
+      "description": "Withdraw cannot be executed if the lock has already expired and a refund was claimed.",
+      "predicate": "!refundClaimed[user]",
+      "solidity_assertion": "require(!refundClaimed[msg.sender], \"Withdraw after refund\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_timeout_decrements_locked_balance",
+      "category": "timeliness",
+      "description": "When a timeout triggers a refund, the locked balance for the user must be decreased by the refunded amount.",
+      "predicate": "lockedBalance[user] = lockedBalance[user] - refundAmount",
+      "solidity_assertion": "lockedBalance[msg.sender] -= _refundAmount;",
+      "related_edges": [
+        "e1"
+      ]
+    }
+  ]
+}

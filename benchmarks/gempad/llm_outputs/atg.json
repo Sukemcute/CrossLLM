@@ -1,0 +1,617 @@
+{
+  "bridge_name": "gempad",
+  "version": "1.0",
+  "nodes": [
+    {
+      "node_id": "GemPadLocker",
+      "node_type": "locker",
+      "chain": "BSC",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "MockToken",
+      "node_type": "token",
+      "chain": "BSC",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "MockToken",
+      "node_type": "token",
+      "chain": "unknown",
+      "address": "",
+      "functions": []
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "e1",
+      "src": "msg.sender",
+      "dst": "GemPadLocker",
+      "label": "deposit",
+      "token": "token (parameter of lock)",
+      "conditions": [
+        "unlockTime > block.timestamp"
+      ],
+      "condition_objects": [
+        {
+          "type": "timelock",
+          "params": {
+            "expression": "unlockTime > block.timestamp"
+          }
+        }
+      ],
+      "function_signature": "lock(address,uint256,uint256)"
+    },
+    {
+      "edge_id": "e2",
+      "src": "GemPadLocker",
+      "dst": "owner (l.owner)",
+      "label": "withdraw",
+      "token": "l.token",
+      "conditions": [
+        "block.timestamp >= unlockTime",
+        "msg.sender == owner",
+        "!withdrawn"
+      ],
+      "condition_objects": [
+        {
+          "type": "timelock",
+          "params": {
+            "expression": "block.timestamp >= unlockTime"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "msg.sender == owner"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "!withdrawn"
+          }
+        }
+      ],
+      "function_signature": "withdraw(uint256)"
+    },
+    {
+      "edge_id": "e3",
+      "src": "0x0000000000000000000000000000000000000000",
+      "dst": "to",
+      "label": "mint",
+      "token": "MockToken",
+      "conditions": [],
+      "condition_objects": [],
+      "function_signature": "mint(address,uint256)"
+    },
+    {
+      "edge_id": "e4",
+      "src": "msg.sender",
+      "dst": "to",
+      "label": "transfer",
+      "token": "MockToken",
+      "conditions": [
+        "r",
+        "e",
+        "q",
+        "u",
+        "i",
+        "r",
+        "e",
+        "(",
+        "b",
+        "a",
+        "l",
+        "a",
+        "n",
+        "c",
+        "e",
+        "O",
+        "f",
+        "[",
+        "m",
+        "s",
+        "g",
+        ".",
+        "s",
+        "e",
+        "n",
+        "d",
+        "e",
+        "r",
+        "]",
+        " ",
+        ">",
+        "=",
+        " ",
+        "a",
+        "m",
+        "o",
+        "u",
+        "n",
+        "t",
+        ")"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "q"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "u"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "i"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "("
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "b"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "l"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "O"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "f"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "["
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "m"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "g"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "."
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "d"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "]"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": ">"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "="
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "m"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "u"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": ")"
+          }
+        }
+      ],
+      "function_signature": "transfer(address,uint256)"
+    },
+    {
+      "edge_id": "e5",
+      "src": "from",
+      "dst": "to",
+      "label": "transfer",
+      "token": "MockToken",
+      "conditions": [
+        "require(allowance[from][msg.sender] >= amount)",
+        "require(balanceOf[from] >= amount)"
+      ],
+      "condition_objects": [
+        {
+          "type": "balance",
+          "params": {
+            "expression": "require(allowance[from][msg.sender] >= amount)"
+          }
+        },
+        {
+          "type": "balance",
+          "params": {
+            "expression": "require(balanceOf[from] >= amount)"
+          }
+        }
+      ],
+      "function_signature": "transferFrom(address,address,uint256)"
+    }
+  ],
+  "invariants": [
+    {
+      "invariant_id": "asset_total_locked_equals_minted_minus_fees",
+      "category": "asset_conservation",
+      "description": "The aggregate amount of tokens locked on BSC must equal the total amount minted on the destination chain minus accumulated bridge fees.",
+      "predicate": "totalLocked == totalMinted - totalFees",
+      "solidity_assertion": "require(totalLocked == totalMinted - totalFees, \"Invariant violation: locked != minted - fees\");",
+      "related_edges": [
+        "e1",
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "asset_per_deposit_balance_preservation",
+      "category": "asset_conservation",
+      "description": "For each deposit identifier, the locked amount equals the minted amount on the target chain minus the fee charged for that deposit.",
+      "predicate": "lockedAmount[depositId] == mintedAmount[depositId] - feeAmount[depositId]",
+      "solidity_assertion": "require(lockedAmount[depositId] == mintedAmount[depositId] - feeAmount[depositId], \"Invariant violation: per‑deposit balance mismatch\");",
+      "related_edges": [
+        "e1",
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "asset_no_mint_without_lock",
+      "category": "asset_conservation",
+      "description": "A mint operation can only succeed if a corresponding lock has been recorded for the same deposit identifier.",
+      "predicate": "mintedAmount[depositId] > 0 => lockedAmount[depositId] > 0",
+      "solidity_assertion": "require(mintedAmount[depositId] == 0 || lockedAmount[depositId] > 0, \"Invariant violation: mint without lock\");",
+      "related_edges": [
+        "e1",
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "asset_destination_supply_cap",
+      "category": "asset_conservation",
+      "description": "The total supply of the bridged token on the destination chain must never exceed the total amount ever locked on the source chain plus the initial supply on the destination.",
+      "predicate": "totalSupplyDestination <= totalLocked + initialSupplyDestination",
+      "solidity_assertion": "require(totalSupplyDestination <= totalLocked + initialSupplyDestination, \"Invariant violation: supply exceeds locked amount\");",
+      "related_edges": [
+        "e1",
+        "e3",
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "asset_locked_tokens_cannot_be_double_spent",
+      "category": "asset_conservation",
+      "description": "After a successful lock, the locker contract's internal balance must decrease by exactly the locked amount.",
+      "predicate": "balanceBeforeLock - balanceAfterLock == amountLocked",
+      "solidity_assertion": "require(balanceBeforeLock - balanceAfterLock == amountLocked, \"Invariant violation: locker balance mismatch after lock\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "auth_mint_only_by_relayer",
+      "category": "authorization",
+      "description": "The mint function may only be called by the designated bridge relayer address.",
+      "predicate": "msg.sender == relayer",
+      "solidity_assertion": "require(msg.sender == relayer, \"Invariant violation: unauthorized mint caller\");",
+      "related_edges": [
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "auth_withdraw_only_by_owner",
+      "category": "authorization",
+      "description": "Only the original depositor (owner) can invoke the withdraw function for a given lock.",
+      "predicate": "msg.sender == owner[depositId]",
+      "solidity_assertion": "require(msg.sender == owner[depositId], \"Invariant violation: withdraw not called by owner\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "auth_deposit_requires_transfer_from",
+      "category": "authorization",
+      "description": "A deposit must successfully transfer the specified token amount from the sender to the locker contract.",
+      "predicate": "token.transferFrom(msg.sender, address(this), amount) == true",
+      "solidity_assertion": "require(token.transferFrom(msg.sender, address(this), amount), \"Invariant violation: token transferFrom failed in deposit\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "auth_transfer_from_checks_allowance_and_balance",
+      "category": "authorization",
+      "description": "The transferFrom operation must verify both sufficient allowance and sufficient balance of the source address.",
+      "predicate": "allowance[from][msg.sender] >= amount && balanceOf[from] >= amount",
+      "solidity_assertion": "require(allowance[from][msg.sender] >= amount && balanceOf[from] >= amount, \"Invariant violation: allowance or balance insufficient\");",
+      "related_edges": [
+        "e5"
+      ]
+    },
+    {
+      "invariant_id": "auth_mint_requires_valid_nonce",
+      "category": "authorization",
+      "description": "Minting must be accompanied by a nonce that has not been processed before, preventing replay attacks.",
+      "predicate": "!processedNonce[nonce]",
+      "solidity_assertion": "require(!processedNonce[nonce], \"Invariant violation: replayed nonce in mint\");",
+      "related_edges": [
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "uniq_nonce_processed_once",
+      "category": "uniqueness",
+      "description": "Each bridge message nonce is marked as processed exactly once.",
+      "predicate": "processedNonce[nonce] == false before processing && processedNonce[nonce] == true after processing",
+      "solidity_assertion": "require(!processedNonce[nonce], \"Invariant violation: nonce already processed\"); processedNonce[nonce] = true;",
+      "related_edges": [
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "uniq_withdraw_executed_once",
+      "category": "uniqueness",
+      "description": "A lock can be withdrawn at most one time.",
+      "predicate": "!withdrawn[depositId]",
+      "solidity_assertion": "require(!withdrawn[depositId], \"Invariant violation: double withdraw\"); withdrawn[depositId] = true;",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "uniq_mint_emitted_once_per_deposit",
+      "category": "uniqueness",
+      "description": "The mint operation for a particular deposit identifier can be executed only once.",
+      "predicate": "!minted[depositId]",
+      "solidity_assertion": "require(!minted[depositId], \"Invariant violation: duplicate mint\"); minted[depositId] = true;",
+      "related_edges": [
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "uniq_transfer_non_reentrant",
+      "category": "uniqueness",
+      "description": "The transfer function must be protected against re‑entrancy, ensuring a single execution per call.",
+      "predicate": "!locked",
+      "solidity_assertion": "require(!locked, \"Invariant violation: re‑entrant transfer\"); locked = true; _; locked = false;",
+      "related_edges": [
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "time_withdraw_after_unlock",
+      "category": "timeliness",
+      "description": "Withdrawal is allowed only after the unlock timestamp associated with the lock has passed.",
+      "predicate": "block.timestamp >= unlockTime[depositId]",
+      "solidity_assertion": "require(block.timestamp >= unlockTime[depositId], \"Invariant violation: withdraw before unlock time\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "time_refund_after_timeout",
+      "category": "timeliness",
+      "description": "If a lock has not been withdrawn after the unlock time, the depositor may reclaim the locked tokens.",
+      "predicate": "block.timestamp >= unlockTime[depositId] && !withdrawn[depositId]",
+      "solidity_assertion": "require(block.timestamp >= unlockTime[depositId] && !withdrawn[depositId], \"Invariant violation: refund not allowed\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "time_deposit_timelock_future",
+      "category": "timeliness",
+      "description": "When creating a lock, the specified unlock time must be strictly greater than the current block timestamp.",
+      "predicate": "unlockTime > block.timestamp",
+      "solidity_assertion": "require(unlockTime > block.timestamp, \"Invariant violation: unlockTime not in future\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "time_relayer_processes_within_max_delay",
+      "category": "timeliness",
+      "description": "A relayer must process a cross‑chain message no later than maxDelay seconds after the message timestamp.",
+      "predicate": "block.timestamp <= messageTimestamp + maxDelay",
+      "solidity_assertion": "require(block.timestamp <= messageTimestamp + maxDelay, \"Invariant violation: relayer exceeded max delay\");",
+      "related_edges": [
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "time_mint_before_grace_period_end",
+      "category": "timeliness",
+      "description": "Minting for a given deposit must occur before the unlock time plus an optional grace period expires.",
+      "predicate": "block.timestamp <= unlockTime[depositId] + gracePeriod",
+      "solidity_assertion": "require(block.timestamp <= unlockTime[depositId] + gracePeriod, \"Invariant violation: mint after grace period\");",
+      "related_edges": [
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "time_depositor_can_reclaim_if_no_mint",
+      "category": "timeliness",
+      "description": "If the bridge fails to mint within depositTimeout, the original depositor may reclaim the locked tokens.",
+      "predicate": "block.timestamp >= depositTimestamp[depositId] + depositTimeout && !minted[depositId]",
+      "solidity_assertion": "require(block.timestamp >= depositTimestamp[depositId] + depositTimeout && !minted[depositId], \"Invariant violation: premature or invalid reclaim\");",
+      "related_edges": [
+        "e1",
+        "e3"
+      ]
+    }
+  ]
+}

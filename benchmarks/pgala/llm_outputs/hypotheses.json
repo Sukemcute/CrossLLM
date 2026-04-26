@@ -1,0 +1,1568 @@
+{
+  "bridge_name": "pgala",
+  "scenarios": [
+    {
+      "scenario_id": "pgala_replay_mint_2024_01",
+      "target_invariant": "asset_conservation_total_locked_equals_minted_minus_fees",
+      "vulnerability_class": "signature_replay_no_nonce_tracking",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "LegacyCustodian",
+          "function": "signMintAuthorization(address,uint256,uint64)",
+          "params": {
+            "to": "0xAttackerEoa",
+            "amount": "1000000e18",
+            "nonce": 42
+          },
+          "description": "Obtain a legitimate off‑chain signed mint authorization from a user who deposited 1 M pGALA on the source chain. The signature (sig) is captured for reuse.",
+          "relay_mode": "faithful",
+          "step": 1
+        },
+        {
+          "chain": "bsc",
+          "contract": "LegacyCustodian",
+          "function": "mint(address,uint256,uint64,bytes)",
+          "params": {
+            "to": "0xAttackerEoa",
+            "amount": "1000000e18",
+            "nonce": 42,
+            "signature": "0xCapturedSignature"
+          },
+          "description": "First replay of the captured signature. The contract does not store used nonces, so the mint succeeds and totalMinted increases by 1 M.",
+          "relay_mode": "replay",
+          "step": 2
+        },
+        {
+          "chain": "bsc",
+          "contract": "LegacyCustodian",
+          "function": "mint(address,uint256,uint64,bytes)",
+          "params": {
+            "to": "0xAttackerEoa",
+            "amount": "1000000e18",
+            "nonce": 42,
+            "signature": "0xCapturedSignature"
+          },
+          "description": "Second replay of the same signature, minting another 1 M pGALA without any additional lock on the source chain.",
+          "relay_mode": "replay",
+          "step": 3
+        },
+        {
+          "chain": "bsc",
+          "contract": "LegacyCustodian",
+          "function": "mint(address,uint256,uint64,bytes)",
+          "params": {
+            "to": "0xAttackerEoa",
+            "amount": "1000000e18",
+            "nonce": 42,
+            "signature": "0xCapturedSignature"
+          },
+          "description": "Third replay, further inflating the minted supply.",
+          "relay_mode": "replay",
+          "step": 4
+        },
+        {
+          "chain": "any",
+          "contract": "state_predicates",
+          "function": "verify",
+          "params": {
+            "source_totalLocked": "LegacyCustodian.totalLocked() == L0",
+            "dest_totalMinted": "LegacyCustodian.totalMinted() == M0 + 3_000_000e18",
+            "dest_totalFees": "LegacyCustodian.totalFees() == F0"
+          },
+          "description": "After the three replays, totalLocked on the source chain remains L0 while totalMinted on BSC increased by 3 M, breaking the invariant totalLocked == totalMinted - totalFees.",
+          "relay_mode": "faithful",
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "pgala_20221103",
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Obtain a legitimate off‑chain signed mint authorization from a user who deposited 1 M pGALA on the source chain. The signature (sig) is captured for reuse."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "First replay of the captured signature. The contract does not store used nonces, so the mint succeeds and totalMinted increases by 1 M."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Second replay of the same signature, minting another 1 M pGALA without any additional lock on the source chain."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Third replay, further inflating the minted supply."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "After the three replays, totalLocked on the source chain remains L0 while totalMinted on BSC increased by 3 M, breaking the invariant totalLocked == totalMinted - totalFees."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_sig_replay_mint_overmint",
+      "target_invariant": "asset_conservation_bridge_balance_matches_outstanding_mint",
+      "vulnerability_class": "signature_forgery",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "unknown",
+          "contract": "LegacyCustodian",
+          "function": "lock(uint256,address)",
+          "params": {
+            "amount": "1000e18",
+            "to": "0xAttackerDest"
+          },
+          "description": "Attacker locks 1,000 pGALA on the source chain. Bridge internal accounting updates bridgeLockedBalance = 1,000.",
+          "step": 1
+        },
+        {
+          "chain": "unknown",
+          "contract": "off‑chain relayer",
+          "function": "signMintAuthorization(address,uint256,uint64)",
+          "params": {
+            "to": "0xAttackerDest",
+            "amount": "1000e18",
+            "nonce": "1"
+          },
+          "description": "Legitimate off‑chain relayer produces a signed mint authorization (r,e,q,u,i,r,e,(!u,s,e,d)[nonce]) for the locked amount. Signature does NOT bind the amount field (vulnerability).",
+          "relay_mode": "faithful",
+          "step": 2
+        },
+        {
+          "chain": "bsc",
+          "contract": "LegacyCustodian",
+          "function": "mint(address,uint256,uint64,bytes)",
+          "params": {
+            "to": "0xAttackerDest",
+            "amount": "1000e18",
+            "nonce": "1",
+            "signature": "0xValidSigFromStep2"
+          },
+          "description": "Attacker submits the signed mint to the destination bridge. totalMinted becomes 1,000, bridgeLockedBalance stays 1,000 – invariant holds.",
+          "step": 3
+        },
+        {
+          "chain": "bsc",
+          "contract": "LegacyCustodian",
+          "function": "mint(address,uint256,uint64,bytes)",
+          "params": {
+            "to": "0xAttackerDest",
+            "amount": "1000e18",
+            "nonce": "2",
+            "signature": "0xValidSigFromStep2",
+            "tampered": true
+          },
+          "description": "Attacker re‑uses the same signature (signature does not cover amount/nonce) with a new nonce, causing the contract to mint an additional 1,000 pGALA without any extra lock. totalMinted = 2,000 while bridgeLockedBalance = 1,000, violating bridgeLockedBalance == totalMinted - totalRefunded.",
+          "relay_mode": "tampered",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_20220118"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker locks 1,000 pGALA on the source chain. Bridge internal accounting updates bridgeLockedBalance = 1,000."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Legitimate off‑chain relayer produces a signed mint authorization (r,e,q,u,i,r,e,(!u,s,e,d)[nonce]) for the locked amount. Signature does NOT bind the amount field (vulnerability)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker submits the signed mint to the destination bridge. totalMinted becomes 1,000, bridgeLockedBalance stays 1,000 – invariant holds."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Attacker re‑uses the same signature (signature does not cover amount/nonce) with a new nonce, causing the contract to mint an additional 1,000 pGALA without any extra lock. totalMinted = 2,000 while bridgeLockedBalance = 1,000, violating bridgeLockedBalance == totalMinted - totalRefunded."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_fee_overcollection_2024_01",
+      "target_invariant": "asset_conservation_fees_never_exceed_minted",
+      "vulnerability_class": "fee_accounting_logic_bug",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "LegacyCustodian",
+          "function": "lock(address,uint256)",
+          "params": {
+            "to": "0xAttackerAddr",
+            "amount": "0"
+          },
+          "description": "Attacker calls lock with zero pGALA to generate a mint authorization (nonce N0) without affecting totalLocked.",
+          "state_predicate": "LegacyCustodian.totalLocked() == 0",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "OffChainSigner",
+          "function": "signMintAuthorization(address,uint256,uint64)",
+          "params": {
+            "to": "0xAttackerAddr",
+            "amount": "0",
+            "nonce": "N0"
+          },
+          "description": "Attacker obtains a valid off‑chain signature for mint(amount=0, nonce=N0).",
+          "state_predicate": "signature.valid == true",
+          "step": 2
+        },
+        {
+          "chain": "bsc",
+          "contract": "pGALAToken",
+          "function": "mint(address,uint256,uint64,bytes)",
+          "params": {
+            "to": "0xAttackerAddr",
+            "amount": "0",
+            "nonce": "N0",
+            "signature": "0xSignedData"
+          },
+          "relay_mode": "tampered",
+          "description": "Compromised relay calls mint with the signed authorization while sending an inflated msg.value (fee F = 10,000 pGALA‑equivalent) that the bridge records as fee but does not mint any tokens.",
+          "state_predicate": "pGALAToken.totalFees() == 10000 && pGALAToken.totalMinted() == 0",
+          "step": 3
+        },
+        {
+          "chain": "bsc",
+          "contract": "pGALAToken",
+          "function": "mint(address,uint256,uint64,bytes)",
+          "params": {
+            "to": "0xAttackerAddr",
+            "amount": "0",
+            "nonce": "N1",
+            "signature": "0xSignedData2"
+          },
+          "relay_mode": "tampered",
+          "description": "Attacker repeats the tampered mint with a fresh nonce N1, again sending fee F = 10,000. The contract adds the fee to totalFees without increasing totalMinted.",
+          "state_predicate": "pGALAToken.totalFees() == 20000 && pGALAToken.totalMinted() == 0",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "meterio_20220205",
+        "metpassport_20220206"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker calls lock with zero pGALA to generate a mint authorization (nonce N0) without affecting totalLocked."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker obtains a valid off‑chain signature for mint(amount=0, nonce=N0)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Compromised relay calls mint with the signed authorization while sending an inflated msg.value (fee F = 10,000 pGALA‑equivalent) that the bridge records as fee but does not mint any tokens."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Attacker repeats the tampered mint with a fresh nonce N1, again sending fee F = 10,000. The contract adds the fee to totalFees without increasing totalMinted."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_replay_mint_2024_04_25",
+      "target_invariant": "asset_conservation_total_supply_reflects_locked_minus_refunded",
+      "vulnerability_class": "logic_bug_missing_nonce_tracking",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "LegacyCustodian",
+          "function": "lock(uint256)",
+          "params": {
+            "amount": "1000e18"
+          },
+          "description": "Honest user locks 1,000 pGALA on the source chain; LegacyCustodian updates its internal totalLocked counter.",
+          "waypoint": "LegacyCustodian.totalLocked() == 1000e18",
+          "step": 1
+        },
+        {
+          "chain": "bsc",
+          "contract": "pGALAToken",
+          "function": "mint(address,uint256,uint64,bytes)",
+          "params": {
+            "to": "0xAttackerAddress0000000000000000000000000000",
+            "amount": "1000e18",
+            "nonce": "42",
+            "signature": "0xCapturedValidSignatureFromBridge"
+          },
+          "relay_mode": "faithful",
+          "description": "Bridge relay forwards the signed mint authorization to the destination token contract; first mint succeeds and totalSupply becomes 1,000.",
+          "waypoint": "pGALAToken.totalSupply() == 1000e18",
+          "step": 2
+        },
+        {
+          "chain": "bsc",
+          "contract": "pGALAToken",
+          "function": "mint(address,uint256,uint64,bytes)",
+          "params": {
+            "to": "0xAttackerAddress0000000000000000000000000000",
+            "amount": "1000e18",
+            "nonce": "42",
+            "signature": "0xCapturedValidSignatureFromBridge"
+          },
+          "relay_mode": "tampered_replay",
+          "description": "Attacker re‑submits the same signed mint message (replay) because the contract does not mark the nonce as used; a second mint creates another 1,000 pGALA.",
+          "waypoint": "pGALAToken.totalSupply() == 2000e18",
+          "step": 3
+        },
+        {
+          "chain": "bsc",
+          "contract": "pGALAToken",
+          "function": "totalSupply()",
+          "params": {},
+          "description": "Check invariant after replay: totalSupply (2,000) > totalLocked (1,000) – totalRefunded (0).",
+          "waypoint": "pGALAToken.totalSupply() != LegacyCustodian.totalLocked() - LegacyCustodian.totalRefunded()",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "pgala_20221103",
+        "thorchain_20210628"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Honest user locks 1,000 pGALA on the source chain; LegacyCustodian updates its internal totalLocked counter."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Bridge relay forwards the signed mint authorization to the destination token contract; first mint succeeds and totalSupply becomes 1,000."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker re‑submits the same signed mint message (replay) because the contract does not mark the nonce as used; a second mint creates another 1,000 pGALA."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Check invariant after replay: totalSupply (2,000) > totalLocked (1,000) – totalRefunded (0)."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_auth_mint_unauth_01",
+      "target_invariant": "authorization_mint_called_by_authorized_relayer",
+      "vulnerability_class": "access_control_bypass_via_unaudited_admin_function",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "bsc",
+          "contract": "LegacyCustodian",
+          "function": "setAuthorizedRelayer(address)",
+          "params": {
+            "newRelayer": "0xAttackerContract000000000000000000000000000001"
+          },
+          "mode": "tampered",
+          "waypoint": "LegacyCustodian.authorizedRelayer() == 0xAttackerContract000000000000000000000000000001",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "bsc",
+          "contract": "AttackerContract",
+          "function": "executeMint(address,uint256,uint64,bytes)",
+          "params": {
+            "to": "0xAttackerEOA00000000000000000000000000000002",
+            "amount": "1000000e18",
+            "deadline": "block.timestamp + 3600",
+            "signature": "0x"
+          },
+          "mode": "faithful",
+          "waypoint": "pGALAToken.balanceOf(0xAttackerEOA00000000000000000000000000000002) >= 1000000e18 && LegacyCustodian.totalLocked() == 0",
+          "step": 2,
+          "description": "Step 2"
+        }
+      ],
+      "retrieved_exploits": [
+        "evodefi_20220607",
+        "chainswap_20210711"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_fake_deposit_proof_2024_04",
+      "target_invariant": "authorization_mint_requires_valid_deposit_proof",
+      "vulnerability_class": "fake_deposit_proof",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "LegacyCustodian",
+          "function": "lock(address,uint256,uint64)",
+          "params": {
+            "to": "0xAttackerAddr",
+            "amount": "1000000000000000000",
+            "lockId": "0xdeadbeef00000001"
+          },
+          "description": "Attacker creates a legitimate lock on the source chain to obtain a lockId that will be used later. State predicate: `LegacyCustodian.totalLocked() == 1e18` after this step.",
+          "step": 1
+        },
+        {
+          "chain": "relay",
+          "contract": "OffChainSigner",
+          "function": "signDepositProof(uint64 lockId,bytes data)",
+          "params": {
+            "lockId": "0xdeadbeef00000001",
+            "data": "0xdeadbeefcafebabe"
+          },
+          "relay_mode": "tampered",
+          "description": "Compromised relay node replaces the genuine Merkle/zk proof with a fabricated `proof` blob that does not correspond to any lock event. Predicate after tampering: `relay.proofValid == false` (but the node will claim true).",
+          "step": 2
+        },
+        {
+          "chain": "bsc",
+          "contract": "pGALAToken",
+          "function": "mint(address,uint256,uint64,bytes)",
+          "params": {
+            "to": "0xAttackerAddr",
+            "amount": "1000000000000000000",
+            "lockId": "0xdeadbeef00000001",
+            "proof": "0xdeadbeefcafebabe"
+          },
+          "description": "Attacker calls mint on the destination chain using the tampered proof. The contract’s `verifyDepositProof` incorrectly returns true, violating the invariant. State predicate after mint: `pGALAToken.totalMinted() == 1e18` while `LegacyCustodian.totalLocked() == 1e18` (no additional lock) – the invariant expects a valid proof linking these two, which is absent.",
+          "step": 3
+        },
+        {
+          "chain": "bsc",
+          "contract": "pGALAToken",
+          "function": "balanceOf(address)",
+          "params": {
+            "account": "0xAttackerAddr"
+          },
+          "description": "Attacker checks that the minted pGALA tokens are now in their wallet. Predicate: `pGALAToken.balanceOf(0xAttackerAddr) == 1e18`.",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "qubit_20220127",
+        "bnbbridge_20221007",
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker creates a legitimate lock on the source chain to obtain a lockId that will be used later. State predicate: `LegacyCustodian.totalLocked() == 1e18` after this step."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Compromised relay node replaces the genuine Merkle/zk proof with a fabricated `proof` blob that does not correspond to any lock event. Predicate after tampering: `relay.proofValid == false` (but the node will claim true)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker calls mint on the destination chain using the tampered proof. The contract’s `verifyDepositProof` incorrectly returns true, violating the invariant. State predicate after mint: `pGALAToken.totalMinted() == 1e18` while `LegacyCustodian.totalLocked() == 1e18` (no additional lock) – the invariant expects a valid proof linking these two, which is absent."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Attacker checks that the minted pGALA tokens are now in their wallet. Predicate: `pGALAToken.balanceOf(0xAttackerAddr) == 1e18`."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_auth_unlock_replay_2024_04_30",
+      "target_invariant": "authorization_unlock_requires_matching_lock",
+      "vulnerability_class": "proof_replay",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "LegacyCustodian",
+          "function": "lock",
+          "params": {
+            "amount": "1000000000000000000000",
+            "recipient": "0xAttackerAddress000000000000000000000000000001"
+          },
+          "description": "Attacker locks 1,000 pGALA on the source chain, causing the bridge to emit a lockId (L1) and a signed mintProof that will be relayed.",
+          "waypoint": "LegacyCustodian.totalLocked() >= 1000000000000000000000",
+          "step": 1
+        },
+        {
+          "chain": "bsc",
+          "contract": "pGALAToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAttackerAddress000000000000000000000000000001",
+            "amount": "1000000000000000000000",
+            "lockId": "L1",
+            "mintProof": "0xProofBytesFromStep1"
+          },
+          "relay_mode": "faithful",
+          "description": "Faithful relay forwards the lock proof; the destination contract mints the corresponding wrapped tokens and records the mintProof.",
+          "waypoint": "pGALAToken.balanceOf(0xAttackerAddress000000000000000000000000000001) == 1000000000000000000000",
+          "step": 2
+        },
+        {
+          "chain": "ethereum",
+          "contract": "LegacyCustodian",
+          "function": "unlock",
+          "params": {
+            "lockId": "L2",
+            "mintProof": "0xProofBytesFromStep1"
+          },
+          "relay_mode": "replay",
+          "description": "Attacker re‑uses the previously obtained mintProof (which is not bound to a specific lockId) to call unlock with a fresh lockId L2, causing the contract to release tokens that were never locked.",
+          "waypoint": "LegacyCustodian.unlockedAmount(0xAttackerAddress000000000000000000000000000001) >= 1000000000000000000000",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "bnbbridge_20221007",
+        "chainswap_20210711"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker locks 1,000 pGALA on the source chain, causing the bridge to emit a lockId (L1) and a signed mintProof that will be relayed."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Faithful relay forwards the lock proof; the destination contract mints the corresponding wrapped tokens and records the mintProof."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker re‑uses the previously obtained mintProof (which is not bound to a specific lockId) to call unlock with a fresh lockId L2, causing the contract to release tokens that were never locked."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_sig_forgery_tampered_replay_001",
+      "target_invariant": "authorization_mint_signature_matches_sender",
+      "vulnerability_class": "signature_forgery",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "LegacyCustodian",
+          "function": "requestMintAuthorization(address,uint256,uint64)",
+          "params": {
+            "to": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": "1000e18",
+            "nonce": "1"
+          },
+          "description": "Honest user Alice requests a bridge mint; off‑chain service signs hashMessage(to, amount, nonce, deadline) and returns signature `sigAlice` with deadline far in the future.",
+          "step": 1
+        },
+        {
+          "chain": "bsc",
+          "contract": "pGALAToken",
+          "function": "mint(address,uint256,uint64,bytes)",
+          "params": {
+            "to": "0xBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBb",
+            "amount": "1000e18",
+            "nonce": "1",
+            "signature": "0xSigAlice"
+          },
+          "relay_mode": "tampered",
+          "description": "Attacker intercepts the off‑chain payload, swaps `to` with his own address while keeping the original signature. Because the bridge contract mistakenly verifies `ECDSA.recover(hashMessage(to, amount, nonce, deadline), signature) == msg.sender` instead of `== to`, the check passes and tokens are minted to the attacker.",
+          "step": 2
+        },
+        {
+          "chain": "bsc",
+          "contract": "pGALAToken",
+          "function": "mint(address,uint256,uint64,bytes)",
+          "params": {
+            "to": "0xBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBb",
+            "amount": "1000e18",
+            "nonce": "1",
+            "signature": "0xSigAlice"
+          },
+          "relay_mode": "replay",
+          "description": "Since the contract does not enforce a per‑address nonce increment, the attacker re‑submits the same tampered payload, minting an additional 1000 pGALA.",
+          "step": 3
+        }
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Honest user Alice requests a bridge mint; off‑chain service signs hashMessage(to, amount, nonce, deadline) and returns signature `sigAlice` with deadline far in the future."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker intercepts the off‑chain payload, swaps `to` with his own address while keeping the original signature. Because the bridge contract mistakenly verifies `ECDSA.recover(hashMessage(to, amount, nonce, deadline), signature) == msg.sender` instead of `== to`, the check passes and tokens are minted to the attacker."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Since the contract does not enforce a per‑address nonce increment, the attacker re‑submits the same tampered payload, minting an additional 1000 pGALA."
+        }
+      ],
+      "retrieved_exploits": [
+        "chainswap_20210711",
+        "wormhole_20220202"
+      ]
+    },
+    {
+      "scenario_id": "pgala_nonce_reentrancy_2024_01",
+      "target_invariant": "uniqueness_nonce_used_at_most_once",
+      "vulnerability_class": "reentrancy_via_erc777_callback",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "bsc",
+          "contract": "AttackerERC777",
+          "function": "constructor()",
+          "params": {
+            "bridgeAddress": "0xBridgeContractAddressPlaceholder",
+            "nonce": "0x1a2b3c4d5e6f7g8h",
+            "amount": "1000e18"
+          },
+          "description": "Deploy malicious ERC777 token that implements tokensReceived hook. The hook calls bridge.mint(to, amount, nonce, signature) with the same nonce received from the off‑chain signer.",
+          "step": 1
+        },
+        {
+          "chain": "bsc",
+          "contract": "pGALAToken",
+          "function": "mint(address,uint256,uint64,bytes)",
+          "params": {
+            "to": "0xAttackerERC777Address",
+            "amount": "1000e18",
+            "nonce": "0x1a2b3c4d5e6f7g8h",
+            "signature": "0xValidSignatureFromLegacyCustodian"
+          },
+          "description": "Call the authorized mint function with a legitimate signature. Transfer of ERC777 tokens triggers tokensReceived on AttackerERC777, which re‑enters mint with the same nonce.",
+          "step": 2
+        },
+        {
+          "chain": "bsc",
+          "contract": "AttackerERC777",
+          "function": "tokensReceived(address,address,uint256,bytes,bytes,bytes)",
+          "params": {
+            "operator": "0xBridgeContractAddressPlaceholder",
+            "from": "0xBridgeContractAddressPlaceholder",
+            "amount": "1000e18",
+            "userData": "0x",
+            "operatorData": "0x",
+            "extraData": "0x"
+          },
+          "description": "Re‑enter bridge.mint inside the ERC777 callback using the same nonce, amount and a freshly generated signature (attacker controls the signing key after compromising the LegacyCustodian off‑chain signer).",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "qubit_20220127",
+        "meterio_20220205",
+        "evodefi_20220607"
+      ],
+      "state_waypoints": [
+        {
+          "predicate": "nonceUsed[0x1a2b3c4d5e6f7g8h] == true",
+          "description": "Nonce is marked used after outer mint call returns."
+        },
+        {
+          "predicate": "totalMinted == previousTotalMinted + 2000e18",
+          "description": "Bridge minted double the intended amount due to re‑entrancy."
+        }
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Deploy malicious ERC777 token that implements tokensReceived hook. The hook calls bridge.mint(to, amount, nonce, signature) with the same nonce received from the off‑chain signer."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Call the authorized mint function with a legitimate signature. Transfer of ERC777 tokens triggers tokensReceived on AttackerERC777, which re‑enters mint with the same nonce."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Re‑enter bridge.mint inside the ERC777 callback using the same nonce, amount and a freshly generated signature (attacker controls the signing key after compromising the LegacyCustodian off‑chain signer)."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_replay_mint_violation_001",
+      "target_invariant": "uniqueness_message_hash_processed_once",
+      "vulnerability_class": "replay_attack_missing_nonce_guard",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "LegacyCustodian",
+          "function": "signMint",
+          "params": {
+            "to": "0xAttackerAddress000000000000000000000000000001",
+            "amount": "1000000000000000000000",
+            "nonce": "42",
+            "signature": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+          },
+          "description": "Generate a legitimate off‑chain signed mint authorization for 1,000 pGALA with nonce 42.",
+          "waypoint_predicates": [
+            "LegacyCustodian.nonceUsed(0xAttackerAddress000000000000000000000000000001,42) == false"
+          ],
+          "step": 1
+        },
+        {
+          "chain": "bsc",
+          "contract": "pGALAToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAttackerAddress000000000000000000000000000001",
+            "amount": "1000000000000000000000",
+            "nonce": "42",
+            "signature": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+          },
+          "relay_mode": "faithful",
+          "description": "Relay the signed message to the BSC side‑chain; the bridge processes it and mints 1,000 pGALA.",
+          "waypoint_predicates": [
+            "pGALAToken.balanceOf(0xAttackerAddress000000000000000000000000000001) == 1000000000000000000000",
+            "processedMessage[keccak256(abi.encodePacked(0xAttackerAddress000000000000000000000000000001,1000000000000000000000,42,0xdeadbeef...))] == true"
+          ],
+          "step": 2
+        },
+        {
+          "chain": "bsc",
+          "contract": "pGALAToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAttackerAddress000000000000000000000000000001",
+            "amount": "1000000000000000000000",
+            "nonce": "42",
+            "signature": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+          },
+          "relay_mode": "replay",
+          "description": "A compromised relayer re‑sends the identical signed message. Because the contract hashes only (to,amount) and ignores the nonce, the same messageHash is recomputed, but the processedMessage check is bypassed due to a bug, allowing a second mint.",
+          "waypoint_predicates": [
+            "pGALAToken.balanceOf(0xAttackerAddress000000000000000000000000000001) == 2000000000000000000000",
+            "processedMessage[keccak256(abi.encodePacked(0xAttackerAddress000000000000000000000000000001,1000000000000000000000,42,0xdeadbeef...))] == true"
+          ],
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_20220801",
+        "evodefi_20220607"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Generate a legitimate off‑chain signed mint authorization for 1,000 pGALA with nonce 42."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Relay the signed message to the BSC side‑chain; the bridge processes it and mints 1,000 pGALA."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "A compromised relayer re‑sends the identical signed message. Because the contract hashes only (to,amount) and ignores the nonce, the same messageHash is recomputed, but the processedMessage check is bypassed due to a bug, allowing a second mint."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala-dup-lockid-replay-001",
+      "target_invariant": "uniqueness_lock_id_is_unique",
+      "vulnerability_class": "replay_duplicate_lock_id",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "LegacyCustodian",
+          "function": "lock(uint256 amount, uint64 deadline, bytes data)",
+          "params": {
+            "amount": "1000e18",
+            "deadline": "0",
+            "data": "0x"
+          },
+          "relay_mode": "faithful",
+          "waypoint_predicate": "LegacyCustodian.locks[keccak256(msg.sender,LegacyCustodian.nonce)].exists == false",
+          "description": "Attacker creates a legitimate lock; a new lockId is derived from sender+nonce and stored.",
+          "step": 1
+        },
+        {
+          "chain": "bsc",
+          "contract": "pGALAToken",
+          "function": "mint(address to, uint256 amount, uint64 lockId, bytes signature)",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": "1000e18",
+            "lockId": "keccak256(0xAttackerAddress,LegacyCustodian.nonce)",
+            "signature": "0xSignedByBridgeRelayer"
+          },
+          "relay_mode": "faithful",
+          "waypoint_predicate": "pGALAToken.mintRecords[lockId].executed == true",
+          "description": "Honest relayer forwards the signed mint message; destination bridge records the lockId as executed.",
+          "step": 2
+        },
+        {
+          "chain": "bsc",
+          "contract": "pGALAToken",
+          "function": "mint(address to, uint256 amount, uint64 lockId, bytes signature)",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": "1000e18",
+            "lockId": "keccak256(0xAttackerAddress,LegacyCustodian.nonce)",
+            "signature": "0xSignedByBridgeRelayer"
+          },
+          "relay_mode": "replay",
+          "waypoint_predicate": "pGALAToken.mintRecords[lockId].executed == true && pGALAToken.locks[lockId].exists == true",
+          "description": "Compromised relayer re‑sends the identical mint transaction; the contract does not check for existing lockId, causing a duplicate entry and violating the uniqueness invariant.",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker creates a legitimate lock; a new lockId is derived from sender+nonce and stored."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Honest relayer forwards the signed mint message; destination bridge records the lockId as executed."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Compromised relayer re‑sends the identical mint transaction; the contract does not check for existing lockId, causing a duplicate entry and violating the uniqueness invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_refund_early_tampered_relay_001",
+      "target_invariant": "timeliness_refund_allowed_after_timeout",
+      "vulnerability_class": "logic_bug_signature_without_timestamp_check",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "ethereum",
+          "contract": "LegacyCustodian",
+          "function": "lock(address,uint256,uint64)",
+          "params": {
+            "to": "0xAttackerAddress0000000000000000000000000000",
+            "amount": "1000000000000000000000",
+            "lockTimeout": "86400"
+          },
+          "description": "Attacker locks 1,000 pGALA with a 24‑hour timeout.",
+          "waypoint": "LegacyCustodian.locks[lockId].timestamp == block.timestamp && LegacyCustodian.locks[lockId].timeout == 86400"
+        },
+        {
+          "step": 2,
+          "chain": "relay",
+          "contract": "OffChainSigner",
+          "function": "signRefund(uint256,bytes)",
+          "params": {
+            "lockId": "lockId",
+            "signature": "0xFAKE_SIGNATURE"
+          },
+          "mode": "tampered",
+          "description": "Attacker‑controlled relay signs a refund authorization immediately after the lock, ignoring the timeout requirement.",
+          "waypoint": "Relay.signedRefunds[lockId] == true && block.timestamp < LegacyCustodian.locks[lockId].timestamp + 86400"
+        },
+        {
+          "step": 3,
+          "chain": "ethereum",
+          "contract": "LegacyCustodian",
+          "function": "refund(uint256,bytes)",
+          "params": {
+            "lockId": "lockId",
+            "signature": "0xFAKE_SIGNATURE"
+          },
+          "description": "Attacker calls refund before the timeout using the prematurely signed message, bypassing the invariant check.",
+          "waypoint": "LegacyCustodian.totalRefunded() == 1000000000000000000000 && block.timestamp < LegacyCustodian.locks[lockId].timestamp + 86400"
+        }
+      ],
+      "retrieved_exploits": [
+        "thorchain_20210629",
+        "thorchain_20210628"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker locks 1,000 pGALA with a 24‑hour timeout."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Attacker‑controlled relay signs a refund authorization immediately after the lock, ignoring the timeout requirement."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker calls refund before the timeout using the prematurely signed message, bypassing the invariant check."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_refund_overpay_001",
+      "target_invariant": "timeliness_refund_cannot_exceed_locked_amount",
+      "vulnerability_class": "logic_bug_refund_overpay",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "LegacyCustodian",
+          "function": "lock(uint256 amount,address recipient)",
+          "params": {
+            "amount": "10000000000000000000",
+            "recipient": "0xAttackerEOA000000000000000000000000000000"
+          },
+          "description": "Attacker locks a small amount (10 pGALA) on the source chain, creating lockId = 1.",
+          "waypoint": "LegacyCustodian.locks(1).amount == 10000000000000000000",
+          "step": 1
+        },
+        {
+          "chain": "off‑chain",
+          "contract": "RelayHub",
+          "function": "forwardMintAuthorization",
+          "params": {
+            "lockId": 1,
+            "originalAmount": "10000000000000000000",
+            "tamperedAmount": "100000000000000000000"
+          },
+          "description": "Attacker intercepts the off‑chain signed mint authorization and tampers the amount field (relay mode = tampered).",
+          "relay_mode": "tampered",
+          "waypoint": "signedMessage.amount == 100000000000000000000",
+          "step": 2
+        },
+        {
+          "chain": "bsc",
+          "contract": "pGALAToken",
+          "function": "mint(address to,uint256 amount)",
+          "params": {
+            "to": "0xAttackerEOA000000000000000000000000000000",
+            "amount": "100000000000000000000"
+          },
+          "description": "Destination bridge contract mints 100 pGALA to the attacker using the tampered authorization.",
+          "waypoint": "pGALAToken.balanceOf(0xAttackerEOA000000000000000000000000000000) == 100000000000000000000",
+          "step": 3
+        },
+        {
+          "chain": "ethereum",
+          "contract": "LegacyCustodian",
+          "function": "refund(uint256 lockId,uint256 refundAmount)",
+          "params": {
+            "lockId": 1,
+            "refundAmount": "100000000000000000000"
+          },
+          "description": "After the timelock expires, the bridge processes a refund using the amount recorded on the destination chain (100 pGALA), exceeding the originally locked 10 pGALA.",
+          "waypoint": "LegacyCustodian.refundsProcessed(1) == true && refundAmount > LegacyCustodian.locks(1).amount",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "thorchain_20210629",
+        "thorchain_20210628"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker locks a small amount (10 pGALA) on the source chain, creating lockId = 1."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker intercepts the off‑chain signed mint authorization and tampers the amount field (relay mode = tampered)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Destination bridge contract mints 100 pGALA to the attacker using the tampered authorization."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "After the timelock expires, the bridge processes a refund using the amount recorded on the destination chain (100 pGALA), exceeding the originally locked 10 pGALA."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_timeliness_deadline_tamper_001",
+      "target_invariant": "timeliness_mint_must_be_before_deadline",
+      "vulnerability_class": "signature_forgery_via_tampered_relay",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "LegacyCustodian",
+          "function": "lock(address,uint256,uint64,bytes)",
+          "params": {
+            "to": "0xAttackerEOA",
+            "amount": "1000000000000000000000",
+            "deadline": "1704067200",
+            "signature": "0xSignedByBridgeKey(keccak256(0xAttackerEOA,1000000000000000000000,1704067200))"
+          },
+          "description": "Attacker locks 1,000 pGALA on the source chain, obtaining a signed authorization whose deadline D = now+5 min.",
+          "waypoint": "LegacyCustodian.lockedAmount(0xAttackerEOA) == 1000000000000000000000",
+          "step": 1
+        },
+        {
+          "chain": "off‑chain",
+          "contract": "MaliciousRelay",
+          "function": "forwardMint(uint64 mode,bytes originalAuth)",
+          "params": {
+            "mode": "tampered",
+            "originalAuth": {
+              "to": "0xAttackerEOA",
+              "amount": "1000000000000000000000",
+              "deadline": "1704067200",
+              "signature": "0xSignedByBridgeKey(keccak256(0xAttackerEOA,1000000000000000000000,1704067200))"
+            },
+            "newDeadline": "1735603200"
+          },
+          "description": "The relay intercepts the event and forwards a mint message, altering the deadline field to D' = now+30 days while keeping the original signature unchanged.",
+          "waypoint": "Relay.tampered == true && Relay.lastForwardedDeadline == 1735603200",
+          "step": 2
+        },
+        {
+          "chain": "bsc",
+          "contract": "pGALAToken",
+          "function": "mint(address,uint256,uint64,bytes)",
+          "params": {
+            "to": "0xAttackerEOA",
+            "amount": "1000000000000000000000",
+            "deadline": "1735603200",
+            "signature": "0xSignedByBridgeKey(keccak256(0xAttackerEOA,1000000000000000000000,1704067200))"
+          },
+          "description": "Destination bridge contract processes the tampered mint call. The contract only checks that block.timestamp ≤ supplied deadline and that the signature matches the signer, but it does **not** bind the deadline inside the signed payload, so the call succeeds after the original deadline.",
+          "waypoint": "pGALAToken.balanceOf(0xAttackerEOA) == 1000000000000000000000 && block.timestamp > 1704067200 && block.timestamp <= 1735603200",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "chainswap_20210711",
+        "wormhole_20220202"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker locks 1,000 pGALA on the source chain, obtaining a signed authorization whose deadline D = now+5 min."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "The relay intercepts the event and forwards a mint message, altering the deadline field to D' = now+30 days while keeping the original signature unchanged."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Destination bridge contract processes the tampered mint call. The contract only checks that block.timestamp ≤ supplied deadline and that the signature matches the signer, but it does **not** bind the deadline inside the signed payload, so the call succeeds after the original deadline."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_nonce_reorder_01",
+      "target_invariant": "timeliness_relay_messages_processed_in_nonce_order",
+      "vulnerability_class": "relay_message_reordering",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "ethereum",
+          "contract": "LegacyCustodian",
+          "function": "lock(address,uint256,uint64)",
+          "params": {
+            "from": "0xUserA",
+            "amount": 100,
+            "nonce": 10
+          },
+          "description": "User A locks 100 pGALA on the source chain, generating an off‑chain signed authorization with nonce 10.",
+          "state_predicate": "LegacyCustodian.pendingNonce[0xUserA] == 10"
+        },
+        {
+          "step": 2,
+          "chain": "ethereum",
+          "contract": "LegacyCustodian",
+          "function": "lock(address,uint256,uint64)",
+          "params": {
+            "from": "0xUserB",
+            "amount": 200,
+            "nonce": 11
+          },
+          "description": "User B locks 200 pGALA, producing a legitimate message with nonce 11.",
+          "state_predicate": "LegacyCustodian.pendingNonce[0xUserB] == 11"
+        },
+        {
+          "step": 3,
+          "chain": "bsc",
+          "contract": "LegacyCustodian",
+          "function": "mint(address,uint256,uint64,bytes)",
+          "params": {
+            "to": "0xAttacker",
+            "amount": 500,
+            "nonce": 12,
+            "signature": "0xFakeSig_N12"
+          },
+          "relay_mode": "tampered",
+          "description": "Malicious relayer injects a fabricated mint message with nonce 12, amount 500 to attacker, using a forged signature.",
+          "state_predicate": "LegacyCustodian.lastProcessedNonce == 12 && pGALAToken.balanceOf(0xAttacker) == 500"
+        },
+        {
+          "step": 4,
+          "chain": "bsc",
+          "contract": "LegacyCustodian",
+          "function": "mint(address,uint256,uint64,bytes)",
+          "params": {
+            "to": "0xUserB",
+            "amount": 200,
+            "nonce": 11,
+            "signature": "0xSig_N11"
+          },
+          "relay_mode": "faithful",
+          "description": "Later the legitimate message with nonce 11 is submitted; contract reverts because nonce is not sequential.",
+          "state_predicate": "LegacyCustodian.lastProcessedNonce == 12 && tx.reverted == true"
+        }
+      ],
+      "retrieved_exploits": [
+        "socket_20240116",
+        "polynetwork_20210810"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User A locks 100 pGALA on the source chain, generating an off‑chain signed authorization with nonce 10."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "User B locks 200 pGALA, producing a legitimate message with nonce 11."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Malicious relayer injects a fabricated mint message with nonce 12, amount 500 to attacker, using a forged signature."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Later the legitimate message with nonce 11 is submitted; contract reverts because nonce is not sequential."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_timeliness_refund_bypass_01",
+      "target_invariant": "timeliness_locked_funds_auto_refund_on_chain_halt",
+      "vulnerability_class": "pause_timeout_manipulation",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "LegacyCustodian",
+          "function": "setLockTimeout(uint256)",
+          "params": {
+            "newTimeout": 0
+          },
+          "description": "Front‑run a transaction that sets `LegacyCustodian.lockTimeout` to 0. Predicate after execution: `LegacyCustodian.lockTimeout == 0`.",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "LegacyCustodian",
+          "function": "pause()",
+          "params": {},
+          "description": "Call `pause()`; contract records `pauseTimestamp = block.timestamp`. Predicate after execution: `LegacyCustodian.paused == true && LegacyCustodian.pauseTimestamp == T0`.",
+          "step": 2
+        },
+        {
+          "chain": "bridgerelay",
+          "contract": "BridgeRelay",
+          "function": "relayPauseEvent(address,uint256)",
+          "params": {
+            "bridge": "LegacyCustodian",
+            "timestamp": 0
+          },
+          "description": "Relay the pause event to the destination chain (BSC) in **tampered** mode, injecting a stale timestamp (0). Destination contract now sees `pauseTimestamp == 0` while `paused == true`.",
+          "step": 3
+        },
+        {
+          "chain": "ethereum",
+          "contract": "LegacyCustodian",
+          "function": "lock(address,uint256)",
+          "params": {
+            "to": "0xAttackerAddress000000000000000000000000000001",
+            "amount": "1000000000000000000000"
+          },
+          "description": "Lock 1,000 pGALA tokens for the attacker, creating `lockId = 1`. Predicate after execution: `LegacyCustodian.totalLocked() >= 1000e18`.",
+          "step": 4
+        },
+        {
+          "chain": "ethereum",
+          "contract": "LegacyCustodian",
+          "function": "refund(uint256)",
+          "params": {
+            "lockId": 1
+          },
+          "description": "Attempt to trigger the auto‑refund. Because `paused == true` the contract’s refund modifier blocks the call, even though the invariant predicate `paused && block.timestamp >= pauseTimestamp + 2*lockTimeout` is now true (`0 + 2*0 == 0`). Refund reverts, leaving funds permanently locked.",
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "orbit_20240101",
+        "multichain_20220118"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Front‑run a transaction that sets `LegacyCustodian.lockTimeout` to 0. Predicate after execution: `LegacyCustodian.lockTimeout == 0`."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Call `pause()`; contract records `pauseTimestamp = block.timestamp`. Predicate after execution: `LegacyCustodian.paused == true && LegacyCustodian.pauseTimestamp == T0`."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Relay the pause event to the destination chain (BSC) in **tampered** mode, injecting a stale timestamp (0). Destination contract now sees `pauseTimestamp == 0` while `paused == true`."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Lock 1,000 pGALA tokens for the attacker, creating `lockId = 1`. Predicate after execution: `LegacyCustodian.totalLocked() >= 1000e18`."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Attempt to trigger the auto‑refund. Because `paused == true` the contract’s refund modifier blocks the call, even though the invariant predicate `paused && block.timestamp >= pauseTimestamp + 2*lockTimeout` is now true (`0 + 2*0 == 0`). Refund reverts, leaving funds permanently locked."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_mint_overflow_2024_01",
+      "target_invariant": "authorization_mint_cannot_exceed_max_per_tx",
+      "vulnerability_class": "signature_amount_mismatch",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "ethereum",
+          "node_id": "LegacyCustodian",
+          "function_signature": "requestMintAuthorization(address,uint256)",
+          "params": {
+            "to": "0xAttacker000000000000000000000000000000000001",
+            "amount": 1000
+          },
+          "description": "Obtain a legitimate off‑chain signed mint authorization for the maximum allowed amount (maxMintPerTx = 1000). The signer’s off‑chain service returns a signature over (to, amount, nonce).",
+          "waypoint": "authSignature != 0"
+        },
+        {
+          "step": 2,
+          "chain": "bsc",
+          "node_id": "LegacyCustodian",
+          "function_signature": "mint(address,uint256,uint64,bytes)",
+          "params": {
+            "to": "0xAttacker000000000000000000000000000000000001",
+            "amount": 1000000,
+            "nonce": 42,
+            "signature": "0xSignedByBridge"
+          },
+          "relay_mode": "tampered",
+          "description": "Submit the mint transaction on the destination chain re‑using the same nonce and signature but inflating the amount field. The contract only verifies the signature against (to, nonce, extraData) and never binds the amount, allowing the oversized mint to pass the max‑per‑tx check.",
+          "waypoint": "pGALAToken.totalSupply() >= 1000000"
+        },
+        {
+          "step": 3,
+          "chain": "bsc",
+          "node_id": "pGALAToken",
+          "function_signature": "balanceOf(address)",
+          "params": {
+            "account": "0xAttacker000000000000000000000000000000000001"
+          },
+          "description": "Read the attacker’s token balance to confirm that the mint exceeded the protocol limit.",
+          "waypoint": "pGALAToken.balanceOf(0xAttacker000000000000000000000000000000000001) > 1000"
+        }
+      ],
+      "retrieved_exploits": [
+        "qubit_20220127",
+        "pnetwork_20210919"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Obtain a legitimate off‑chain signed mint authorization for the maximum allowed amount (maxMintPerTx = 1000). The signer’s off‑chain service returns a signature over (to, amount, nonce)."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Submit the mint transaction on the destination chain re‑using the same nonce and signature but inflating the amount field. The contract only verifies the signature against (to, nonce, extraData) and never binds the amount, allowing the oversized mint to pass the max‑per‑tx check."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Read the attacker’s token balance to confirm that the mint exceeded the protocol limit."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_fee_mismatch_replay_001",
+      "target_invariant": "asset_conservation_fee_distribution_preserves_total",
+      "vulnerability_class": "logic_bug_fee_accounting_replay",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "bsc",
+          "contract": "LegacyCustodian",
+          "function": "mint",
+          "params": {
+            "to": "0xAttacker00000000000000000000000000000000",
+            "amount": "1000000000000000000000",
+            "nonce": 1,
+            "signature": "0xValidSignatureForMint1"
+          },
+          "mode": "faithful",
+          "description": "First legitimate mint; feeRate = 1% → fee = 10e18.",
+          "state_predicate": "LegacyCustodian.totalFees == 10e18 && LegacyCustodian.remainingFees == 10e18 && feeCollector.balance == 0",
+          "step": 1
+        },
+        {
+          "chain": "bsc",
+          "contract": "LegacyCustodian",
+          "function": "mint",
+          "params": {
+            "to": "0xAttacker00000000000000000000000000000000",
+            "amount": "2000000000000000000000",
+            "nonce": 1,
+            "signature": "0xValidSignatureForMint1"
+          },
+          "mode": "replay",
+          "description": "Replay the same signed mint with a larger amount; contract only checks nonce/signature, not amount, so it adds a second fee of 20e18.",
+          "state_predicate": "LegacyCustodian.totalFees == 30e18 && LegacyCustodian.remainingFees == 30e18 && feeCollector.balance == 0",
+          "step": 2
+        },
+        {
+          "chain": "bsc",
+          "contract": "LegacyCustodian",
+          "function": "withdrawFees",
+          "params": {},
+          "mode": "faithful",
+          "description": "Attacker triggers fee withdrawal. Due to a bug the contract transfers only the fee recorded for the first mint (10e18) and resets remainingFees to 0.",
+          "state_predicate": "LegacyCustodian.totalFees == 30e18 && LegacyCustodian.remainingFees == 0 && feeCollector.balance == 10e18",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "metpassport_20220206",
+        "wormhole_fee_double_spend"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "First legitimate mint; feeRate = 1% → fee = 10e18."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Replay the same signed mint with a larger amount; contract only checks nonce/signature, not amount, so it adds a second fee of 20e18."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker triggers fee withdrawal. Due to a bug the contract transfers only the fee recorded for the first mint (10e18) and resets remainingFees to 0."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_replay_burn_proof_2024_04_27",
+      "target_invariant": "uniqueness_burn_proof_used_once",
+      "vulnerability_class": "replay_proof",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "bsc",
+          "contract": "pGALAToken",
+          "function": "burn(uint256 amount,bytes data)",
+          "params": {
+            "amount": "1000e18",
+            "data": "0x"
+          },
+          "description": "User (attacker) burns 1,000 pGALA on the destination chain to obtain a burn receipt that contains a Merkle proof of the burn event.",
+          "state_predicate": "destBurnEvent.emitted == true && burnProofHash == keccak256(abi.encodePacked(msg.sender, amount, block.number))",
+          "step": 1
+        },
+        {
+          "chain": "relay",
+          "relay_action": "forward",
+          "mode": "tampered",
+          "params": {
+            "proofHash": "burnProofHash",
+            "proofData": "burnProofBytes"
+          },
+          "description": "The relay node (controlled by the attacker) drops the original forward of the burn proof to the source chain, keeping the proof locally for later replay.",
+          "state_predicate": "relay.deliveredProof[burnProofHash] == false",
+          "step": 2
+        },
+        {
+          "chain": "unknownsource",
+          "contract": "LegacyCustodian",
+          "function": "claimMint(address to,uint256 amount,bytes burnProof)",
+          "params": {
+            "to": "0xAttackerEOA",
+            "amount": "1000e18",
+            "burnProof": "burnProofBytes"
+          },
+          "description": "Attacker submits the previously generated burn proof to the source‑chain custodian contract, triggering mint of 1,000 pGALA on the source chain.",
+          "state_predicate": "sourceLegacyCustodian.burnProofUsed(burnProofHash) == false && sourceLegacyCustodian.balanceOf(0xAttackerEOA) == 1000e18",
+          "step": 3
+        },
+        {
+          "chain": "unknownsource",
+          "contract": "LegacyCustodian",
+          "function": "claimMint(address to,uint256 amount,bytes burnProof)",
+          "params": {
+            "to": "0xAttackerEOA",
+            "amount": "1000e18",
+            "burnProof": "burnProofBytes"
+          },
+          "description": "Because the contract fails to mark the proof as used (bug in burnProofUsed mapping update), the attacker re‑submits the same proof and receives a second mint of 1,000 pGALA.",
+          "state_predicate": "sourceLegacyCustodian.burnProofUsed(burnProofHash) == false && sourceLegacyCustodian.balanceOf(0xAttackerEOA) == 2000e18",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "bnbbridge_20221007",
+        "thorchain_20210723"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User (attacker) burns 1,000 pGALA on the destination chain to obtain a burn receipt that contains a Merkle proof of the burn event."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "The relay node (controlled by the attacker) drops the original forward of the burn proof to the source chain, keeping the proof locally for later replay."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker submits the previously generated burn proof to the source‑chain custodian contract, triggering mint of 1,000 pGALA on the source chain."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Because the contract fails to mark the proof as used (bug in burnProofUsed mapping update), the attacker re‑submits the same proof and receives a second mint of 1,000 pGALA."
+        }
+      ]
+    }
+  ]
+}

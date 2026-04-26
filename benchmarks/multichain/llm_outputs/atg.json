@@ -1,0 +1,307 @@
+{
+  "bridge_name": "multichain",
+  "version": "1.0",
+  "nodes": [
+    {
+      "node_id": "MultichainAnyCallV6",
+      "node_type": "router",
+      "chain": "Ethereum",
+      "address": "this",
+      "functions": []
+    },
+    {
+      "node_id": "WrappedToken",
+      "node_type": "token",
+      "chain": "Ethereum",
+      "address": "token",
+      "functions": []
+    },
+    {
+      "node_id": "MockMultisig",
+      "node_type": "relay",
+      "chain": "Ethereum",
+      "address": "parent",
+      "functions": []
+    },
+    {
+      "node_id": "WrappedToken",
+      "node_type": "token",
+      "chain": "Ethereum",
+      "address": "",
+      "functions": []
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "e1",
+      "src": "msg.sender (user)",
+      "dst": "MultichainAnyCallV6 (this)",
+      "label": "lock",
+      "token": "token (parameter)",
+      "conditions": [
+        "WrappedToken(token).transferFrom(msg.sender, address(this), amount) must succeed"
+      ],
+      "condition_objects": [
+        {
+          "type": "balance",
+          "params": {
+            "expression": "WrappedToken(token).transferFrom(msg.sender, address(this), amount) must succeed"
+          }
+        }
+      ],
+      "function_signature": "lock(address,uint256,uint16)"
+    },
+    {
+      "edge_id": "e2",
+      "src": "MultichainAnyCallV6 (this)",
+      "dst": "recipient (parameter)",
+      "label": "unlock",
+      "token": "token (parameter)",
+      "conditions": [
+        "msg.sender == address(this)",
+        "totalLocked[token] >= amount"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "msg.sender == address(this)"
+          }
+        },
+        {
+          "type": "balance",
+          "params": {
+            "expression": "totalLocked[token] >= amount"
+          }
+        }
+      ],
+      "function_signature": "unlock(address,address,uint256,uint16)"
+    },
+    {
+      "edge_id": "e3",
+      "src": "msg.sender (bridge router or authorized minter)",
+      "dst": "to",
+      "label": "mint",
+      "token": "WrappedToken",
+      "conditions": [],
+      "condition_objects": [],
+      "function_signature": "mint(address,uint256)"
+    }
+  ],
+  "invariants": [
+    {
+      "invariant_id": "asset_conservation_total_balance",
+      "category": "asset_conservation",
+      "description": "For every token, the total amount locked on Ethereum must equal the amount minted on the destination chain plus the fees collected, minus any amount already refunded.",
+      "predicate": "totalLocked[token] == mintedAmount[token] + feeCollected[token] - refundedAmount[token]",
+      "solidity_assertion": "assert(totalLocked[_token] == mintedAmount[_token] + feeCollected[_token] - refundedAmount[_token]);",
+      "related_edges": [
+        "e1",
+        "e2",
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_no_negative_locked",
+      "category": "asset_conservation",
+      "description": "The contract must never record a negative locked balance for any token.",
+      "predicate": "totalLocked[token] >= 0",
+      "solidity_assertion": "assert(totalLocked[_token] >= 0);",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_mint_not_exceed_locked",
+      "category": "asset_conservation",
+      "description": "The cumulative amount minted for a token cannot exceed the cumulative amount locked for that token.",
+      "predicate": "mintedAmount[token] <= totalLocked[token]",
+      "solidity_assertion": "assert(mintedAmount[_token] <= totalLocked[_token]);",
+      "related_edges": [
+        "e1",
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_unlock_decrements_locked",
+      "category": "asset_conservation",
+      "description": "Each successful unlock must decrease the recorded locked balance by exactly the unlocked amount.",
+      "predicate": "old(totalLocked[token]) - amount == totalLocked[token]",
+      "solidity_assertion": "assert(totalLocked[_token] == oldTotalLocked - _amount);",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_fee_nonnegative",
+      "category": "asset_conservation",
+      "description": "Fees collected for any token must never be negative.",
+      "predicate": "feeCollected[token] >= 0",
+      "solidity_assertion": "assert(feeCollected[_token] >= 0);",
+      "related_edges": [
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "authorization_unlock_sender",
+      "category": "authorization",
+      "description": "Only the bridge contract itself may call the unlock function.",
+      "predicate": "msg.sender == address(this)",
+      "solidity_assertion": "require(msg.sender == address(this), \"Unlock can only be called by the bridge contract\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "authorization_mint_sender",
+      "category": "authorization",
+      "description": "Only an authorized minter (the router or a designated multisig) may call the mint function.",
+      "predicate": "msg.sender == address(this) || msg.sender == RELAY",
+      "solidity_assertion": "require(msg.sender == address(this) || msg.sender == RELAY, \"Mint caller not authorized\");",
+      "related_edges": [
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "authorization_mint_requires_verified_relay",
+      "category": "authorization",
+      "description": "A mint operation must be preceded by a verified relay message containing a unique nonce.",
+      "predicate": "nonceUsed[nonce] == true && relayVerified[nonce] == true",
+      "solidity_assertion": "require(nonceUsed[_nonce] && relayVerified[_nonce], \"Mint without verified relay\");",
+      "related_edges": [
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "authorization_unlock_requires_sufficient_locked",
+      "category": "authorization",
+      "description": "Unlock can only be performed if the contract has at least the requested amount locked for the token.",
+      "predicate": "totalLocked[token] >= amount",
+      "solidity_assertion": "require(totalLocked[_token] >= _amount, \"Insufficient locked balance for unlock\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "authorization_lock_caller_balance",
+      "category": "authorization",
+      "description": "When a user locks tokens, the transferFrom call must succeed and the contract's balance must increase by the locked amount.",
+      "predicate": "balanceAfter == balanceBefore + amount && transferFromSuccess == true",
+      "solidity_assertion": "require(WrappedToken(_token).transferFrom(msg.sender, address(this), _amount), \"Lock transfer failed\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_nonce_once",
+      "category": "uniqueness",
+      "description": "Each nonce used in a cross‑chain message can be processed only once.",
+      "predicate": "nonceUsed[nonce] == false before processing && nonceUsed[nonce] == true after processing",
+      "solidity_assertion": "require(!nonceUsed[_nonce], \"Nonce already used\"); nonceUsed[_nonce] = true;",
+      "related_edges": [
+        "e1",
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_mint_once_per_nonce",
+      "category": "uniqueness",
+      "description": "A mint operation tied to a specific nonce cannot be executed more than once.",
+      "predicate": "mintedForNonce[nonce] == false before && mintedForNonce[nonce] == true after",
+      "solidity_assertion": "require(!mintedForNonce[_nonce], \"Mint already executed for nonce\"); mintedForNonce[_nonce] = true;",
+      "related_edges": [
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_unlock_once_per_nonce",
+      "category": "uniqueness",
+      "description": "An unlock operation tied to a specific nonce cannot be executed more than once.",
+      "predicate": "unlockedForNonce[nonce] == false before && unlockedForNonce[nonce] == true after",
+      "solidity_assertion": "require(!unlockedForNonce[_nonce], \"Unlock already executed for nonce\"); unlockedForNonce[_nonce] = true;",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_refund_allowed_after_timeout",
+      "category": "timeliness",
+      "description": "A user may call refund only after the lock timestamp plus the global timeout has elapsed.",
+      "predicate": "block.timestamp >= lockTimestamp[nonce] + LOCK_TIMEOUT",
+      "solidity_assertion": "require(block.timestamp >= lockTimestamp[_nonce] + LOCK_TIMEOUT, \"Refund not yet available\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_no_unlock_after_refund",
+      "category": "timeliness",
+      "description": "Once a refund has been processed for a nonce, no subsequent unlock may be performed for the same nonce.",
+      "predicate": "refunded[nonce] == true => unlockedForNonce[nonce] == false",
+      "solidity_assertion": "require(!refunded[_nonce] || !unlockedForNonce[_nonce], \"Cannot unlock after refund\");",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_lock_timestamp_set",
+      "category": "timeliness",
+      "description": "When a lock is recorded, the current block timestamp must be stored as the lock's timestamp.",
+      "predicate": "lockTimestamp[nonce] == block.timestamp at lock time",
+      "solidity_assertion": "lockTimestamp[_nonce] = block.timestamp;",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_lock_timestamp_monotonic",
+      "category": "timeliness",
+      "description": "The stored lock timestamp for a given nonce must never decrease.",
+      "predicate": "newLockTimestamp >= oldLockTimestamp",
+      "solidity_assertion": "assert(lockTimestamp[_nonce] >= oldLockTimestamp);",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_timeout_constant_positive",
+      "category": "timeliness",
+      "description": "The global lock timeout constant must be a positive, non‑zero value.",
+      "predicate": "LOCK_TIMEOUT > 0",
+      "solidity_assertion": "assert(LOCK_TIMEOUT > 0);",
+      "related_edges": []
+    },
+    {
+      "invariant_id": "authorization_relay_address_immutable",
+      "category": "authorization",
+      "description": "The address of the authorized relay (MockMultisig) is immutable after deployment.",
+      "predicate": "RELAY == address(parent)",
+      "solidity_assertion": "assert(RELAY == address(parent));",
+      "related_edges": [
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_refund_restores_locked",
+      "category": "asset_conservation",
+      "description": "When a refund is processed, the locked balance for the token is decreased by the refunded amount, keeping the total invariant consistent.",
+      "predicate": "totalLocked[token] after refund == totalLocked[token] before refund - refundedAmount",
+      "solidity_assertion": "totalLocked[_token] -= _refundAmount;",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_refund_once_per_nonce",
+      "category": "uniqueness",
+      "description": "A refund for a given nonce can be executed at most once.",
+      "predicate": "refunded[nonce] == false before && refunded[nonce] == true after",
+      "solidity_assertion": "require(!refunded[_nonce], \"Refund already processed\"); refunded[_nonce] = true;",
+      "related_edges": [
+        "e1"
+      ]
+    }
+  ]
+}

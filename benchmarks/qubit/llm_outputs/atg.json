@@ -1,0 +1,698 @@
+{
+  "bridge_name": "qubit",
+  "version": "1.0",
+  "nodes": [
+    {
+      "node_id": "MockToken",
+      "node_type": "token",
+      "chain": "BSC",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "QBridgeBSC",
+      "node_type": "router",
+      "chain": "BSC",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "xQubit",
+      "node_type": "token",
+      "chain": "BSC",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "QBridgeETH",
+      "node_type": "router",
+      "chain": "Ethereum",
+      "address": "0x0000000000000000000000000000000000000000",
+      "functions": []
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "e1",
+      "src": "bridge_router",
+      "dst": "to",
+      "label": "mint",
+      "token": "xQUBIT",
+      "conditions": [],
+      "condition_objects": [],
+      "function_signature": "mint(address,uint256)"
+    },
+    {
+      "edge_id": "e2",
+      "src": "source_chain",
+      "dst": "xQubit",
+      "label": "mint",
+      "token": "xQubit",
+      "conditions": [
+        "r",
+        "e",
+        "q",
+        "u",
+        "i",
+        "r",
+        "e",
+        "(",
+        "!",
+        "p",
+        "r",
+        "o",
+        "c",
+        "e",
+        "s",
+        "s",
+        "e",
+        "d",
+        "[",
+        "n",
+        "o",
+        "n",
+        "c",
+        "e",
+        "_",
+        "]",
+        ")"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "q"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "u"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "i"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "("
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "!"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "p"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "d"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "["
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "_"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "]"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": ")"
+          }
+        }
+      ],
+      "function_signature": "process(address,uint256,uint64)"
+    },
+    {
+      "edge_id": "e3",
+      "src": "msg.sender",
+      "dst": "QBridgeETH",
+      "label": "lock",
+      "token": "ETH",
+      "conditions": [
+        "t",
+        "o",
+        "k",
+        "e",
+        "n",
+        " ",
+        "=",
+        "=",
+        " ",
+        "N",
+        "A",
+        "T",
+        "I",
+        "V",
+        "E"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "k"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "="
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "="
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "N"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "A"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "T"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "I"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "V"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "E"
+          }
+        }
+      ],
+      "function_signature": "deposit(address,uint256,address)"
+    },
+    {
+      "edge_id": "e4",
+      "src": "msg.sender",
+      "dst": "QBridgeETH",
+      "label": "lock",
+      "token": "token",
+      "conditions": [
+        "t",
+        "o",
+        "k",
+        "e",
+        "n",
+        " ",
+        "!",
+        "=",
+        " ",
+        "N",
+        "A",
+        "T",
+        "I",
+        "V",
+        "E"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "k"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "!"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "="
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "N"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "A"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "T"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "I"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "V"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "E"
+          }
+        }
+      ],
+      "function_signature": "deposit(address,uint256,address)"
+    }
+  ],
+  "invariants": [
+    {
+      "invariant_id": "asset_conservation_total_balance",
+      "category": "asset_conservation",
+      "description": "The total amount of assets locked on the source chain must equal the total amount minted on the destination chain minus accumulated bridge fees.",
+      "predicate": "totalLockedSource == totalMintedDest - totalFeesCollected",
+      "solidity_assertion": "require(totalLockedSource == totalMintedDest - totalFeesCollected, \"Invariant violation: locked != minted - fees\");",
+      "related_edges": [
+        "e3",
+        "e4",
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_per_nonce",
+      "category": "asset_conservation",
+      "description": "For each processed nonce, the amount locked on the source chain must equal the amount minted on the destination chain plus the fee taken for that nonce.",
+      "predicate": "lockedAmount[nonce] == mintedAmount[nonce] + feeAmount[nonce]",
+      "solidity_assertion": "require(lockedAmount[nonce] == mintedAmount[nonce] + feeAmount[nonce], \"Invariant violation: per‑nonce balance mismatch\");",
+      "related_edges": [
+        "e3",
+        "e4",
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_no_negative_supply",
+      "category": "asset_conservation",
+      "description": "The net supply of the wrapped token on the destination chain can never become negative.",
+      "predicate": "totalMintedDest >= totalBurnedDest",
+      "solidity_assertion": "require(totalMintedDest >= totalBurnedDest, \"Invariant violation: negative wrapped supply\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "authorization_mint_requires_verified_relay",
+      "category": "authorization",
+      "description": "A mint operation (edge e1) may only be executed if the corresponding relay message has been verified by the bridge router.",
+      "predicate": "verifiedRelay[msgId] == true",
+      "solidity_assertion": "require(verifiedRelay[msgId], \"Invariant violation: mint without verified relay\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "authorization_lock_requires_active_state",
+      "category": "authorization",
+      "description": "A lock operation (edges e3/e4) must only be accepted when the bridge contract is in an ACTIVE state.",
+      "predicate": "bridgeState == BridgeState.ACTIVE",
+      "solidity_assertion": "require(bridgeState == BridgeState.ACTIVE, \"Invariant violation: lock while bridge inactive\");",
+      "related_edges": [
+        "e3",
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "authorization_unlock_requires_processed_nonce",
+      "category": "authorization",
+      "description": "An unlock (burn) on the source chain can only be performed after the destination chain has processed the corresponding nonce.",
+      "predicate": "processedNonce[nonce] == true",
+      "solidity_assertion": "require(processedNonce[nonce], \"Invariant violation: unlock before processing\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_nonce_consumed_once",
+      "category": "uniqueness",
+      "description": "Each nonce must be marked as processed at most once; re‑processing the same nonce is prohibited.",
+      "predicate": "processedNonce[nonce] == false before processing",
+      "solidity_assertion": "require(!processedNonce[nonce], \"Invariant violation: nonce replay\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_message_id_once",
+      "category": "uniqueness",
+      "description": "A relay message identifier may be used only once to trigger a mint.",
+      "predicate": "usedMessageId[msgId] == false before mint",
+      "solidity_assertion": "require(!usedMessageId[msgId], \"Invariant violation: message replay\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_lock_event_emits_unique_nonce",
+      "category": "uniqueness",
+      "description": "When a lock transaction (e3/e4) is emitted, the emitted nonce must be unique across all prior locks.",
+      "predicate": "nonceSeen[nonce] == false at lock time",
+      "solidity_assertion": "require(!nonceSeen[nonce], \"Invariant violation: duplicate lock nonce\");",
+      "related_edges": [
+        "e3",
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_refund_allowed_after_timeout",
+      "category": "timeliness",
+      "description": "A user may claim a refund for a locked asset only after the lock timestamp plus the configured timeout has elapsed and the nonce has not been processed.",
+      "predicate": "block.timestamp >= lockTimestamp[nonce] + REFUND_TIMEOUT && !processedNonce[nonce]",
+      "solidity_assertion": "require(block.timestamp >= lockTimestamp[nonce] + REFUND_TIMEOUT && !processedNonce[nonce], \"Invariant violation: premature refund\");",
+      "related_edges": [
+        "e3",
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_processed_before_timeout",
+      "category": "timeliness",
+      "description": "If a mint is successfully processed for a given nonce, it must occur before the refund timeout expires.",
+      "predicate": "processedNonce[nonce] == true => block.timestamp <= lockTimestamp[nonce] + REFUND_TIMEOUT",
+      "solidity_assertion": "require(!processedNonce[nonce] || block.timestamp <= lockTimestamp[nonce] + REFUND_TIMEOUT, \"Invariant violation: mint after timeout\");",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_lock_timestamp_monotonic",
+      "category": "timeliness",
+      "description": "The lock timestamp recorded for a nonce must never decrease across successive calls.",
+      "predicate": "lockTimestamp[nonce] >= previousLockTimestamp[nonce]",
+      "solidity_assertion": "require(lockTimestamp[nonce] >= previousLockTimestamp[nonce], \"Invariant violation: non‑monotonic lock timestamp\");",
+      "related_edges": [
+        "e3",
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "authorization_mint_amount_matches_locked",
+      "category": "authorization",
+      "description": "The amount minted on the destination chain must exactly match the amount locked on the source chain for the same nonce (excluding fees).",
+      "predicate": "mintedAmount[nonce] == lockedAmount[nonce] - feeAmount[nonce]",
+      "solidity_assertion": "require(mintedAmount[nonce] == lockedAmount[nonce] - feeAmount[nonce], \"Invariant violation: minted amount mismatch\");",
+      "related_edges": [
+        "e1",
+        "e3",
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_fee_non_negative",
+      "category": "asset_conservation",
+      "description": "Bridge fees collected for any nonce must be non‑negative and cannot exceed the locked amount.",
+      "predicate": "0 <= feeAmount[nonce] && feeAmount[nonce] <= lockedAmount[nonce]",
+      "solidity_assertion": "require(feeAmount[nonce] >= 0 && feeAmount[nonce] <= lockedAmount[nonce], \"Invariant violation: invalid fee amount\");",
+      "related_edges": [
+        "e1",
+        "e3",
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "authorization_only_bridge_owner_can_set_fee",
+      "category": "authorization",
+      "description": "Only the contract owner may modify the global bridge fee parameter.",
+      "predicate": "msg.sender == owner",
+      "solidity_assertion": "require(msg.sender == owner, \"Invariant violation: unauthorized fee change\");",
+      "related_edges": []
+    },
+    {
+      "invariant_id": "uniqueness_fee_structure_per_nonce",
+      "category": "uniqueness",
+      "description": "The fee percentage applied to a nonce is immutable after the lock transaction is recorded.",
+      "predicate": "feeSet[nonce] == true => feePercentage[nonce] == feePercentageAtLock[nonce]",
+      "solidity_assertion": "require(!feeSet[nonce] || feePercentage[nonce] == feePercentageAtLock[nonce], \"Invariant violation: fee tampering\");",
+      "related_edges": [
+        "e3",
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_lock_cannot_be_relocked",
+      "category": "timeliness",
+      "description": "A nonce that has already been locked cannot be locked again before it is either processed or refunded.",
+      "predicate": "locked[nonce] == false || (processedNonce[nonce] || refunded[nonce])",
+      "solidity_assertion": "require(!locked[nonce] || processedNonce[nonce] || refunded[nonce], \"Invariant violation: double lock\");",
+      "related_edges": [
+        "e3",
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "authorization_mint_cannot_exceed_cap",
+      "category": "authorization",
+      "description": "The total minted supply of the wrapped token must never exceed the predefined maximum bridge cap.",
+      "predicate": "totalMintedDest <= MAX_BRIDGE_CAP",
+      "solidity_assertion": "require(totalMintedDest <= MAX_BRIDGE_CAP, \"Invariant violation: cap exceeded\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_burn_matches_unlock",
+      "category": "asset_conservation",
+      "description": "When a user burns wrapped tokens to unlock original assets, the burned amount must equal the amount that will be released on the source chain.",
+      "predicate": "burnedAmount[nonce] == unlockAmount[nonce]",
+      "solidity_assertion": "require(burnedAmount[nonce] == unlockAmount[nonce], \"Invariant violation: burn/unlock mismatch\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_refund_cannot_exceed_locked",
+      "category": "timeliness",
+      "description": "A refund amount returned to a user after timeout cannot exceed the originally locked amount for that nonce.",
+      "predicate": "refundAmount[nonce] <= lockedAmount[nonce]",
+      "solidity_assertion": "require(refundAmount[nonce] <= lockedAmount[nonce], \"Invariant violation: refund > locked\");",
+      "related_edges": [
+        "e3",
+        "e4"
+      ]
+    }
+  ]
+}

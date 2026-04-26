@@ -1,0 +1,1085 @@
+{
+  "bridge_name": "socket",
+  "version": "1.0",
+  "nodes": [
+    {
+      "node_id": "MockToken",
+      "node_type": "token",
+      "chain": "unknown",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "SocketGateway",
+      "node_type": "gateway",
+      "chain": "unknown",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "MockToken",
+      "node_type": "token",
+      "chain": "unknown",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "SwapImplementationStub",
+      "node_type": "contract",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "e1",
+      "src": "0x0",
+      "dst": "to",
+      "label": "mint",
+      "token": "MockToken",
+      "conditions": [],
+      "condition_objects": [],
+      "function_signature": "mint(address,uint256)"
+    },
+    {
+      "edge_id": "e2",
+      "src": "from",
+      "dst": "to",
+      "label": "transfer",
+      "token": "MockToken",
+      "conditions": [
+        "allowance[from][msg.sender] >= amount",
+        "balanceOf[from] >= amount"
+      ],
+      "condition_objects": [
+        {
+          "type": "balance",
+          "params": {
+            "expression": "allowance[from][msg.sender] >= amount"
+          }
+        },
+        {
+          "type": "balance",
+          "params": {
+            "expression": "balanceOf[from] >= amount"
+          }
+        }
+      ],
+      "function_signature": "transferFrom(address,address,uint256)"
+    },
+    {
+      "edge_id": "e3",
+      "src": "fromUser",
+      "dst": "SocketGateway",
+      "label": "pull",
+      "token": "fromToken",
+      "conditions": [
+        "r",
+        "e",
+        "q",
+        "u",
+        "i",
+        "r",
+        "e",
+        "s",
+        " ",
+        "p",
+        "r",
+        "i",
+        "o",
+        "r",
+        " ",
+        "E",
+        "R",
+        "C",
+        "2",
+        "0",
+        " ",
+        "a",
+        "p",
+        "p",
+        "r",
+        "o",
+        "v",
+        "a",
+        "l",
+        " ",
+        "o",
+        "f",
+        " ",
+        "f",
+        "r",
+        "o",
+        "m",
+        "U",
+        "s",
+        "e",
+        "r",
+        " ",
+        "f",
+        "o",
+        "r",
+        " ",
+        "S",
+        "o",
+        "c",
+        "k",
+        "e",
+        "t",
+        "G",
+        "a",
+        "t",
+        "e",
+        "w",
+        "a",
+        "y",
+        " ",
+        "(",
+        "a",
+        "p",
+        "p",
+        "r",
+        "o",
+        "v",
+        "a",
+        "l",
+        "_",
+        "c",
+        "o",
+        "n",
+        "s",
+        "e",
+        "n",
+        "t",
+        ")"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "q"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "u"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "i"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "p"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "i"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "E"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "R"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "C"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "2"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "0"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "p"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "p"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "v"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "l"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "f"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "f"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "m"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "U"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "f"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "S"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "k"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "G"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "w"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "y"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "("
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "p"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "p"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "v"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "l"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "_"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": ")"
+          }
+        }
+      ],
+      "function_signature": "performAction(uint32,address,address,uint256,address,address,bytes)"
+    },
+    {
+      "edge_id": "e4",
+      "src": "SocketGateway",
+      "dst": "recipient",
+      "label": "mint",
+      "token": "toToken",
+      "conditions": [
+        "n",
+        "o",
+        "n",
+        "e",
+        " ",
+        "(",
+        "g",
+        "a",
+        "t",
+        "e",
+        "w",
+        "a",
+        "y",
+        " ",
+        "c",
+        "a",
+        "l",
+        "l",
+        "s",
+        " ",
+        "M",
+        "o",
+        "c",
+        "k",
+        "T",
+        "o",
+        "k",
+        "e",
+        "n",
+        ".",
+        "m",
+        "i",
+        "n",
+        "t",
+        ")"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "("
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "g"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "w"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "y"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "l"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "l"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "M"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "k"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "T"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "k"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "."
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "m"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "i"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": ")"
+          }
+        }
+      ],
+      "function_signature": "performAction(uint32,address,address,uint256,address,address,bytes)"
+    }
+  ],
+  "invariants": [
+    {
+      "invariant_id": "asset_balance_consistency",
+      "category": "asset_conservation",
+      "description": "The total amount of tokens locked on the source chain must equal the total amount minted on the destination chain minus accumulated fees.",
+      "predicate": "totalLocked == totalMinted - feeCollected",
+      "solidity_assertion": "require(totalLocked == totalMinted - feeCollected, \"Asset balance mismatch\");",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "asset_fee_deduction_correctness",
+      "category": "asset_conservation",
+      "description": "Fees deducted from each transfer are accumulated in `feeCollected` and never exceed the amount minted.",
+      "predicate": "feeCollected <= totalMinted",
+      "solidity_assertion": "require(feeCollected <= totalMinted, \"Fee overflow\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "asset_no_negative_balances",
+      "category": "asset_conservation",
+      "description": "No account balance may become negative after any transfer or mint operation.",
+      "predicate": "balances[user] >= 0 for all user",
+      "solidity_assertion": "assert(balances[msg.sender] >= 0); // applied after each transfer/mint",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "asset_total_supply_unchanged_across_chains",
+      "category": "asset_conservation",
+      "description": "The sum of total supply on source and destination chains remains constant (ignoring fees).",
+      "predicate": "sourceTotalSupply + destinationTotalSupply == initialSupply - feeCollected",
+      "solidity_assertion": "require(sourceTotalSupply + destinationTotalSupply == initialSupply - feeCollected, \"Total supply mismatch\");",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "asset_locked_equals_mint_requests",
+      "category": "asset_conservation",
+      "description": "Every successful `pull` (e3) that locks tokens must correspond to a later `mint` (e1) request of the same amount (minus fees).",
+      "predicate": "lockedAmountByNonce[n] == mintRequestedAmount[n] - feeByNonce[n] for all n",
+      "solidity_assertion": "require(lockedAmountByNonce[nonce] == mintRequestedAmount[nonce] - feeByNonce[nonce], \"Locked/mint amount mismatch\");",
+      "related_edges": [
+        "e1",
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "authorization_mint_requires_verified_relay",
+      "category": "authorization",
+      "description": "A `mint` operation (e1) can only be executed if the corresponding relay message has been verified.",
+      "predicate": "relayVerified[messageHash] == true",
+      "solidity_assertion": "require(relayVerified[messageHash], \"Relay not verified\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "authorization_pull_requires_allowance",
+      "category": "authorization",
+      "description": "The `pull` operation (e3) must only succeed when the caller has sufficient allowance on the source token.",
+      "predicate": "allowances[fromUser][msg.sender] >= amount && balances[fromUser] >= amount",
+      "solidity_assertion": "require(allowances[fromUser][msg.sender] >= amount && balances[fromUser] >= amount, \"Insufficient allowance or balance\");",
+      "related_edges": [
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "authorization_transfer_from_requires_balance",
+      "category": "authorization",
+      "description": "`transferFrom` (e2) must only be executed when the sender is authorized and the source account holds enough tokens.",
+      "predicate": "allowances[from][msg.sender] >= amount && balances[from] >= amount",
+      "solidity_assertion": "require(allowances[from][msg.sender] >= amount && balances[from] >= amount, \"Transfer not authorized or insufficient balance\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "authorization_gateway_only_caller",
+      "category": "authorization",
+      "description": "Only the designated `SocketGateway` contract may invoke internal minting functions.",
+      "predicate": "msg.sender == address(SocketGateway)",
+      "solidity_assertion": "require(msg.sender == address(SocketGateway), \"Caller not gateway\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "authorization_signature_matches_nonce",
+      "category": "authorization",
+      "description": "The signature attached to a relay message must sign the exact nonce of the transfer.",
+      "predicate": "ecrecover(messageHash, v, r, s) == signer && nonce == extractedNonce",
+      "solidity_assertion": "require(ecrecover(messageHash, v, r, s) == signer && nonce == extractedNonce, \"Invalid signature or nonce\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_nonce_used_once",
+      "category": "uniqueness",
+      "description": "Each transfer nonce can be processed only a single time.",
+      "predicate": "nonceUsed[nonce] == false before processing && set to true after",
+      "solidity_assertion": "require(!nonceUsed[nonce], \"Nonce already used\"); nonceUsed[nonce] = true;",
+      "related_edges": [
+        "e1",
+        "e2",
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_message_id_processed_once",
+      "category": "uniqueness",
+      "description": "A relay message identified by its hash may be acted upon only once.",
+      "predicate": "processedMessage[messageHash] == false before processing",
+      "solidity_assertion": "require(!processedMessage[messageHash], \"Message already processed\"); processedMessage[messageHash] = true;",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_mint_idempotent",
+      "category": "uniqueness",
+      "description": "Calling `mint` with the same nonce twice must not change state after the first successful call.",
+      "predicate": "minted[nonce] == true implies no state change on re‑mint",
+      "solidity_assertion": "if (minted[nonce]) { return; } // idempotent guard",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_transfer_idempotent",
+      "category": "uniqueness",
+      "description": "Repeated `transferFrom` with an already‑consumed nonce must revert.",
+      "predicate": "nonceUsed[nonce] == true => revert",
+      "solidity_assertion": "require(!nonceUsed[nonce], \"Transfer nonce already consumed\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_refund_after_timeout",
+      "category": "timeliness",
+      "description": "If a locked transfer is not minted within `REFUND_TIMEOUT`, the user can reclaim the locked tokens.",
+      "predicate": "block.timestamp >= lockTimestamp[nonce] + REFUND_TIMEOUT && !minted[nonce] => user can call refund",
+      "solidity_assertion": "require(block.timestamp >= lockTimestamp[nonce] + REFUND_TIMEOUT && !minted[nonce], \"Refund not yet available\");",
+      "related_edges": [
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_no_mint_before_timeout_expired",
+      "category": "timeliness",
+      "description": "A mint attempt for a nonce that has already been refunded must be rejected.",
+      "predicate": "refunded[nonce] == true => mint reverts",
+      "solidity_assertion": "require(!refunded[nonce], \"Cannot mint after refund\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_lock_timestamp_monotonic",
+      "category": "timeliness",
+      "description": "The lock timestamp recorded for a nonce never moves backwards.",
+      "predicate": "newLockTimestamp >= previousLockTimestamp",
+      "solidity_assertion": "require(newLockTimestamp >= lockTimestamp[nonce], \"Lock timestamp regression\");",
+      "related_edges": [
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_timeout_reset_on_successful_mint",
+      "category": "timeliness",
+      "description": "When a mint succeeds, the associated timeout state is cleared to prevent later refunds.",
+      "predicate": "minted[nonce] == true => refunded[nonce] == false && lockTimestamp[nonce] == 0",
+      "solidity_assertion": "if (minted[nonce]) { refunded[nonce] = false; lockTimestamp[nonce] = 0; }",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_expired_message_cannot_trigger_mint",
+      "category": "timeliness",
+      "description": "Relay messages whose embedded deadline has passed must not be accepted for minting.",
+      "predicate": "block.timestamp <= messageDeadline[messageHash]",
+      "solidity_assertion": "require(block.timestamp <= messageDeadline[messageHash], \"Message deadline passed\");",
+      "related_edges": [
+        "e1"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,2150 @@
+{
+  "bridge_name": "fegtoken",
+  "version": "1.0",
+  "nodes": [
+    {
+      "node_id": "FEGSwap",
+      "node_type": "router",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "FEGToken",
+      "node_type": "token",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "MockToken",
+      "node_type": "token",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "FEGToken",
+      "node_type": "token",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "FlashLoanProvider",
+      "node_type": "contract",
+      "chain": "unknown",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "FEGToken",
+      "node_type": "token",
+      "chain": "unknown",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "MockToken",
+      "node_type": "token",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "e1",
+      "src": "from",
+      "dst": "to",
+      "label": "transferFrom",
+      "token": "tokenA",
+      "conditions": [
+        "msg.sender == feg.migrator()",
+        "from has given allowance to FEGSwap for tokenA >= amount"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "msg.sender == feg.migrator()"
+          }
+        },
+        {
+          "type": "balance",
+          "params": {
+            "expression": "from has given allowance to FEGSwap for tokenA >= amount"
+          }
+        }
+      ],
+      "function_signature": "swapToSwap(address tokenA, address from, address to, uint256 amount)"
+    },
+    {
+      "edge_id": "e2",
+      "src": "0x0000000000000000000000000000000000000000",
+      "dst": "to (parameter)",
+      "label": "mint",
+      "token": "FEG",
+      "conditions": [
+        "n",
+        "o",
+        "n",
+        "e"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        }
+      ],
+      "function_signature": "mint(address,uint256)"
+    },
+    {
+      "edge_id": "e3",
+      "src": "msg.sender",
+      "dst": "to (parameter)",
+      "label": "transfer",
+      "token": "FEG",
+      "conditions": [
+        "b",
+        "a",
+        "l",
+        "a",
+        "n",
+        "c",
+        "e",
+        "O",
+        "f",
+        "[",
+        "m",
+        "s",
+        "g",
+        ".",
+        "s",
+        "e",
+        "n",
+        "d",
+        "e",
+        "r",
+        "]",
+        " ",
+        ">",
+        "=",
+        " ",
+        "a",
+        "m",
+        "o",
+        "u",
+        "n",
+        "t"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "b"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "l"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "O"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "f"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "["
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "m"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "g"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "."
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "d"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "]"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": ">"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "="
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "m"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "u"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        }
+      ],
+      "function_signature": "transfer(address,uint256)"
+    },
+    {
+      "edge_id": "e4",
+      "src": "from (parameter)",
+      "dst": "to (parameter)",
+      "label": "transfer",
+      "token": "FEG",
+      "conditions": [
+        "a",
+        "l",
+        "l",
+        "o",
+        "w",
+        "a",
+        "n",
+        "c",
+        "e",
+        "[",
+        "f",
+        "r",
+        "o",
+        "m",
+        "]",
+        "[",
+        "m",
+        "s",
+        "g",
+        ".",
+        "s",
+        "e",
+        "n",
+        "d",
+        "e",
+        "r",
+        "]",
+        " ",
+        ">",
+        "=",
+        " ",
+        "a",
+        "m",
+        "o",
+        "u",
+        "n",
+        "t",
+        " ",
+        "&",
+        "&",
+        " ",
+        "b",
+        "a",
+        "l",
+        "a",
+        "n",
+        "c",
+        "e",
+        "O",
+        "f",
+        "[",
+        "f",
+        "r",
+        "o",
+        "m",
+        "]",
+        " ",
+        ">",
+        "=",
+        " ",
+        "a",
+        "m",
+        "o",
+        "u",
+        "n",
+        "t"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "l"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "l"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "w"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "["
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "f"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "m"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "]"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "["
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "m"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "g"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "."
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "d"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "]"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": ">"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "="
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "m"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "u"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "&"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "&"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "b"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "l"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "O"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "f"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "["
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "f"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "m"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "]"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": ">"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "="
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "m"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "u"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        }
+      ],
+      "function_signature": "transferFrom(address,address,uint256)"
+    },
+    {
+      "edge_id": "e5",
+      "src": "FlashLoanProvider",
+      "dst": "msg.sender",
+      "label": "flashLoan",
+      "token": "FEG",
+      "conditions": [
+        "p",
+        "r",
+        "o",
+        "v",
+        "i",
+        "d",
+        "e",
+        "r",
+        " ",
+        "b",
+        "a",
+        "l",
+        "a",
+        "n",
+        "c",
+        "e",
+        " ",
+        "b",
+        "e",
+        "f",
+        "o",
+        "r",
+        "e",
+        " ",
+        ">",
+        "=",
+        " ",
+        "a",
+        "m",
+        "o",
+        "u",
+        "n",
+        "t",
+        ";",
+        " ",
+        "c",
+        "a",
+        "l",
+        "l",
+        "e",
+        "r",
+        " ",
+        "m",
+        "u",
+        "s",
+        "t",
+        " ",
+        "r",
+        "e",
+        "t",
+        "u",
+        "r",
+        "n",
+        " ",
+        "a",
+        "t",
+        " ",
+        "l",
+        "e",
+        "a",
+        "s",
+        "t",
+        " ",
+        "t",
+        "h",
+        "e",
+        " ",
+        "s",
+        "a",
+        "m",
+        "e",
+        " ",
+        "a",
+        "m",
+        "o",
+        "u",
+        "n",
+        "t",
+        " ",
+        "b",
+        "e",
+        "f",
+        "o",
+        "r",
+        "e",
+        " ",
+        "f",
+        "u",
+        "n",
+        "c",
+        "t",
+        "i",
+        "o",
+        "n",
+        " ",
+        "r",
+        "e",
+        "t",
+        "u",
+        "r",
+        "n",
+        "s"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "p"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "v"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "i"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "d"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "b"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "l"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "b"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "f"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": ">"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "="
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "m"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "u"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": ";"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "l"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "l"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "m"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "u"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "u"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "l"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "h"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "m"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "m"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "u"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "b"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "f"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "f"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "u"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "i"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "u"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        }
+      ],
+      "function_signature": "flashLoan(uint256,bytes)"
+    },
+    {
+      "edge_id": "e6",
+      "src": "msg.sender",
+      "dst": "FlashLoanProvider",
+      "label": "repayment",
+      "token": "FEG",
+      "conditions": [
+        "p",
+        "r",
+        "o",
+        "v",
+        "i",
+        "d",
+        "e",
+        "r",
+        " ",
+        "b",
+        "a",
+        "l",
+        "a",
+        "n",
+        "c",
+        "e",
+        " ",
+        "a",
+        "f",
+        "t",
+        "e",
+        "r",
+        " ",
+        "c",
+        "a",
+        "l",
+        "l",
+        "b",
+        "a",
+        "c",
+        "k",
+        " ",
+        ">",
+        "=",
+        " ",
+        "b",
+        "a",
+        "l",
+        "a",
+        "n",
+        "c",
+        "e",
+        "B",
+        "e",
+        "f",
+        "o",
+        "r",
+        "e"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "p"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "v"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "i"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "d"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "b"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "l"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "f"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "l"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "l"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "b"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "k"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": ">"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "="
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "b"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "l"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "a"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "B"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "f"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        }
+      ],
+      "function_signature": "flashLoan(uint256,bytes)"
+    },
+    {
+      "edge_id": "e7",
+      "src": "0x0",
+      "dst": "to",
+      "label": "mint",
+      "token": "MockToken",
+      "conditions": [],
+      "condition_objects": [],
+      "function_signature": "mint(address,uint256)"
+    },
+    {
+      "edge_id": "e8",
+      "src": "from",
+      "dst": "to",
+      "label": "transfer",
+      "token": "MockToken",
+      "conditions": [
+        "allowance[from][msg.sender] >= amount",
+        "balanceOf[from] >= amount"
+      ],
+      "condition_objects": [
+        {
+          "type": "balance",
+          "params": {
+            "expression": "allowance[from][msg.sender] >= amount"
+          }
+        },
+        {
+          "type": "balance",
+          "params": {
+            "expression": "balanceOf[from] >= amount"
+          }
+        }
+      ],
+      "function_signature": "transferFrom(address,address,uint256)"
+    }
+  ],
+  "invariants": [
+    {
+      "invariant_id": "asset_conservation_total_locked_equals_minted_minus_fees",
+      "category": "asset_conservation",
+      "description": "The total amount of FEG tokens locked on the source chain must equal the total amount minted on the destination chain minus the accumulated bridge fees.",
+      "predicate": "totalLockedFEG == totalMintedFEG - totalBridgeFees",
+      "solidity_assertion": "assert(totalLockedFEG == totalMintedFEG - totalBridgeFees);",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_no_negative_balances",
+      "category": "asset_conservation",
+      "description": "No account balance (locked, minted or fee pool) may become negative after any bridge operation.",
+      "predicate": "balanceOfLocked[addr] >= 0 && balanceOfMinted[addr] >= 0 && feePool >= 0",
+      "solidity_assertion": "assert(balanceOfLocked[addr] >= 0 && balanceOfMinted[addr] >= 0 && feePool >= 0);",
+      "related_edges": [
+        "e1",
+        "e2",
+        "e3",
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_fee_accounting",
+      "category": "asset_conservation",
+      "description": "Fees deducted during minting must be recorded in the fee pool and never double‑counted in minted totals.",
+      "predicate": "totalBridgeFees == sumCollectedFees && totalMintedFEG == sumMintedWithoutFees + totalBridgeFees",
+      "solidity_assertion": "assert(totalBridgeFees == sumCollectedFees && totalMintedFEG == sumMintedWithoutFees + totalBridgeFees);",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_cross_chain_balance_consistency",
+      "category": "asset_conservation",
+      "description": "For any user, the sum of locked source tokens and minted destination tokens must never exceed the amount the user originally deposited plus fees.",
+      "predicate": "lockedBalance[user] + mintedBalance[user] <= depositedAmount[user] + totalBridgeFees",
+      "solidity_assertion": "assert(lockedBalance[user] + mintedBalance[user] <= depositedAmount[user] + totalBridgeFees);",
+      "related_edges": [
+        "e1",
+        "e2",
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "authorization_mint_requires_verified_relay",
+      "category": "authorization",
+      "description": "Minting of FEG on the destination chain can only be executed after a relay message with a valid signature from the authorized relayer contract.",
+      "predicate": "verifiedRelay[msgHash] && relayerSignatureValid[msgHash]",
+      "solidity_assertion": "require(verifiedRelay[msgHash] && relayerSignatureValid[msgHash], \"Invalid relay signature\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "authorization_unlock_requires_migrator_role",
+      "category": "authorization",
+      "description": "Unlocking (transferFrom) of source tokens must be called only by the address returned by feg.migrator().",
+      "predicate": "msg.sender == feg.migrator()",
+      "solidity_assertion": "require(msg.sender == feg.migrator(), \"Caller is not migrator\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "authorization_transfer_requires_sufficient_allowance",
+      "category": "authorization",
+      "description": "The caller must have granted the FEGSwap contract an allowance for at least the amount being transferred.",
+      "predicate": "allowance[from][address(this)] >= amount",
+      "solidity_assertion": "require(allowance[from][address(this)] >= amount, \"Insufficient allowance\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "authorization_mint_cannot_be_called_by_nonowner",
+      "category": "authorization",
+      "description": "Only the bridge owner (or a designated minter role) may invoke the mint function directly; any other caller must be rejected.",
+      "predicate": "msg.sender == owner || hasRole(MINTER_ROLE, msg.sender)",
+      "solidity_assertion": "require(msg.sender == owner || hasRole(MINTER_ROLE, msg.sender), \"Caller not authorized to mint\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_nonce_processed_once",
+      "category": "uniqueness",
+      "description": "Each deposit nonce can be processed for minting at most one time.",
+      "predicate": "!processedNonce[depositNonce]",
+      "solidity_assertion": "require(!processedNonce[depositNonce], \"Nonce already processed\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_message_id_unique",
+      "category": "uniqueness",
+      "description": "The hash of the relay message (msgHash) must be unique across all processed messages.",
+      "predicate": "!messageSeen[msgHash]",
+      "solidity_assertion": "require(!messageSeen[msgHash], \"Message already seen\");",
+      "related_edges": [
+        "e2",
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_mint_per_nonce",
+      "category": "uniqueness",
+      "description": "Minting for a given nonce can only succeed if the stored nonce matches the expected sequential value, preventing out‑of‑order replays.",
+      "predicate": "depositNonce == lastProcessedNonce + 1",
+      "solidity_assertion": "require(depositNonce == lastProcessedNonce + 1, \"Nonce out of order\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_relay_sequence_monotonic",
+      "category": "uniqueness",
+      "description": "Relay sequence numbers must be strictly increasing to guarantee ordering.",
+      "predicate": "relaySeq > lastRelaySeq",
+      "solidity_assertion": "require(relaySeq > lastRelaySeq, \"Relay sequence not monotonic\");",
+      "related_edges": [
+        "e2",
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_refund_after_timeout",
+      "category": "timeliness",
+      "description": "If a locked deposit is not minted within the configured timeout, the user may call refund and receive the original amount.",
+      "predicate": "block.timestamp >= depositTimestamp[depositId] + REFUND_TIMEOUT",
+      "solidity_assertion": "require(block.timestamp >= depositTimestamp[depositId] + REFUND_TIMEOUT, \"Refund period not reached\");",
+      "related_edges": [
+        "e1",
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_no_premature_refund",
+      "category": "timeliness",
+      "description": "Refunds cannot be executed before the timeout expires.",
+      "predicate": "block.timestamp < depositTimestamp[depositId] + REFUND_TIMEOUT => !refundCalled[depositId]",
+      "solidity_assertion": "require(block.timestamp < depositTimestamp[depositId] + REFUND_TIMEOUT ? !refundCalled[depositId] : true, \"Premature refund\");",
+      "related_edges": [
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_locked_assets_unlocked_if_not_minted",
+      "category": "timeliness",
+      "description": "When a deposit times out without a corresponding mint, the locked amount must be returned to the depositor's balance.",
+      "predicate": "(!processedNonce[depositNonce] && block.timestamp >= depositTimestamp[depositId] + REFUND_TIMEOUT) => (lockedBalance[user] -= amount && balanceOf[user] += amount)",
+      "solidity_assertion": "if(!processedNonce[depositNonce] && block.timestamp >= depositTimestamp[depositId] + REFUND_TIMEOUT){ lockedBalance[user] -= amount; balanceOf[user] += amount; }",
+      "related_edges": [
+        "e1",
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_timeout_decreases_on_partial_mint",
+      "category": "timeliness",
+      "description": "If a partial mint occurs, the remaining timeout for the leftover locked amount is reduced proportionally to the minted portion.",
+      "predicate": "mintedAmount < lockedAmount => newTimeout = originalTimeout * (lockedAmount - mintedAmount) / lockedAmount",
+      "solidity_assertion": "if(mintedAmount < lockedAmount){ uint256 newTimeout = originalTimeout * (lockedAmount - mintedAmount) / lockedAmount; depositTimeout[depositId] = newTimeout; }",
+      "related_edges": [
+        "e2",
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_mint_cannot_exceed_locked_amount",
+      "category": "timeliness",
+      "description": "The amount minted for a given deposit must never exceed the amount that was originally locked.",
+      "predicate": "mintedAmount <= lockedAmount",
+      "solidity_assertion": "require(mintedAmount <= lockedAmount, \"Mint exceeds locked amount\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "authorization_transfer_to_recipient_requires_valid_destination",
+      "category": "authorization",
+      "description": "When transferring minted FEG to the final recipient, the destination address must be non‑zero and not the bridge contract itself.",
+      "predicate": "to != address(0) && to != address(this)",
+      "solidity_assertion": "require(to != address(0) && to != address(this), \"Invalid recipient\");",
+      "related_edges": [
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_mint_and_transfer_balance_match",
+      "category": "asset_conservation",
+      "description": "The sum of all minted FEG tokens plus the amount currently held in the bridge's escrow must equal the total amount ever locked.",
+      "predicate": "totalMintedFEG + escrowBalance == totalLockedFEG",
+      "solidity_assertion": "assert(totalMintedFEG + escrowBalance == totalLockedFEG);",
+      "related_edges": [
+        "e2",
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_refund_processed_once",
+      "category": "uniqueness",
+      "description": "A refund for a given deposit ID can be executed at most once.",
+      "predicate": "!refundProcessed[depositId]",
+      "solidity_assertion": "require(!refundProcessed[depositId], \"Refund already processed\");",
+      "related_edges": [
+        "e4"
+      ]
+    }
+  ]
+}

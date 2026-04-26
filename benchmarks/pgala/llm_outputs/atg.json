@@ -1,0 +1,864 @@
+{
+  "bridge_name": "pgala",
+  "version": "1.0",
+  "nodes": [
+    {
+      "node_id": "LegacyCustodian",
+      "node_type": "contract",
+      "chain": "unknown",
+      "address": "deployed_address_placeholder",
+      "functions": []
+    },
+    {
+      "node_id": "pGALAToken",
+      "node_type": "token",
+      "chain": "unknown",
+      "address": "pGALAAddr_parameter",
+      "functions": []
+    },
+    {
+      "node_id": "pGALAToken",
+      "node_type": "token",
+      "chain": "BSC",
+      "address": "",
+      "functions": []
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "e1",
+      "src": "off‑chain signed authorization",
+      "dst": "to (address)",
+      "label": "mint",
+      "token": "pGALA",
+      "conditions": [
+        "r",
+        "e",
+        "q",
+        "u",
+        "i",
+        "r",
+        "e",
+        "(",
+        "!",
+        "u",
+        "s",
+        "e",
+        "d",
+        "[",
+        "n",
+        "o",
+        "n",
+        "c",
+        "e",
+        "]",
+        ")",
+        " ",
+        "&",
+        "&",
+        " ",
+        "r",
+        "e",
+        "c",
+        "o",
+        "v",
+        "e",
+        "r",
+        "e",
+        "d",
+        " ",
+        "=",
+        "=",
+        " ",
+        "s",
+        "i",
+        "g",
+        "n",
+        "e",
+        "r"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "q"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "u"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "i"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "("
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "!"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "u"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "d"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "["
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "]"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": ")"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "&"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "&"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "v"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "d"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "="
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "="
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "i"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "g"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        }
+      ],
+      "function_signature": "mint(address,uint256,uint64,bytes)"
+    },
+    {
+      "edge_id": "e2",
+      "src": "null",
+      "dst": "to (parameter of mint)",
+      "label": "mint",
+      "token": "pGALA",
+      "conditions": [
+        "I",
+        "n",
+        " ",
+        "p",
+        "r",
+        "o",
+        "d",
+        "u",
+        "c",
+        "t",
+        "i",
+        "o",
+        "n",
+        ":",
+        " ",
+        "r",
+        "e",
+        "q",
+        "u",
+        "i",
+        "r",
+        "e",
+        "(",
+        "m",
+        "s",
+        "g",
+        ".",
+        "s",
+        "e",
+        "n",
+        "d",
+        "e",
+        "r",
+        " ",
+        "=",
+        "=",
+        " ",
+        "m",
+        "i",
+        "n",
+        "t",
+        "e",
+        "r",
+        ")"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "I"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "p"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "d"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "u"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "c"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "i"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "o"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": ":"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "q"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "u"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "i"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "("
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "m"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "g"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "."
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "s"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "d"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "="
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "="
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": " "
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "m"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "i"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "n"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "t"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "e"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "r"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": ")"
+          }
+        }
+      ],
+      "function_signature": "mint(address,uint256)"
+    }
+  ],
+  "invariants": [
+    {
+      "invariant_id": "asset_conservation_total_locked_equals_minted_minus_fees",
+      "category": "asset_conservation",
+      "description": "The total amount of pGALA locked on the source chain must equal the total amount minted on the destination chain minus the accumulated bridge fees.",
+      "predicate": "totalLocked == totalMinted - totalFees",
+      "solidity_assertion": "require(totalLocked == totalMinted - totalFees, \"Invariant violation: locked != minted - fees\");",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_bridge_balance_matches_outstanding_mint",
+      "category": "asset_conservation",
+      "description": "The bridge contract’s internal accounting of locked tokens must match the sum of all outstanding minted tokens that have not been refunded.",
+      "predicate": "bridgeLockedBalance == totalMinted - totalRefunded",
+      "solidity_assertion": "require(bridgeLockedBalance == totalMinted - totalRefunded, \"Invariant violation: bridge balance mismatch\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_fees_never_exceed_minted",
+      "category": "asset_conservation",
+      "description": "Collected bridge fees can never be greater than the total amount of tokens minted on the destination chain.",
+      "predicate": "totalFees <= totalMinted",
+      "solidity_assertion": "require(totalFees <= totalMinted, \"Invariant violation: fees exceed minted\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_total_supply_reflects_locked_minus_refunded",
+      "category": "asset_conservation",
+      "description": "The total supply of pGALA on the destination chain must equal the total amount locked on the source chain minus the amount that has been refunded to original senders.",
+      "predicate": "pGALAToken.totalSupply() == totalLocked - totalRefunded",
+      "solidity_assertion": "require(pGALAToken.totalSupply() == totalLocked - totalRefunded, \"Invariant violation: totalSupply mismatch\");",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "authorization_mint_called_by_authorized_relayer",
+      "category": "authorization",
+      "description": "The mint function (edge e1) can only be invoked by the pre‑registered relayer address.",
+      "predicate": "msg.sender == authorizedRelayer",
+      "solidity_assertion": "require(msg.sender == authorizedRelayer, \"Unauthorized relayer\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "authorization_mint_requires_valid_deposit_proof",
+      "category": "authorization",
+      "description": "When minting, the caller must provide a cryptographic proof that a corresponding lock event exists on the source chain.",
+      "predicate": "verifyDepositProof(proof, lockId)",
+      "solidity_assertion": "require(verifyDepositProof(proof, lockId), \"Invalid deposit proof\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "authorization_unlock_requires_matching_lock",
+      "category": "authorization",
+      "description": "Burning (unlock) on the source chain must be accompanied by a proof that the tokens were previously minted for the same lockId.",
+      "predicate": "verifyMintProof(mintProof, lockId)",
+      "solidity_assertion": "require(verifyMintProof(mintProof, lockId), \"Invalid mint proof\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "authorization_mint_signature_matches_sender",
+      "category": "authorization",
+      "description": "The off‑chain signed authorization embedded in the mint call must be a signature over the sender address, amount, nonce and deadline, and must verify against the sender’s public key.",
+      "predicate": "ECDSA.recover(hashMessage(sender, amount, nonce, deadline), signature) == sender",
+      "solidity_assertion": "require(ECDSA.recover(hashMessage(to, amount, nonce, deadline), signature) == to, \"Signature mismatch\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_nonce_used_at_most_once",
+      "category": "uniqueness",
+      "description": "Each nonce supplied to the mint function must be marked as used and cannot be reused.",
+      "predicate": "!nonceUsed[nonce]",
+      "solidity_assertion": "require(!nonceUsed[nonce], \"Nonce already used\"); nonceUsed[nonce] = true;",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_message_hash_processed_once",
+      "category": "uniqueness",
+      "description": "A relay message identified by its hash may be processed only a single time.",
+      "predicate": "!processedMessage[messageHash]",
+      "solidity_assertion": "require(!processedMessage[messageHash], \"Message already processed\"); processedMessage[messageHash] = true;",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_lock_id_is_unique",
+      "category": "uniqueness",
+      "description": "Every lock operation must generate a unique lockId that does not collide with an existing one.",
+      "predicate": "!locks[lockId].exists",
+      "solidity_assertion": "require(!locks[lockId].exists, \"Duplicate lockId\"); locks[lockId] = Lock({sender:msg.sender, amount:amount, timestamp:block.timestamp, exists:true});",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_refund_allowed_after_timeout",
+      "category": "timeliness",
+      "description": "A user may call the refund function only after the lock timestamp plus the configured timeout has elapsed.",
+      "predicate": "block.timestamp >= lock.timestamp + lockTimeout",
+      "solidity_assertion": "require(block.timestamp >= lock.timestamp + lockTimeout, \"Refund not yet available\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_refund_cannot_exceed_locked_amount",
+      "category": "timeliness",
+      "description": "When processing a refund, the amount returned must not exceed the amount originally locked for that lockId.",
+      "predicate": "refundAmount <= lock.amount",
+      "solidity_assertion": "require(refundAmount <= lock.amount, \"Refund exceeds locked amount\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_mint_must_be_before_deadline",
+      "category": "timeliness",
+      "description": "The mint call must be executed before the deadline embedded in the signed authorization.",
+      "predicate": "block.timestamp <= deadline",
+      "solidity_assertion": "require(block.timestamp <= deadline, \"Mint deadline passed\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_relay_messages_processed_in_nonce_order",
+      "category": "timeliness",
+      "description": "Relay messages must be processed in strictly increasing nonce order to prevent reordering attacks.",
+      "predicate": "nonce == lastProcessedNonce + 1",
+      "solidity_assertion": "require(nonce == lastProcessedNonce + 1, \"Non‑sequential nonce\"); lastProcessedNonce = nonce;",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_locked_funds_auto_refund_on_chain_halt",
+      "category": "timeliness",
+      "description": "If the bridge contract is paused for longer than two timeouts, any still‑locked funds become automatically refundable.",
+      "predicate": "paused && block.timestamp >= pauseTimestamp + 2 * lockTimeout",
+      "solidity_assertion": "if (paused && block.timestamp >= pauseTimestamp + 2 * lockTimeout) { /* allow refunds for all locks */ }",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "authorization_mint_cannot_exceed_max_per_tx",
+      "category": "authorization",
+      "description": "The amount minted in a single transaction must not exceed the protocol‑defined maximum per‑transaction limit.",
+      "predicate": "amount <= maxMintPerTx",
+      "solidity_assertion": "require(amount <= maxMintPerTx, \"Mint amount exceeds per‑tx limit\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_fee_distribution_preserves_total",
+      "category": "asset_conservation",
+      "description": "When fees are withdrawn to the feeCollector, the sum of feeCollector balance and remaining fees must equal totalFees.",
+      "predicate": "feeCollector.balance + remainingFees == totalFees",
+      "solidity_assertion": "require(feeCollector.balance + remainingFees == totalFees, \"Fee accounting mismatch\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_burn_proof_used_once",
+      "category": "uniqueness",
+      "description": "A proof that a token was burned on the destination chain may be submitted to unlock assets on the source chain only once.",
+      "predicate": "!burnProofUsed[burnProofHash]",
+      "solidity_assertion": "require(!burnProofUsed[burnProofHash], \"Burn proof already used\"); burnProofUsed[burnProofHash] = true;",
+      "related_edges": [
+        "e2"
+      ]
+    }
+  ]
+}

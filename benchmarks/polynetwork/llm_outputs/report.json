@@ -1,0 +1,21 @@
+{
+  "benchmark": "polynetwork",
+  "artifacts": {
+    "atg": "results/polynetwork_llm/atg.json",
+    "hypotheses": "results/polynetwork_llm/hypotheses.json"
+  },
+  "module1": {
+    "contracts_processed": 2,
+    "entities": 3,
+    "edges": 1,
+    "invariants": 16
+  },
+  "module2": {
+    "scenarios": 16
+  },
+  "module3": {
+    "runs_attempted": 0,
+    "runs_completed": 0,
+    "violations_total": 0
+  }
+}

@@ -1,0 +1,1541 @@
+{
+  "bridge_name": "gempad",
+  "scenarios": [
+    {
+      "scenario_id": "gempad_inflated_mint_2024_05",
+      "target_invariant": "asset_total_locked_equals_minted_minus_fees",
+      "vulnerability_class": "relayer_tampering_fake_deposit",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "lock(address,uint256,uint256)",
+          "params": {
+            "token": "0x1111111111111111111111111111111111111111",
+            "amount": 1,
+            "unlockTime": 1924953600
+          },
+          "description": "Attacker locks 1 MockToken with a future unlockTime, creating depositId 0xdeadbeef. State predicate: GemPadLocker.totalLocked() == 1.",
+          "step": 1
+        },
+        {
+          "chain": "polygon",
+          "contract": "MockToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttackerAddress0000000000000000000000000000",
+            "amount": 100
+          },
+          "relay_mode": "tampered",
+          "description": "Compromised relayer (or attacker) sends a tampered relay message that inflates the amount in the lock proof to 100 tokens while keeping depositId 0xdeadbeef. State predicate: MockToken.totalMinted() == 100 and MockToken.totalFees() == 0.",
+          "step": 2
+        },
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "withdraw(uint256)",
+          "params": {
+            "depositId": "0xdeadbeef"
+          },
+          "description": "After the lock period (simulated by advancing block.timestamp), attacker withdraws the original 1 token, returning it to their wallet. State predicate: GemPadLocker.totalLocked() == 0.",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "evodefi_20220607",
+        "bnbbridge_20221007"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker locks 1 MockToken with a future unlockTime, creating depositId 0xdeadbeef. State predicate: GemPadLocker.totalLocked() == 1."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Compromised relayer (or attacker) sends a tampered relay message that inflates the amount in the lock proof to 100 tokens while keeping depositId 0xdeadbeef. State predicate: MockToken.totalMinted() == 100 and MockToken.totalFees() == 0."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "After the lock period (simulated by advancing block.timestamp), attacker withdraws the original 1 token, returning it to their wallet. State predicate: GemPadLocker.totalLocked() == 0."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_per_deposit_invariant_break_01",
+      "target_invariant": "asset_per_deposit_balance_preservation",
+      "vulnerability_class": "relay_tampering_fake_deposit",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "token": "0x1111111111111111111111111111111111111111",
+            "amount": "1000000000000000000",
+            "unlockTime": "1700000000"
+          },
+          "description": "Attacker locks 1 × MockToken on BSC, generating depositId 42.",
+          "postcondition": "lockedAmount[42] == 1000000000000000000",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "amount": "5000000000000000000"
+          },
+          "relay_mode": "tampered",
+          "description": "Compromised relayer forwards the lock event but inflates the amount to 5 × MockToken for the same depositId 42, causing over‑minting.",
+          "postcondition": "mintedAmount[42] == 5000000000000000000",
+          "step": 2
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "qubit_20220127"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker locks 1 × MockToken on BSC, generating depositId 42."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Compromised relayer forwards the lock event but inflates the amount to 5 × MockToken for the same depositId 42, causing over‑minting."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_fake_mint_2024_05",
+      "target_invariant": "asset_no_mint_without_lock",
+      "vulnerability_class": "fake_deposit",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "lock(address,uint256,uint256)",
+          "params": {
+            "token": "MockToken",
+            "amount": 1,
+            "unlockTime": "block.timestamp + 2592000"
+          },
+          "description": "Create a minimal legitimate lock to obtain a valid deposit identifier that the bridge will later accept.",
+          "state_predicate": "lockedAmount[depositId=1] == 1"
+        },
+        {
+          "step": 2,
+          "chain": "relay",
+          "contract": "BridgeRelayer",
+          "action": "tamper_proof",
+          "params": {
+            "originalDepositId": 1,
+            "fakeDepositId": 9999,
+            "fakeAmount": 1000000
+          },
+          "relay_mode": "tampered",
+          "description": "Intercept the off‑chain message from GemPadLocker and replace the Merkle/IBC proof with a fabricated one that claims depositId = 9999 and amount = 1 000 000 tokens.",
+          "state_predicate": "relay.lastForwardedDepositId == 9999 && lockedAmount[depositId=9999] == 0"
+        },
+        {
+          "step": 3,
+          "chain": "ethereum",
+          "contract": "MockToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttackerEOA",
+            "amount": 1000000
+          },
+          "description": "The (compromised) relayer calls mint on the destination chain using the forged deposit identifier.",
+          "state_predicate": "mintedAmount[depositId=9999] == 1000000 && lockedAmount[depositId=9999] == 0"
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "qubit_20220127",
+        "bnbbridge_20221007"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Create a minimal legitimate lock to obtain a valid deposit identifier that the bridge will later accept."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Intercept the off‑chain message from GemPadLocker and replace the Merkle/IBC proof with a fabricated one that claims depositId = 9999 and amount = 1 000 000 tokens."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "The (compromised) relayer calls mint on the destination chain using the forged deposit identifier."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_supply_cap_bypass_001",
+      "target_invariant": "asset_destination_supply_cap",
+      "vulnerability_class": "authorization_bypass_missing_access_control",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "polygon",
+          "contract": "MockToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xDEADDEADDEADDEADDEADDEADDEADDEADDEADDEAD",
+            "amount": "500000000000000000000"
+          },
+          "description": "Direct call to the destination token's public mint function, bypassing the designated relayer check. No corresponding lock exists on BSC, so totalLocked remains unchanged.",
+          "step": 1
+        },
+        {
+          "chain": "polygon",
+          "contract": "MockToken",
+          "function": "transfer(address,uint256)",
+          "params": {
+            "to": "0xDEADDEADDEADDEADDEADDEADDEADDEADDEADDEAD",
+            "amount": "500000000000000000000"
+          },
+          "description": "Move the freshly minted tokens to the attacker’s EOA to realize value.",
+          "step": 2
+        }
+      ],
+      "state_predicates": [
+        {
+          "predicate": "totalSupplyDestination > totalLocked + initialSupplyDestination",
+          "explanation": "After the unauthorized mint, the destination token supply exceeds the sum of all ever‑locked source tokens plus the initial supply, violating the invariant."
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_20220118",
+        "wormhole_20220202"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Direct call to the destination token's public mint function, bypassing the designated relayer check. No corresponding lock exists on BSC, so totalLocked remains unchanged."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Move the freshly minted tokens to the attacker’s EOA to realize value."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_double_spend_via_malicious_token_01",
+      "target_invariant": "asset_locked_tokens_cannot_be_double_spent",
+      "vulnerability_class": "unchecked_erc20_transfer",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "bsc",
+          "contract": "MaliciousToken (deployed as MockToken address 0xAaBbCcDdEeFf0011223344556677889900aabbcc)",
+          "function": "constructor(uint256 initialSupply)",
+          "params": {
+            "initialSupply": "1000000e18"
+          },
+          "description": "Deploy a token that overrides `transferFrom` to emit a Transfer event but does **not** deduct `from` balance, returning `true`.",
+          "waypoint": "MaliciousToken.balanceOf(attacker) == 1000000e18",
+          "step": 1
+        },
+        {
+          "chain": "bsc",
+          "contract": "MaliciousToken",
+          "function": "approve(address,uint256)",
+          "params": {
+            "spender": "GemPadLocker",
+            "amount": "5000e18"
+          },
+          "description": "Attacker approves the locker to spend a large amount of the malicious token.",
+          "waypoint": "MaliciousToken.allowance(attacker, GemPadLocker) == 5000e18",
+          "step": 2
+        },
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "lock(address token,uint256 amount,uint256 unlockTime)",
+          "params": {
+            "token": "0xAaBbCcDdEeFf0011223344556677889900aabbcc",
+            "amount": "1000e18",
+            "unlockTime": "block.timestamp + 30 days"
+          },
+          "description": "Attacker calls `lock` with the malicious token. The locker records the depositId and amount, but the underlying `transferFrom` does not move tokens.",
+          "waypoint": [
+            "GemPadLocker.lockedAmount[depositId] == 1000e18",
+            "GemPadLocker.internalBalance(attacker) == 1000000e18",
+            "GemPadLocker.internalBalance(attacker) - balanceAfterLock == 0"
+          ],
+          "step": 3
+        },
+        {
+          "chain": "relay",
+          "contract": "GemPadRelayer",
+          "function": "processLock(bytes calldata lockData)",
+          "params": {
+            "lockData": "<encoded lock event from previous step>"
+          },
+          "description": "The honest relayer, operating in **faithful** mode, observes the lock event and calls the mint function on the destination chain.",
+          "waypoint": "DestinationToken.totalMinted() >= 1000e18",
+          "step": 4
+        },
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "lock(address token,uint256 amount,uint256 unlockTime)",
+          "params": {
+            "token": "0xAaBbCcDdEeFf0011223344556677889900aabbcc",
+            "amount": "1000e18",
+            "unlockTime": "block.timestamp + 30 days"
+          },
+          "description": "Attacker repeats the lock with a new depositId, again receiving minted tokens on the destination chain while retaining the original tokens.",
+          "waypoint": [
+            "GemPadLocker.lockedAmount[newDepositId] == 1000e18",
+            "GemPadLocker.internalBalance(attacker) == 1000000e18"
+          ],
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Deploy a token that overrides `transferFrom` to emit a Transfer event but does **not** deduct `from` balance, returning `true`."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker approves the locker to spend a large amount of the malicious token."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker calls `lock` with the malicious token. The locker records the depositId and amount, but the underlying `transferFrom` does not move tokens."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "relay.message_count > 0",
+          "description": "The honest relayer, operating in **faithful** mode, observes the lock event and calls the mint function on the destination chain."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Attacker repeats the lock with a new depositId, again receiving minted tokens on the destination chain while retaining the original tokens."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_auth_mint_relayer_compromise_001",
+      "target_invariant": "auth_mint_only_by_relayer",
+      "vulnerability_class": "access_control_misconfiguration",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "token": "MockToken",
+            "amount": "1000000000000000000",
+            "unlockTime": "block.timestamp + 86400"
+          },
+          "waypoint": "GemPadLocker.lockedDeposits[depositId].amount == 1000000000000000000",
+          "description": "Step 1"
+        },
+        {
+          "step": 2,
+          "chain": "unknown",
+          "contract": "MockToken",
+          "function": "setRelayer",
+          "params": {
+            "newRelayer": "0xAttackerAddress0000000000000000000000000000"
+          },
+          "waypoint": "MockToken.relayer() == 0xAttackerAddress0000000000000000000000000000",
+          "description": "Step 2"
+        },
+        {
+          "step": 3,
+          "chain": "unknown",
+          "contract": "MockToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAttackerAddress0000000000000000000000000000",
+            "amount": "1000000000000000000000000"
+          },
+          "waypoint": "MockToken.totalSupply() >= previousSupply + 1000000000000000000000000",
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "evodefi_20220607",
+        "chainswap_20210711"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_auth_withdraw_owner_bypass_01",
+      "target_invariant": "auth_withdraw_only_by_owner",
+      "vulnerability_class": "owner_mapping_tampering_via_unprotected_update",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "token": "0xMockTokenBSC",
+            "amount": "1000000000000000000",
+            "unlockTime": "block.timestamp + 86400"
+          },
+          "waypoint": "depositId == 1 && owner[1] == 0xVictim",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "bsc",
+          "contract": "BridgeRelayer",
+          "function": "updateOwner",
+          "params": {
+            "depositId": 1,
+            "newOwner": "0xAttacker"
+          },
+          "relay_mode": "tampered",
+          "waypoint": "owner[1] == 0xAttacker",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "withdraw",
+          "params": {
+            "depositId": 1
+          },
+          "waypoint": "withdrawn[1] == true && balanceOf(0xAttacker) >= 1000000000000000000",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_malicious_transferFrom_2024_05",
+      "target_invariant": "auth_deposit_requires_transfer_from",
+      "vulnerability_class": "malicious_token_transferFrom",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "bsc",
+          "contract": "AttackerMaliciousToken",
+          "function": "constructor",
+          "params": {
+            "name": "EvilToken",
+            "symbol": "EVL",
+            "initialSupply": "1000000000000000000000"
+          },
+          "description": "Deploy ERC20 where transferFrom always returns true without updating balances.",
+          "step": 1
+        },
+        {
+          "chain": "bsc",
+          "contract": "AttackerMaliciousToken",
+          "function": "approve",
+          "params": {
+            "spender": "GemPadLocker",
+            "amount": "1000000000000000000000"
+          },
+          "description": "Give GemPadLocker unlimited allowance.",
+          "step": 2
+        },
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "token": "AttackerMaliciousToken",
+            "amount": "1000000000000000000",
+            "unlockTime": "block.timestamp + 86400"
+          },
+          "description": "Call lock; token.transferFrom returns true but balance stays unchanged.",
+          "state_predicates": [
+            "AttackerMaliciousToken.balanceOf(attacker) == 1000000000000000000000",
+            "GemPadLocker.totalLocked() == 1000000000000000000"
+          ],
+          "step": 3
+        },
+        {
+          "chain": "ethereum",
+          "contract": "GemPadRelayer",
+          "function": "mint",
+          "params": {
+            "to": "attacker",
+            "amount": "1000000000000000000",
+            "depositId": "0xdeadbeef01"
+          },
+          "description": "Faithful relayer mints tokens on destination chain after observing lock event.",
+          "relay_mode": "faithful",
+          "state_predicates": [
+            "DestinationToken.totalSupply() == 1000000000000000000",
+            "DestinationToken.balanceOf(attacker) == 1000000000000000000"
+          ],
+          "step": 4
+        },
+        {
+          "chain": "ethereum",
+          "contract": "GemPadRelayer",
+          "function": "mint",
+          "params": {
+            "to": "attacker",
+            "amount": "1000000000000000000",
+            "depositId": "0xdeadbeef01"
+          },
+          "description": "Replay same depositId to mint again, double‑spending the non‑existent lock.",
+          "relay_mode": "replay",
+          "state_predicates": [
+            "DestinationToken.totalSupply() == 2000000000000000000",
+            "DestinationToken.balanceOf(attacker) == 2000000000000000000"
+          ],
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "metpassport_20220206",
+        "meterio_20220205"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Deploy ERC20 where transferFrom always returns true without updating balances."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Give GemPadLocker unlimited allowance."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Call lock; token.transferFrom returns true but balance stays unchanged."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Faithful relayer mints tokens on destination chain after observing lock event."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Replay same depositId to mint again, double‑spending the non‑existent lock."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_transferFrom_allowance_bypass_001",
+      "target_invariant": "auth_transfer_from_checks_allowance_and_balance",
+      "vulnerability_class": "logic_bug_missing_allowance_check",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "bsc",
+          "contract": "MockToken",
+          "function": "transferFrom(address,address,uint256)",
+          "params": {
+            "from": "0x1111111111111111111111111111111111111111",
+            "to": "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "amount": "1000000000000000000"
+          },
+          "precondition": [
+            "allowance[0x1111111111111111111111111111111111111111][0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA] == 0",
+            "balanceOf[0x1111111111111111111111111111111111111111] >= 1000000000000000000"
+          ],
+          "postcondition": [
+            "balanceOf[0x1111111111111111111111111111111111111111] == balanceBefore - 1000000000000000000",
+            "allowance[0x1111111111111111111111111111111111111111][0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA] == 0"
+          ],
+          "description": "Attacker calls transferFrom on the vulnerable MockToken contract, moving tokens from victim without any prior allowance. The contract mistakenly checks allowance[msg.sender][from] instead of allowance[from][msg.sender], so the require passes even though allowance is zero.",
+          "step": 1
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_20220801",
+        "socket_20240116"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker calls transferFrom on the vulnerable MockToken contract, moving tokens from victim without any prior allowance. The contract mistakenly checks allowance[msg.sender][from] instead of allowance[from][msg.sender], so the require passes even though allowance is zero."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_nonce_replay_001",
+      "target_invariant": "auth_mint_requires_valid_nonce",
+      "vulnerability_class": "nonce_replay_due_to_missing_nonce_check",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "token": "MockToken",
+            "amount": "1000000000000000000000",
+            "unlockTime": "block.timestamp + 86400"
+          },
+          "description": "Honest user locks 1,000 tokens, emitting Deposit event with depositId=0xabc and nonce=0x1.",
+          "waypoint": "processedNonce[0x1] == false",
+          "step": 1
+        },
+        {
+          "chain": "bsc",
+          "contract": "BridgeRelayer",
+          "function": "emitDepositProof",
+          "params": {
+            "depositId": "0xabc",
+            "amount": "1000000000000000000000",
+            "nonce": "0x1",
+            "signature": "0xsig"
+          },
+          "description": "Legitimate relayer forwards the deposit proof to the destination chain in faithful mode.",
+          "relay_mode": "faithful",
+          "waypoint": "destinationBridge.pendingMint[0x1] == true",
+          "step": 2
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "1000000000000000000000"
+          },
+          "description": "Relayer calls mint on the destination token using the proof; nonce 0x1 is recorded as processed.",
+          "waypoint": "processedNonce[0x1] == true && balanceOf[0xAttacker] == 1000000000000000000000",
+          "step": 3
+        },
+        {
+          "chain": "bsc",
+          "contract": "BridgeRelayer",
+          "function": "replayDepositProof",
+          "params": {
+            "depositId": "0xabc",
+            "amount": "1000000000000000000000",
+            "nonce": "0x1",
+            "signature": "0xsig"
+          },
+          "description": "Attacker re‑sends the same proof via a compromised relayer (replay mode).",
+          "relay_mode": "replay",
+          "waypoint": "destinationBridge.pendingMint[0x1] == true",
+          "step": 4
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "1000000000000000000000"
+          },
+          "description": "Mint is invoked again with the same nonce; because the contract does not enforce the !processedNonce[nonce] check, the second mint succeeds.",
+          "waypoint": "balanceOf[0xAttacker] == 2000000000000000000000 && processedNonce[0x1] == true",
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "qubit_20220127",
+        "chainswap_20210711"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Honest user locks 1,000 tokens, emitting Deposit event with depositId=0xabc and nonce=0x1."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Legitimate relayer forwards the deposit proof to the destination chain in faithful mode."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Relayer calls mint on the destination token using the proof; nonce 0x1 is recorded as processed."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Attacker re‑sends the same proof via a compromised relayer (replay mode)."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Mint is invoked again with the same nonce; because the contract does not enforce the !processedNonce[nonce] check, the second mint succeeds."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_nonce_replay_01",
+      "target_invariant": "uniq_nonce_processed_once",
+      "vulnerability_class": "nonce_replay_due_to_missing_check",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "token": "0xMockTokenBSC",
+            "amount": "1000000000000000000000",
+            "unlockTime": "block.timestamp + 86400"
+          },
+          "description": "Honest user locks 1,000 MockToken on BSC, causing the bridge to emit a deposit event with a unique nonce N.",
+          "state_predicates": [
+            "GemPadLocker.totalLocked() >= 1000000000000000000000"
+          ],
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "GemPadRelayer",
+          "function": "processMessage",
+          "params": {
+            "nonce": "N",
+            "to": "0xAttacker",
+            "amount": "1000000000000000000000"
+          },
+          "description": "Attacker forwards the legitimate off‑chain message to the relayer in faithful mode. The relayer calls MockToken.mint(0xAttacker,1,000) after checking processedNonce[N] == false.",
+          "relay_mode": "faithful",
+          "state_predicates": [
+            "processedNonce[N] == false"
+          ],
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "GemPadRelayer",
+          "function": "processMessage",
+          "params": {
+            "nonce": "N",
+            "to": "0xAttacker",
+            "amount": "1000000000000000000000"
+          },
+          "description": "Attacker re‑submits the same nonce N via a tampered relayer (replay mode). Because the mint function does not re‑check processedNonce after the first call, a second mint occurs while processedNonce[N] is already true.",
+          "relay_mode": "replay",
+          "state_predicates": [
+            "processedNonce[N] == true"
+          ],
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "MockToken",
+          "function": "totalSupply",
+          "params": {},
+          "description": "Observe that the total supply of the bridged token increased by 2,000 (double the locked amount), confirming the invariant breach.",
+          "state_predicates": [
+            "MockToken.totalSupply() == 2000000000000000000000"
+          ],
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_20220118",
+        "meterio_20220205"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Honest user locks 1,000 MockToken on BSC, causing the bridge to emit a deposit event with a unique nonce N."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker forwards the legitimate off‑chain message to the relayer in faithful mode. The relayer calls MockToken.mint(0xAttacker,1,000) after checking processedNonce[N] == false."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker re‑submits the same nonce N via a tampered relayer (replay mode). Because the mint function does not re‑check processedNonce after the first call, a second mint occurs while processedNonce[N] is already true."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Observe that the total supply of the bridged token increased by 2,000 (double the locked amount), confirming the invariant breach."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_double_withdraw_race_2024_04_25",
+      "target_invariant": "uniq_withdraw_executed_once",
+      "vulnerability_class": "withdraw_race_condition",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "token": "MockToken",
+            "amount": "1000e18",
+            "unlockTime": "block.timestamp"
+          },
+          "mode": "faithful",
+          "predicate": "GemPadLocker.totalLocked() == 1000e18 && GemPadLocker.depositIdCounter() == 1",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "withdraw",
+          "params": {
+            "depositId": "1"
+          },
+          "mode": "faithful",
+          "predicate": "block.timestamp >= GemPadLocker.unlockTime(1) && GemPadLocker.withdrawn(1) == false",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "withdraw",
+          "params": {
+            "depositId": "1"
+          },
+          "mode": "faithful",
+          "predicate": "block.timestamp >= GemPadLocker.unlockTime(1) && GemPadLocker.withdrawn(1) == false",
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "bsc",
+          "contract": "MockToken",
+          "function": "balanceOf",
+          "params": {
+            "account": "attacker"
+          },
+          "mode": "query",
+          "predicate": "MockToken.balanceOf(attacker) == 2000e18",
+          "step": 4,
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_dup_mint_01",
+      "target_invariant": "uniq_mint_emitted_once_per_deposit",
+      "vulnerability_class": "replay_without_nonce",
+      "confidence": 0.88,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "token": "0x1111111111111111111111111111111111111111",
+            "amount": "1000000000000000000",
+            "unlockTime": "block.timestamp + 86400"
+          },
+          "description": "Honest user locks 1 ETH‑equivalent of MockToken, emitting Deposit event with depositId D.",
+          "edge_id": "e1",
+          "state_predicate": "minted[D] == false && lockedAmount[D] == 1e18"
+        },
+        {
+          "step": 2,
+          "chain": "ethereum",
+          "contract": "MockToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAttackerAddress000000000000000000000000",
+            "amount": "1000000000000000000"
+          },
+          "description": "Designated relayer (or attacker controlling the relayer) submits a valid proof of deposit D to the destination chain, invoking mint.",
+          "edge_id": "e3",
+          "relay_mode": "faithful",
+          "state_predicate": "minted[D] == true && balanceOf[0xAttackerAddress000000000000000000000000] == 1e18"
+        },
+        {
+          "step": 3,
+          "chain": "ethereum",
+          "contract": "MockToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAttackerAddress000000000000000000000000",
+            "amount": "1000000000000000000"
+          },
+          "description": "Attacker re‑plays the exact same signed proof (relay_mode: replay) before any state change resets the deposit nonce, causing a second mint for the same depositId D.",
+          "edge_id": "e3",
+          "relay_mode": "replay",
+          "state_predicate": "minted[D] == true && balanceOf[0xAttackerAddress000000000000000000000000] == 2e18"
+        }
+      ],
+      "retrieved_exploits": [
+        "qubit_20220127",
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Honest user locks 1 ETH‑equivalent of MockToken, emitting Deposit event with depositId D."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Designated relayer (or attacker controlling the relayer) submits a valid proof of deposit D to the destination chain, invoking mint."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker re‑plays the exact same signed proof (relay_mode: replay) before any state change resets the deposit nonce, causing a second mint for the same depositId D."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_reentrancy_transfer_20240430",
+      "target_invariant": "uniq_transfer_non_reentrant",
+      "vulnerability_class": "reentrancy",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "lock(address,uint256,uint256)",
+          "params": {
+            "token": "MockToken",
+            "amount": 1000,
+            "unlockTime": "block.timestamp + 86400"
+          },
+          "waypoint": "GemPadLocker.totalLocked() >= 1000",
+          "description": "Step 1"
+        },
+        {
+          "step": 2,
+          "chain": "bsc",
+          "contract": "BridgeRelayer",
+          "function": "processLock(uint256)",
+          "params": {
+            "depositId": 1
+          },
+          "waypoint": "MockToken_destination.totalSupply() >= 1000",
+          "description": "Step 2"
+        },
+        {
+          "step": 3,
+          "chain": "unknown",
+          "contract": "MockToken",
+          "function": "transfer(address,uint256)",
+          "params": {
+            "to": "MaliciousReceiver",
+            "amount": 1000
+          },
+          "relay_mode": "faithful",
+          "waypoint": "MockToken.balanceOf(\"MaliciousReceiver\") == 1000 && MockToken.locked == true",
+          "description": "Step 3"
+        },
+        {
+          "step": 4,
+          "chain": "unknown",
+          "contract": "MaliciousReceiver",
+          "function": "tokensReceived(address,address,uint256,bytes,bytes)",
+          "params": {},
+          "description": "Re‑enter MockToken.transfer while the re‑entrancy guard is still set",
+          "waypoint": "MockToken.transfer(address,uint256) called again => MockToken.balanceOf(attacker) == 2000 && MockToken.locked == true"
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Re‑enter MockToken.transfer while the re‑entrancy guard is still set"
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_timelock_bypass_01",
+      "target_invariant": "time_withdraw_after_unlock",
+      "vulnerability_class": "duplicate_deposit_id_overwrite",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "token": "MockToken",
+            "amount": "1000000000000000000",
+            "unlockTime": "block.timestamp",
+            "depositId": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+          },
+          "mode": "faithful",
+          "state_predicates": [
+            "GemPadLocker.unlockTime[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == block.timestamp"
+          ],
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "withdraw",
+          "params": {
+            "depositId": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+          },
+          "mode": "faithful",
+          "state_predicates": [
+            "GemPadLocker.withdrawn[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == true",
+            "block.timestamp < victim_original_unlockTime"
+          ],
+          "step": 2,
+          "description": "Step 2"
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_time_refund_bypass_01",
+      "target_invariant": "time_refund_after_timeout",
+      "vulnerability_class": "relay_tampering_unlock_time",
+      "confidence": 0.85,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "token": "MockToken",
+            "amount": "1000000000000000000",
+            "unlockTime": "block.timestamp + 86400"
+          },
+          "mode": "faithful",
+          "predicate": "GemPadLocker.unlockTime(depositId) == block.timestamp + 86400 && GemPadLocker.withdrawn(depositId) == false",
+          "description": "Step 1"
+        },
+        {
+          "step": 2,
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "updateUnlockTime",
+          "params": {
+            "depositId": "depositId",
+            "newUnlockTime": "block.timestamp - 1"
+          },
+          "mode": "tampered",
+          "predicate": "GemPadLocker.unlockTime(depositId) < block.timestamp && GemPadLocker.withdrawn(depositId) == false",
+          "description": "Step 2"
+        },
+        {
+          "step": 3,
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "withdraw",
+          "params": {
+            "depositId": "depositId"
+          },
+          "mode": "faithful",
+          "predicate": "GemPadLocker.withdrawn(depositId) == true && GemPadLocker.balanceOf(msg.sender) >= 1000000000000000000",
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "pnetwork_20210919"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_timelock_bypass_01",
+      "target_invariant": "time_deposit_timelock_future",
+      "vulnerability_class": "relay_tampering",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "token": "0xMockTokenBSC",
+            "amount": "1000000000000000000",
+            "unlockTime": "block.timestamp + 3600"
+          },
+          "description": "Attacker creates a legitimate lock with a future unlockTime; event emits lockId=1.",
+          "step": 1
+        },
+        {
+          "chain": "bsc",
+          "contract": "GemPadRelayer",
+          "function": "relayLock",
+          "params": {
+            "lockId": 1,
+            "tamperedUnlockTime": "block.timestamp - 10"
+          },
+          "relay_mode": "tampered",
+          "description": "Compromised relayer forwards the lock to the locker contract but overwrites the stored unlockTime with a past timestamp.",
+          "step": 2
+        },
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "setUnlockTime",
+          "params": {
+            "lockId": 1,
+            "newUnlockTime": "block.timestamp - 10"
+          },
+          "description": "Malicious relayer calls an internal admin function (exposed to relayer) to mutate the lock's unlockTime.",
+          "step": 3
+        },
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "withdraw",
+          "params": {
+            "lockId": 1
+          },
+          "description": "Attacker immediately calls withdraw; condition `block.timestamp >= unlockTime` now holds because unlockTime was set to the past.",
+          "step": 4
+        }
+      ],
+      "state_waypoints": [
+        {
+          "predicate": "GemPadLocker.locks[1].unlockTime <= block.timestamp",
+          "explanation": "After step 3 the stored unlockTime violates the invariant `unlockTime > block.timestamp`."
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker creates a legitimate lock with a future unlockTime; event emits lockId=1."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Compromised relayer forwards the lock to the locker contract but overwrites the stored unlockTime with a past timestamp."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Malicious relayer calls an internal admin function (exposed to relayer) to mutate the lock's unlockTime."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Attacker immediately calls withdraw; condition `block.timestamp >= unlockTime` now holds because unlockTime was set to the past."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_delay_mint_001",
+      "target_invariant": "time_relayer_processes_within_max_delay",
+      "vulnerability_class": "relayer_delay_manipulation",
+      "confidence": 0.88,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "to": "0xAttacker00000000000000000000000000000000",
+            "amount": "1000000000000000000000",
+            "unlockTime": "block.timestamp + 2592000"
+          },
+          "state_predicate": "GemPadLocker.totalLocked() >= 1000000000000000000000",
+          "description": "Step 1"
+        },
+        {
+          "step": 2,
+          "chain": "relay",
+          "contract": "GemPadRelayer",
+          "function": "receiveMessage",
+          "params": {
+            "sourceChain": "BSC",
+            "destChain": "Unknown",
+            "depositId": "1",
+            "amount": "1000000000000000000000",
+            "timestamp": "block.timestamp"
+          },
+          "relay_mode": "delayed",
+          "state_predicate": "message.timestamp == block.timestamp",
+          "description": "Step 2"
+        },
+        {
+          "step": 3,
+          "chain": "unknown",
+          "contract": "MockToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAttacker00000000000000000000000000000000",
+            "amount": "1000000000000000000000"
+          },
+          "state_predicate": "block.timestamp > message.timestamp + maxDelay",
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_20220801",
+        "polynetwork_20210810"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_timelock_mint_delay_01",
+      "target_invariant": "time_mint_before_grace_period_end",
+      "vulnerability_class": "delayed_relay_mint",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "lock(address,uint256,uint256)",
+          "params": {
+            "token": "MockToken",
+            "amount": 1000,
+            "unlockTime": "block.timestamp + 86400"
+          },
+          "description": "Honest user locks 1,000 MockToken with an unlockTime 24 h in the future (gracePeriod = 1 h).",
+          "state_predicate": "GemPadLocker.totalLocked() >= 1000",
+          "step": 1
+        },
+        {
+          "chain": "bsc",
+          "contract": "Relayer",
+          "function": "relayLockProof(uint256 depositId,bytes proof)",
+          "params": {
+            "depositId": "id_of_above_lock",
+            "proof": "signed_lock_event"
+          },
+          "relay_mode": "delayed",
+          "description": "Attacker withholds the lock proof and only forwards it after the grace period has elapsed.",
+          "state_predicate": "block.timestamp > (unlockTime[id_of_above_lock] + 3600)",
+          "step": 2
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": 1000
+          },
+          "description": "Relayer (or attacker) calls mint after the deadline, creating tokens for the attacker.",
+          "state_predicate": "block.timestamp > (unlockTime[id_of_above_lock] + 3600) && mintedAmount[id_of_above_lock] == 1000",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "qubit_20220127"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Honest user locks 1,000 MockToken with an unlockTime 24 h in the future (gracePeriod = 1 h)."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker withholds the lock proof and only forwards it after the grace period has elapsed."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Relayer (or attacker) calls mint after the deadline, creating tokens for the attacker."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_timelock_timestamp_exploit_001",
+      "target_invariant": "time_depositor_can_reclaim_if_no_mint",
+      "vulnerability_class": "timestamp_manipulation_premature_reclaim",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "token": "MockToken",
+            "amount": "1000000000000000000000",
+            "depositId": "1"
+          },
+          "description": "Attacker locks 1,000 MockToken on BSC, creating depositId = 1. depositTimestamp[1] is recorded and minted[1] = false.",
+          "step": 1
+        },
+        {
+          "chain": "bsc",
+          "contract": "GemPadLocker",
+          "function": "reclaim",
+          "params": {
+            "depositId": "1"
+          },
+          "description": "Attacker (via a Flashbots bundle) mines a block whose timestamp is ≥ depositTimestamp[1] + depositTimeout and calls reclaim(1) before any mint occurs. The contract checks block.timestamp >= depositTimestamp[1] + depositTimeout && !minted[1] and releases the locked 1,000 tokens back to the attacker.",
+          "relay_mode": "faithful",
+          "state_predicates": [
+            "block.timestamp >= depositTimestamp[1] + depositTimeout",
+            "!minted[1]",
+            "balanceOf(GemPadLocker, Attacker) == 0",
+            "balanceOf(Attacker, MockToken) == 1000000000000000000000"
+          ],
+          "step": 2
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockToken",
+          "function": "mint",
+          "params": {
+            "to": "AttackerAddress",
+            "amount": "1000000000000000000000"
+          },
+          "description": "Attacker (or a compromised relayer) calls mint on the destination chain after the reclaim. The mint function does not verify that the source deposit has not been reclaimed, so it succeeds and credits the attacker with another 1,000 bridged tokens.",
+          "relay_mode": "faithful",
+          "state_predicates": [
+            "minted[1] == true",
+            "balanceOf(Attacker, MockToken_on_Ethereum) == 1000000000000000000000"
+          ],
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "qubit_20220127"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker locks 1,000 MockToken on BSC, creating depositId = 1. depositTimestamp[1] is recorded and minted[1] = false."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker (via a Flashbots bundle) mines a block whose timestamp is ≥ depositTimestamp[1] + depositTimeout and calls reclaim(1) before any mint occurs. The contract checks block.timestamp >= depositTimestamp[1] + depositTimeout && !minted[1] and releases the locked 1,000 tokens back to the attacker."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker (or a compromised relayer) calls mint on the destination chain after the reclaim. The mint function does not verify that the source deposit has not been reclaimed, so it succeeds and credits the attacker with another 1,000 bridged tokens."
+        }
+      ]
+    }
+  ]
+}

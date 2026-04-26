@@ -1,0 +1,352 @@
+{
+  "bridge_name": "ronin",
+  "version": "1.0",
+  "nodes": [
+    {
+      "node_id": "RoninBridgeManager",
+      "node_type": "contract",
+      "chain": "Ethereum",
+      "address": "0x<deployed_address>",
+      "functions": []
+    },
+    {
+      "node_id": "WrappedToken",
+      "node_type": "token",
+      "chain": "Ethereum",
+      "address": "0x<token_address_placeholder>",
+      "functions": []
+    },
+    {
+      "node_id": "MockMultisig",
+      "node_type": "contract",
+      "chain": "Ethereum",
+      "address": "0x<multisig_address_placeholder>",
+      "functions": []
+    },
+    {
+      "node_id": "WrappedToken",
+      "node_type": "token",
+      "chain": "Ethereum",
+      "address": "",
+      "functions": []
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "e1",
+      "src": "msg.sender (User)",
+      "dst": "RoninBridgeManager",
+      "label": "lock",
+      "token": "token (parameter)",
+      "conditions": [
+        "registered[token] == true",
+        "WrappedToken(token).transferFrom(msg.sender, address(this), amount) succeeds"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "registered[token] == true"
+          }
+        },
+        {
+          "type": "balance",
+          "params": {
+            "expression": "WrappedToken(token).transferFrom(msg.sender, address(this), amount) succeeds"
+          }
+        }
+      ],
+      "function_signature": "lock(address,uint256)"
+    },
+    {
+      "edge_id": "e2",
+      "src": "RoninBridgeManager",
+      "dst": "recipient (address)",
+      "label": "unlock",
+      "token": "token (parameter)",
+      "conditions": [
+        "msg.sender == address(this)",
+        "totalLocked[token] >= amount"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "msg.sender == address(this)"
+          }
+        },
+        {
+          "type": "balance",
+          "params": {
+            "expression": "totalLocked[token] >= amount"
+          }
+        }
+      ],
+      "function_signature": "unlock(address,address,uint256)"
+    },
+    {
+      "edge_id": "e3",
+      "src": "msg.sender",
+      "dst": "to",
+      "label": "mint",
+      "token": "WrappedToken",
+      "conditions": [],
+      "condition_objects": [],
+      "function_signature": "mint(address,uint256)"
+    },
+    {
+      "edge_id": "e4",
+      "src": "msg.sender",
+      "dst": "to",
+      "label": "transfer",
+      "token": "WrappedToken",
+      "conditions": [
+        "balanceOf[msg.sender] >= amount"
+      ],
+      "condition_objects": [
+        {
+          "type": "balance",
+          "params": {
+            "expression": "balanceOf[msg.sender] >= amount"
+          }
+        }
+      ],
+      "function_signature": "transfer(address,uint256)"
+    },
+    {
+      "edge_id": "e5",
+      "src": "from",
+      "dst": "to",
+      "label": "transfer",
+      "token": "WrappedToken",
+      "conditions": [
+        "allowance[from][msg.sender] >= amount",
+        "balanceOf[from] >= amount"
+      ],
+      "condition_objects": [
+        {
+          "type": "balance",
+          "params": {
+            "expression": "allowance[from][msg.sender] >= amount"
+          }
+        },
+        {
+          "type": "balance",
+          "params": {
+            "expression": "balanceOf[from] >= amount"
+          }
+        }
+      ],
+      "function_signature": "transferFrom(address,address,uint256)"
+    }
+  ],
+  "invariants": [
+    {
+      "invariant_id": "asset_conservation_locked_not_exceed_deposits",
+      "category": "asset_conservation",
+      "description": "The total amount locked for a token must never exceed the cumulative amount successfully transferred into the bridge via the lock edge.",
+      "predicate": "totalLocked[token] <= cumulativeLockDeposits[token]",
+      "solidity_assertion": "assert(totalLocked[_token] <= cumulativeLockDeposits[_token]);",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_mint_matches_lock",
+      "category": "asset_conservation",
+      "description": "Every minted WrappedToken must correspond to a previously locked amount of the same underlying token, minus any protocol fee.",
+      "predicate": "totalMinted[WrappedToken] == totalLocked[underlying] - totalFees[underlying]",
+      "solidity_assertion": "assert(totalMinted[wrappedToken] == totalLocked[underlying] - totalFees[underlying]);",
+      "related_edges": [
+        "e1",
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_unlock_decrements_locked",
+      "category": "asset_conservation",
+      "description": "Calling unlock must decrease the stored locked balance for the token by exactly the unlocked amount.",
+      "predicate": "totalLocked[token] == totalLockedPrev[token] - amount",
+      "solidity_assertion": "assert(totalLocked[_token] == totalLockedPrev[_token] - _amount);",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_lock_requires_successful_transfer",
+      "category": "asset_conservation",
+      "description": "The lock operation only succeeds if the ERC20 transferFrom call returns true, guaranteeing that the tokens are actually moved into the bridge contract.",
+      "predicate": "transferFromSuccess == true ⇒ totalLocked[token] increased by amount",
+      "solidity_assertion": "require(WrappedToken(_token).transferFrom(msg.sender, address(this), _amount), \"Lock transfer failed\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_total_supply_equals_locked_plus_circulating",
+      "category": "asset_conservation",
+      "description": "The total supply of the WrappedToken equals the sum of tokens locked in the bridge and the tokens currently held by all external accounts.",
+      "predicate": "totalSupply[WrappedToken] == totalLocked[underlying] + externalBalanceSum[WrappedToken]",
+      "solidity_assertion": "assert(totalSupply[wrappedToken] == totalLocked[underlying] + externalBalanceSum[wrappedToken]);",
+      "related_edges": [
+        "e1",
+        "e3",
+        "e4",
+        "e5"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_fee_deduction",
+      "category": "asset_conservation",
+      "description": "Protocol fees are deducted from the amount minted; the sum of minted tokens and collected fees equals the amount locked.",
+      "predicate": "totalMinted[WrappedToken] + totalFeesCollected[underlying] == totalLocked[underlying]",
+      "solidity_assertion": "assert(totalMinted[wrappedToken] + totalFeesCollected[underlying] == totalLocked[underlying]);",
+      "related_edges": [
+        "e1",
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "authorization_unlock_caller_is_bridge",
+      "category": "authorization",
+      "description": "Only the RoninBridgeManager contract itself may invoke the unlock function.",
+      "predicate": "msg.sender == address(this)",
+      "solidity_assertion": "require(msg.sender == address(this), \"Unlock can only be called by the bridge manager\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "authorization_mint_caller_is_multisig",
+      "category": "authorization",
+      "description": "Minting of WrappedToken must be authorized by the designated multisig relayer contract.",
+      "predicate": "msg.sender == address(MockMultisig)",
+      "solidity_assertion": "require(msg.sender == address(mockMultisig), \"Mint must be called by authorized multisig\");",
+      "related_edges": [
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "authorization_lock_token_registered",
+      "category": "authorization",
+      "description": "A token can be locked only if it has been registered in the bridge's token registry.",
+      "predicate": "registered[token] == true",
+      "solidity_assertion": "require(registered[_token], \"Token not registered for bridging\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "authorization_transfer_allowance_check",
+      "category": "authorization",
+      "description": "transferFrom must only succeed when the caller has sufficient allowance granted by the token holder.",
+      "predicate": "allowance[from][msg.sender] >= amount",
+      "solidity_assertion": "require(_allowance[from][msg.sender] >= _amount, \"Insufficient allowance for transferFrom\");",
+      "related_edges": [
+        "e5"
+      ]
+    },
+    {
+      "invariant_id": "authorization_transfer_balance_check",
+      "category": "authorization",
+      "description": "Direct token transfers must only proceed when the sender's balance covers the transfer amount.",
+      "predicate": "balanceOf[msg.sender] >= amount",
+      "solidity_assertion": "require(balanceOf[msg.sender] >= _amount, \"Insufficient balance for transfer\");",
+      "related_edges": [
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_deposit_nonce_used_once",
+      "category": "uniqueness",
+      "description": "Each deposit nonce recorded at lock time can be processed for minting exactly once.",
+      "predicate": "processedNonce[nonce] == false before mint, set to true after mint",
+      "solidity_assertion": "require(!processedNonce[_nonce], \"Deposit nonce already processed\"); processedNonce[_nonce] = true;",
+      "related_edges": [
+        "e1",
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_unlock_nonce_used_once",
+      "category": "uniqueness",
+      "description": "Each unlock operation identified by a unique nonce must not be replayed.",
+      "predicate": "unlockProcessed[nonce] == false before unlock, set to true after unlock",
+      "solidity_assertion": "require(!unlockProcessed[_nonce], \"Unlock nonce already used\"); unlockProcessed[_nonce] = true;",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_mint_increments_nonce",
+      "category": "uniqueness",
+      "description": "Successful minting increments the global mint nonce, guaranteeing monotonic growth.",
+      "predicate": "mintNonce == mintNoncePrev + 1 after successful mint",
+      "solidity_assertion": "assert(mintNonce == mintNoncePrev + 1);",
+      "related_edges": [
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_refund_allowed_after_timeout",
+      "category": "timeliness",
+      "description": "A user may claim a refund for a locked deposit only after the lock timestamp plus the configured timeout has elapsed and the deposit has not been unlocked.",
+      "predicate": "block.timestamp >= lockTimestamp[depositId] + timeout && !unlockProcessed[depositId]",
+      "solidity_assertion": "require(block.timestamp >= lockTimestamp[_depositId] + timeout && !unlockProcessed[_depositId], \"Refund not yet eligible\");",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_unlock_must_precede_timeout",
+      "category": "timeliness",
+      "description": "The bridge must complete the unlock operation before the lock timeout expires; otherwise the deposit is considered stale.",
+      "predicate": "unlockTimestamp[depositId] <= lockTimestamp[depositId] + timeout",
+      "solidity_assertion": "assert(unlockTimestamp[_depositId] <= lockTimestamp[_depositId] + timeout);",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_no_double_refund",
+      "category": "timeliness",
+      "description": "After a successful refund, the locked amount for that deposit is set to zero, preventing any further refund or unlock attempts.",
+      "predicate": "totalLocked[depositId] == 0 after refund",
+      "solidity_assertion": "assert(totalLocked[_depositId] == 0);",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_lock_timestamp_monotonic",
+      "category": "timeliness",
+      "description": "The timestamp recorded at lock time must never decrease for the same deposit identifier.",
+      "predicate": "lockTimestamp[depositId] >= lockTimestampPrev[depositId]",
+      "solidity_assertion": "assert(lockTimestamp[_depositId] >= lockTimestampPrev[_depositId]);",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "authorization_mint_requires_valid_relay_signature",
+      "category": "authorization",
+      "description": "Minting can only be executed when a valid off‑chain relay signature over the deposit data (nonce, token, amount, recipient) is verified.",
+      "predicate": "verifySignature(relaySig, depositHash) == true",
+      "solidity_assertion": "require(verifySignature(_relaySig, _depositHash), \"Invalid relay signature\");",
+      "related_edges": [
+        "e3"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_total_burn_matches_refund",
+      "category": "asset_conservation",
+      "description": "When a user refunds a locked deposit, the corresponding amount of WrappedToken is burned, keeping total supply consistent.",
+      "predicate": "totalBurned[WrappedToken] increased by refundAmount == refundAmount",
+      "solidity_assertion": "assert(totalBurned[wrappedToken] == totalBurnedPrev[wrappedToken] + _refundAmount);",
+      "related_edges": [
+        "e1"
+      ]
+    }
+  ]
+}
