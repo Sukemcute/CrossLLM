@@ -12,9 +12,11 @@ use revm::primitives::Address;
 
 use crate::checker::InvariantChecker;
 use crate::config::RuntimeContext;
+use crate::contract_loader::{ChainSide, ContractRegistry};
+use crate::coverage_tracker::CoverageTracker;
 use crate::dual_evm::{default_caller, DualEvm};
 use crate::mock_relay::{MockRelay, RelayMode};
-use crate::mutator::Mutator;
+use crate::mutator::{CalldataMutator, Mutator};
 use crate::snapshot::{action_fingerprint, SnapshotPool};
 use crate::types::{ChainState, Coverage, FuzzingResults, FuzzingStats, Scenario, Violation};
 
@@ -82,6 +84,8 @@ pub fn init_dual_evm(ctx: &RuntimeContext) -> Option<DualEvm> {
 
 pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     let mutator = Mutator::with_atg(&ctx.atg);
+    let registry = ContractRegistry::from_atg(&ctx.atg);
+    let calldata_mutator = CalldataMutator::from_registry(&registry, &ctx.atg);
     let mut checker = InvariantChecker::new(
         ctx.atg.invariants.clone(),
         ctx.config.alpha,
@@ -95,6 +99,20 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
 
     let mut relay = MockRelay::new(RelayMode::Faithful);
     let mut dual = init_dual_evm(ctx);
+
+    // Pre-warm bytecode caches and register tracked addresses with the fork.
+    // Errors here are non-fatal (e.g. RPC throttling); we just continue and
+    // pay the latency lazily on the first fuzz tx.
+    if let Some(d) = dual.as_mut() {
+        let _ = registry.warmup_bytecode(d);
+        let tracked = registry.all_addresses();
+        if !tracked.is_empty() {
+            d.set_tracked_addresses(tracked);
+        }
+    }
+
+    // Aggregate bytecode coverage across the entire fuzzing campaign.
+    let mut campaign_coverage = CoverageTracker::default();
 
     let mut corpus: Vec<CorpusEntry> = ctx
         .hypotheses
@@ -165,6 +183,10 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             &mut dual,
             &mut relay,
             &mut touched_edges,
+            &registry,
+            &calldata_mutator,
+            &mut rng,
+            &mut campaign_coverage,
         );
 
         let mut state = crate::scenario_sim::global_state_from_scenario(&s_prime);
@@ -254,14 +276,39 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         }
     }
 
+    // Partition real basic-block coverage by chain side. When the campaign
+    // ran with a fork attached, `campaign_coverage` holds every (addr, pc)
+    // pair the interpreter visited; we count hits whose address belongs to
+    // each side per the registry. On no-fork runs (synthetic state only),
+    // both counts remain 0 — distinct from `total_iterations`, which is the
+    // intent (basic_blocks ≠ iterations is the paper §7.3 acceptance).
+    let source_addrs: HashSet<Address> = registry
+        .addresses_on(ChainSide::Source)
+        .into_iter()
+        .collect();
+    let dest_addrs: HashSet<Address> = registry
+        .addresses_on(ChainSide::Destination)
+        .into_iter()
+        .collect();
+    let basic_blocks_source = campaign_coverage
+        .touched
+        .iter()
+        .filter(|(a, _)| source_addrs.contains(a))
+        .count() as u64;
+    let basic_blocks_dest = campaign_coverage
+        .touched
+        .iter()
+        .filter(|(a, _)| dest_addrs.contains(a))
+        .count() as u64;
+
     let coverage = Coverage {
         xcc_atg: if ctx.atg.edges.is_empty() {
             0.0
         } else {
             (touched_edges.len() as f64 / ctx.atg.edges.len() as f64).min(1.0)
         },
-        basic_blocks_source: total_iterations,
-        basic_blocks_dest: total_iterations,
+        basic_blocks_source,
+        basic_blocks_dest,
     };
 
     Ok(FuzzingResults {
@@ -280,12 +327,17 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn execute_scenario(
     scenario: &Scenario,
     ctx: &RuntimeContext,
     dual: &mut Option<DualEvm>,
     relay: &mut MockRelay,
     touched_edges: &mut HashSet<String>,
+    registry: &ContractRegistry,
+    calldata_mutator: &CalldataMutator,
+    rng: &mut StdRng,
+    campaign_coverage: &mut CoverageTracker,
 ) -> Vec<String> {
     let mut trace = Vec::new();
 
@@ -322,17 +374,45 @@ fn execute_scenario(
         }
 
         if let Some(ref mut dual_env) = dual {
-            if let Some(contract_node_id) = action.contract.as_deref() {
+            // Real-bytecode path: encode action to calldata, apply one
+            // mutation operator, dispatch through revm with the coverage
+            // inspector attached. This is what generates real wall-clock TTE
+            // and basic-block coverage (paper §7.3).
+            if let Some(seed) = calldata_mutator.encode_action(action, registry) {
+                let mutated = calldata_mutator.mutate(&seed.calldata, rng);
+                let payload = build_payload(default_caller(), seed.target, &mutated);
+                let mut iter_cov = CoverageTracker::default();
+                let exec = match seed.chain {
+                    ChainSide::Source => dual_env
+                        .execute_on_source_with_inspector(&payload, &mut iter_cov),
+                    ChainSide::Destination => dual_env
+                        .execute_on_dest_with_inspector(&payload, &mut iter_cov),
+                    ChainSide::Relay => Err("relay chain — not directly executed".to_string()),
+                };
+                campaign_coverage.merge(&iter_cov);
+                trace.push(format!(
+                    "tx:{}:{}:{}:cov={}",
+                    action.step,
+                    action.contract.as_deref().unwrap_or(""),
+                    if exec.is_ok() { "ok" } else { "err" },
+                    iter_cov.unique_pc_count()
+                ));
+            } else if let Some(contract_node_id) = action.contract.as_deref() {
+                // Encode failed — fall back to bare caller||to header, no
+                // calldata. Preserves prior behavior on actions whose
+                // contract isn't in the registry (mock fixtures).
                 if let Some(node) = ctx.atg.nodes.iter().find(|n| n.node_id == contract_node_id) {
                     if let Ok(to) = Address::from_str(&node.address) {
                         let mut payload = Vec::with_capacity(40);
                         payload.extend_from_slice(default_caller().as_slice());
                         payload.extend_from_slice(to.as_slice());
+                        let mut iter_cov = CoverageTracker::default();
                         let exec = if action.chain.eq_ignore_ascii_case("source") {
-                            dual_env.execute_on_source(&payload)
+                            dual_env.execute_on_source_with_inspector(&payload, &mut iter_cov)
                         } else {
-                            dual_env.execute_on_dest(&payload)
+                            dual_env.execute_on_dest_with_inspector(&payload, &mut iter_cov)
                         };
+                        campaign_coverage.merge(&iter_cov);
                         trace.push(format!(
                             "tx:{}:{}:{}",
                             action.step,
@@ -402,6 +482,16 @@ fn merge_balances(dst: &mut HashMap<String, String>, src: HashMap<String, String
     for (k, v) in src {
         dst.entry(k).or_insert(v);
     }
+}
+
+/// Build a `caller (20) || to (20) || calldata` payload — the wire format
+/// expected by [`DualEvm::execute_on_source`] and friends.
+fn build_payload(caller: Address, to: Address, calldata: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(40 + calldata.len());
+    out.extend_from_slice(caller.as_slice());
+    out.extend_from_slice(to.as_slice());
+    out.extend_from_slice(calldata);
+    out
 }
 
 fn total_chain_balance(chain: &ChainState) -> u128 {
