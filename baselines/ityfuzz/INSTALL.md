@@ -9,10 +9,40 @@
 - **Build**: in progress at time of writing (Rust 1.91.0, `--release --no-default-features --features evm,cmp,dataflow`)
 - **Binary**: `target/release/ityfuzz` after build
 
+## Prerequisites — SYSTEM PACKAGES (need sudo)
+
+ItyFuzz pulls in `c-kzg` / `blst` deps that require `cmake` to build.
+Install before `cargo build`:
+
+```bash
+sudo apt update
+sudo apt install -y cmake build-essential libssl-dev pkg-config
+```
+
+Without `cmake`, `cargo build` fails with:
+
+```
+thread 'main' panicked at .../cmake-0.1.50/src/lib.rs:1098:5:
+failed to execute command: No such file or directory (os error 2)
+is `cmake` not installed?
+```
+
+## Toolchain
+
+ItyFuzz pins `nightly-2024-01-01` via `rust-toolchain.toml`. `rustup`
+will auto-install it on first build. **Do not delete the toolchain
+file** — ItyFuzz uses some nightly-only features.
+
+```bash
+# rustup will fetch the pinned nightly automatically, but if you want
+# to pre-install:
+rustup toolchain install nightly-2024-01-01
+```
+
 ## Install
 
 ```bash
-# Prereq: Rust toolchain (we use 1.91.0; 1.94 has ICE on some workspaces)
+# Prerequisites first: see "Prerequisites — SYSTEM PACKAGES" above.
 mkdir -p ~/baselines/ityfuzz
 cd ~/baselines/ityfuzz
 git clone --depth 1 https://github.com/fuzzland/ityfuzz.git
@@ -28,7 +58,7 @@ cargo build --release --no-default-features --features "evm,cmp,dataflow"
 ```
 
 Disk: cargo target dir ~5-8GB after compile. Time: 10-20 minutes on
-modest laptop.
+modest laptop (after cmake + nightly installed).
 
 ## CLI signature (extracted from `src/evm/mod.rs`)
 

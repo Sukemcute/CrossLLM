@@ -8,12 +8,37 @@
 
 | Tool | Loại | Repo / paper | Input | Status (this branch) |
 |---|---|---|---|---|
-| **ItyFuzz** | Bytecode fuzzer (Rust) | https://github.com/fuzzland/ityfuzz | RPC fork + target addresses | TODO — install attempt below |
-| **SmartShot** | Hybrid (rule + LLM) | Paper-only (no public repo at time of writing) | Solidity | TODO — cite published |
-| **VulSEye** | Symbolic + ML | Paper-only | Solidity | TODO — cite published |
-| **SmartAxe** | Static analysis (Python) | https://github.com/CGCL-codes/SmartAxe | Solidity | TODO — install attempt below |
-| **GPTScan** | LLM-based static (Python) | https://github.com/Beokro/GPTScan | Solidity + OpenAI key | TODO — install attempt below |
-| **XScope** | Cross-chain analyzer | Paper-only / academic artifact | Bridge mapping | TODO — cite published |
+| **ItyFuzz** | Bytecode fuzzer (Rust) | https://github.com/fuzzland/ityfuzz | RPC fork + target addresses | **Cloned** + adapter ready; build **BLOCKED** on `sudo apt install cmake` (system pkg, interactive password) |
+| **SmartShot** | Hybrid (rule + LLM) | Paper-only (no public repo at time of writing) | Solidity | Cite-published path; `_cited_results/smartshot.json` template ready (TBD-populated) |
+| **VulSEye** | Symbolic + ML | Paper-only | Solidity | Cite-published path; `_cited_results/vulseye.json` template ready |
+| **SmartAxe** | Static analysis (Python) | https://github.com/CGCL-codes/SmartAxe | Solidity | Adapter ready; install pending (Python-only, no system deps) |
+| **GPTScan** | LLM-based static (Python) | https://github.com/Beokro/GPTScan | Solidity + OpenAI key | Adapter ready (NIM-compatible); install pending |
+| **XScope** | Cross-chain analyzer | Paper-only / academic artifact | Bridge mapping | Cite-published path; `_cited_results/xscope.json` template |
+
+## Status (2026-04-27 evening)
+
+- **B1 install attempts**: ItyFuzz cloned ✅, nightly Rust 1.77 toolchain auto-installed ✅, but `cargo build` fails on missing `cmake` system package. Member A needs to run **`sudo apt install -y cmake build-essential libssl-dev pkg-config`** then retry build.
+- **B2 adapters**: 3/3 adapter scripts shipped (ItyFuzz / SmartAxe / GPTScan).
+- **B3 run experiments**: pending B1 install completion.
+- **B4 cite published**: 3/3 JSON templates created; cells marked `TBD` for Member A to populate from each baseline's paper Table N (~3-6 hours).
+- **Aggregator**: `scripts/collect_baseline_results.py` verified end-to-end on existing BridgeSentry data — Nomad cell renders as `✓ (0.0001±0.0000s)`.
+
+### Next-step commands for Member A
+
+```bash
+# (1) install system deps once — needs interactive password
+sudo apt install -y cmake build-essential libssl-dev pkg-config
+
+# (2) finish ItyFuzz build (10-20 minutes)
+cd ~/baselines/ityfuzz/ityfuzz
+cargo build --release --no-default-features --features "evm,cmp,dataflow"
+
+# (3) install SmartAxe + GPTScan per their INSTALL.md
+
+# (4) smoke test pipeline (writes results/baselines/ityfuzz/nomad/run_001.json)
+bash scripts/run_baseline.sh ityfuzz nomad 1
+python scripts/collect_baseline_results.py --format table
+```
 
 **Lưu ý:** SmartShot, VulSEye, XScope không có public repo tại thời điểm
 viết doc này. Sẽ dùng phương án **B4 (cite published results)** từ paper
