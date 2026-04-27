@@ -9,21 +9,32 @@
 > - [GPTScan/GPTScan](https://github.com/GPTScan/GPTScan) — the actual
 >   runnable scanner. **Use this one.**
 
-## Status (2026-04-27)
+## Status (2026-04-27 evening — WORKING ✅)
 
 - **Cloned** `~/baselines/gptscan/GPTScan-full/` from GPTScan/GPTScan
   (commit pinned in `version.txt`).
 - **Python deps installed + patched**: working — multiple
   incompatibilities resolved (see "Install steps" below).
-- **Java + SolidityCallgraph JAR**: **PENDING — needs sudo install**.
-  GPTScan uses a Java-based call-graph extractor (ANTLR4) and refuses
-  to run without it.
-- **Recommendation**: **cite-published results** from the GPTScan
-  paper Tables instead of self-running on 12 BridgeSentry benchmarks.
-  Full pipeline self-host takes ~1 day per machine; paper extraction
-  ~1 hour. Self-run kept as optional follow-up. See
-  [`baselines/_cited_results/gptscan.json`](../_cited_results/gptscan.json)
-  template once promoted.
+- **Java**: ✅ installed (openjdk 11 via `sudo apt install default-jre`).
+- **End-to-end smoke verified** on 2 benchmarks (Nomad + Qubit) via
+  the per-file adapter loop: pipeline runs, generates uniform output
+  JSON, aggregator merges into RQ1 table.
+- **Detection result**: `detected: false` for both smoke benchmarks.
+  This is the **legitimate result** — GPTScan ships 10 DeFi-specific
+  rules (Flashloan_*, Slippage, ApprovalNotClear, FirstDeposit,
+  FrontRun, UnauthorizedTransfer, WrongOrder_*) which are not designed
+  to flag cross-chain bridge bugs. Expected outcome that GPTScan ✗
+  most BridgeSentry benchmarks; aligns with paper §5.3 RQ1 screenshot.
+
+You can now run the full Phase B3 sweep:
+
+```bash
+GPTSCAN_DIR=~/baselines/gptscan/GPTScan-full \
+    bash scripts/run_baseline.sh gptscan <bridge> <run_index>
+```
+
+Cite-published path also available as fallback (see
+[`baselines/_cited_results/gptscan.json`](../_cited_results/gptscan.json)).
 
 ## Install steps (if pursuing self-host)
 

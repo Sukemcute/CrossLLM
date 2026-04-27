@@ -12,7 +12,7 @@
 | **SmartShot** | Hybrid (rule + LLM) | Paper-only (no public repo at time of writing) | Solidity | Cite-published path; `_cited_results/smartshot.json` template ready (TBD-populated) |
 | **VulSEye** | Symbolic + ML | Paper-only | Solidity | Cite-published path; `_cited_results/vulseye.json` template ready |
 | **SmartAxe** | Static analysis (Python) | 404 on canonical URL (5 variants tried) | Solidity | Cite-published path (default); `_cited_results/smartaxe.json` template ready |
-| **GPTScan** | LLM-based static (Python) | https://github.com/GPTScan/GPTScan | Solidity + OpenAI key | Self-host **partial** — Python deps + falcon-metatrust patch + sha3 shim + NIM endpoint patch done; blocked on `sudo apt install default-jre`. Cite-published also ready (`_cited_results/gptscan.json`) |
+| **GPTScan** | LLM-based static (Python) | https://github.com/GPTScan/GPTScan | Solidity + OpenAI key | **WORKING ✅** — Python patched + Java installed + end-to-end smoke on Nomad+Qubit. Both `detected: false` (GPTScan's 10 DeFi rules don't cover bridge bugs — expected per paper §5.3) |
 | **XScope** | Cross-chain analyzer | Paper-only / academic artifact | Bridge mapping | Cite-published path; `_cited_results/xscope.json` template |
 
 ## Status (2026-04-27 evening)

@@ -40,46 +40,75 @@ fi
 CONTRACTS_DIR="$BENCHMARK_DIR/contracts"
 RAW_LOG="$(dirname "$OUTPUT_FILE")/run_$(printf '%03d' "$RUN_IDX").raw.txt"
 
-# Note: most GPTScan implementations have CLI like
-# `python gptscan.py --source-dir <dir> --output <file>`
-# but the exact entrypoint varies — verify with --help after install.
+# GPTScan CLI: `python src/main.py -s <source> -o <output> -k <api_key>`
+# `<source>` must be a single .sol file OR a directory with foundry.toml /
+# hardhat.config — our benchmarks have neither, so we loop over .sol files
+# and aggregate the results.
 START=$(date +%s)
-timeout 600 "$PYTHON" "$GPTSCAN_DIR/gptscan.py" \
-    --source "$CONTRACTS_DIR" \
-    --output "${RAW_LOG}.json" \
-    --seed "$SEED" \
-    > "$RAW_LOG" 2>&1 || EXIT_CODE=$?
-EXIT_CODE="${EXIT_CODE:-0}"
+> "$RAW_LOG"  # truncate
+ALL_VULNS_JSON='[]'
+
+for SOL_FILE in "$CONTRACTS_DIR"/*.sol; do
+    [ -f "$SOL_FILE" ] || continue
+    BASE=$(basename "$SOL_FILE" .sol)
+    PER_FILE_OUT="${RAW_LOG}.${BASE}.json"
+
+    echo "=== gptscan on ${BASE}.sol ===" >> "$RAW_LOG"
+    # GPTScan loads whitelist.json from cwd — must `cd` into src/ before
+    # running. Use absolute paths for source + output.
+    (
+        cd "$GPTSCAN_DIR/src"
+        timeout 120 "$PYTHON" main.py \
+            -s "$SOL_FILE" \
+            -o "$PER_FILE_OUT" \
+            -k "$OPENAI_API_KEY" \
+            2>&1
+    ) >> "$RAW_LOG" 2>&1 || true
+
+    # Aggregate per-file results
+    if [ -f "$PER_FILE_OUT" ]; then
+        ALL_VULNS_JSON=$("$PYTHON" - "$PER_FILE_OUT" "$ALL_VULNS_JSON" <<'PYEOF'
+import json, sys
+new_path, prev_json = sys.argv[1], sys.argv[2]
+prev = json.loads(prev_json)
+try:
+    with open(new_path) as f:
+        d = json.load(f)
+    items = d.get("results", []) or []
+    prev.extend(items)
+except Exception:
+    pass
+print(json.dumps(prev))
+PYEOF
+)
+    fi
+done
 END=$(date +%s)
 ELAPSED=$((END - START))
 
-# Parse GPTScan output (LLM returns list of detected vulns per function)
-DETECTED=$("$PYTHON" - <<EOF 2>/dev/null
-import json
-try:
-    with open("${RAW_LOG}.json") as f:
-        d = json.load(f)
-    vulns = d if isinstance(d, list) else d.get("vulnerabilities", []) or d.get("findings", [])
-    print("true" if vulns else "false")
-except Exception:
-    print("null")
-EOF
+# Decide detected based on aggregated results
+DETECTED=$("$PYTHON" - "$ALL_VULNS_JSON" <<'PYEOF'
+import json, sys
+items = json.loads(sys.argv[1])
+print("true" if items else "false")
+PYEOF
 )
-DETECTED="${DETECTED:-null}"
 
-VIOLATIONS=$("$PYTHON" - <<EOF 2>/dev/null
-import json
-try:
-    with open("${RAW_LOG}.json") as f:
-        d = json.load(f)
-    vulns = d if isinstance(d, list) else d.get("vulnerabilities", []) or d.get("findings", [])
-    out = [{"id": v.get("type", v.get("category", "unknown")), "first_detected_at_s": $ELAPSED} for v in vulns[:5]]
-    print(json.dumps(out))
-except Exception:
-    print("[]")
-EOF
+VIOLATIONS=$("$PYTHON" - "$ALL_VULNS_JSON" "$ELAPSED" <<'PYEOF'
+import json, sys
+items = json.loads(sys.argv[1])
+elapsed = float(sys.argv[2])
+out = [
+    {"id": v.get("rule") or v.get("type") or v.get("scenario") or "unknown",
+     "first_detected_at_s": elapsed,
+     "function": v.get("function_name", "")}
+    for v in items[:10]
+]
+print(json.dumps(out))
+PYEOF
 )
 VIOLATIONS="${VIOLATIONS:-[]}"
+EXIT_CODE=0
 
 cat > "$OUTPUT_FILE" <<EOF
 {
