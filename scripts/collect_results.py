@@ -18,6 +18,7 @@ import argparse
 import json
 import math
 import statistics
+from datetime import datetime
 from pathlib import Path
 
 
@@ -203,15 +204,25 @@ def print_detail_per_run(bridge: str, runs: list[dict]):
 
 def save_metrics_json(all_metrics: dict, output_path: Path):
     """Save computed metrics as JSON for downstream analysis."""
-    # Convert sets to lists for JSON serialization
-    serializable = {}
+    payload = {
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "bridges": {},
+    }
     for bridge, m in all_metrics.items():
-        serializable[bridge] = {k: v for k, v in m.items()}
-    
+        payload["bridges"][bridge] = {k: v for k, v in m.items()}
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w") as f:
-        json.dump(serializable, f, indent=2)
+        json.dump(payload, f, indent=2)
     print(f"\nMetrics JSON saved to: {output_path}")
+
+
+def build_history_output_path(results_root: Path, bridge: str | None) -> Path:
+    """Build non-overwriting timestamped output path under results/summary."""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    scope = bridge if bridge else "all_bridges"
+    filename = f"{scope}_metrics_{timestamp}.json"
+    return results_root / "summary" / filename
 
 
 def main():
@@ -224,6 +235,8 @@ def main():
                         default="table", help="Output format")
     parser.add_argument("--save-json", type=str, default=None,
                         help="Save metrics to JSON file")
+    parser.add_argument("--no-history-save", action="store_true",
+                        help="Disable auto-save timestamped metrics JSON in results/summary/")
     args = parser.parse_args()
 
     results_root = Path(args.results_dir)
@@ -268,6 +281,10 @@ def main():
 
     if args.save_json:
         save_metrics_json(all_metrics, Path(args.save_json))
+
+    if not args.no_history_save:
+        history_path = build_history_output_path(results_root, args.bridge)
+        save_metrics_json(all_metrics, history_path)
 
 
 if __name__ == "__main__":
