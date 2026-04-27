@@ -5,6 +5,7 @@
 
 pub mod types;
 pub mod config;
+mod coverage_tracker;
 mod dual_evm;
 mod fuzz_loop;
 mod mock_relay;

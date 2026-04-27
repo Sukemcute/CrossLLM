@@ -12,15 +12,17 @@ use std::sync::{Arc, OnceLock};
 use ethers_core::types::{BlockId as EthBlockId, H256 as EthH256};
 use ethers_providers::{Http, Middleware, Provider};
 use revm::db::{CacheDB, EthersDB};
+use revm::inspector_handle_register;
 use revm::{
     primitives::{
         specification::SpecId,
         AccountInfo, Address, BlockEnv, Bytes, CfgEnv, CfgEnvWithHandlerCfg, EnvWithHandlerCfg,
         ExecutionResult, HandlerCfg, Output, TransactTo, TxEnv, B256, KECCAK_EMPTY, U256,
     },
-    Database, DatabaseRef, Evm,
+    Database, DatabaseRef, Evm, Inspector,
 };
 
+use crate::coverage_tracker::CoverageTracker;
 use crate::types::{ChainState, GlobalState, RelaySnapshot};
 
 /// Default funded EOA used when executing calls from the fuzzer (unlimited balance in cache).
@@ -35,12 +37,16 @@ pub fn default_caller() -> Address {
 /// `20 bytes caller || 20 bytes contract || optional ABI calldata`.
 pub const EXECUTE_CALL_HEADER: usize = 40;
 
+/// CacheDB over an RPC-backed Ethers provider — one per fork. Type alias keeps
+/// inspector signatures readable.
+type ChainDb = CacheDB<EthersDB<Provider<Http>>>;
+
 /// One EVM fork (CacheDB over RPC-backed state).
 ///
 /// We rebuild [`Evm`] per transaction (clone [`CacheDB`]) so the struct stays owned and
 /// lifetime-free; acceptable for fuzzing-scale state.
 struct ChainVm {
-    db: CacheDB<EthersDB<Provider<Http>>>,
+    db: ChainDb,
     fork_block: BlockEnv,
     spec_id: SpecId,
     chain_id: u64,
@@ -101,14 +107,61 @@ impl ChainVm {
         Ok(res)
     }
 
+    /// Variant of [`Self::run_tx`] that wires an [`Inspector`] (e.g.
+    /// [`CoverageTracker`]) so per-instruction callbacks fire during execution.
+    fn run_tx_with_inspector<I>(&mut self, tx: TxEnv, inspector: I) -> Result<ExecutionResult, String>
+    where
+        I: Inspector<ChainDb>,
+    {
+        let mut cfg = CfgEnv::default();
+        cfg.chain_id = self.chain_id;
+        let cfg_wh = CfgEnvWithHandlerCfg::new(cfg, HandlerCfg::new(self.spec_id));
+        let env = EnvWithHandlerCfg::new_with_cfg_env(cfg_wh, self.fork_block.clone(), tx);
+
+        let mut evm = Evm::builder()
+            .with_db(self.db.clone())
+            .with_external_context(inspector)
+            .with_env_with_handler_cfg(env)
+            .append_handler_register(inspector_handle_register)
+            .build();
+
+        let res = evm
+            .transact_commit()
+            .map_err(|e| format!("EVM error: {e:?}"))?;
+        let (db, _) = evm.into_db_and_env_with_handler_cfg();
+        self.db = db;
+        Ok(res)
+    }
+
     fn execute_raw_call(
         &mut self,
         caller: Address,
         to: Address,
         data: Bytes,
     ) -> Result<Vec<u8>, String> {
+        let tx = self.build_call_tx(caller, to, data);
+        Self::map_call_result(self.run_tx(tx)?)
+    }
+
+    /// Variant of [`Self::execute_raw_call`] that funnels execution through an
+    /// [`Inspector`] so each opcode step triggers the inspector callbacks.
+    fn execute_raw_call_with_inspector<I>(
+        &mut self,
+        caller: Address,
+        to: Address,
+        data: Bytes,
+        inspector: I,
+    ) -> Result<Vec<u8>, String>
+    where
+        I: Inspector<ChainDb>,
+    {
+        let tx = self.build_call_tx(caller, to, data);
+        Self::map_call_result(self.run_tx_with_inspector(tx, inspector)?)
+    }
+
+    fn build_call_tx(&mut self, caller: Address, to: Address, data: Bytes) -> TxEnv {
         let basefee = self.fork_block.basefee;
-        let tx = TxEnv {
+        TxEnv {
             caller,
             gas_limit: 30_000_000,
             gas_price: basefee.saturating_add(U256::from(1u8)),
@@ -123,10 +176,10 @@ impl ChainVm {
             max_fee_per_blob_gas: None,
             eof_initcodes: Vec::new(),
             eof_initcodes_hashed: Default::default(),
-        };
+        }
+    }
 
-        let result = self.run_tx(tx)?;
-
+    fn map_call_result(result: ExecutionResult) -> Result<Vec<u8>, String> {
         match result {
             ExecutionResult::Success { output, .. } => Ok(output.into_data().to_vec()),
             ExecutionResult::Revert { output, .. } => Err(format!(
@@ -311,6 +364,28 @@ impl DualEvm {
     pub fn execute_on_dest(&mut self, tx: &[u8]) -> Result<Vec<u8>, String> {
         let (caller, to, data) = parse_execute_payload(tx)?;
         self.dest.execute_raw_call(caller, to, data)
+    }
+
+    /// Same as [`DualEvm::execute_on_source`] but feeds execution through a
+    /// [`CoverageTracker`] so each instruction's `(address, pc)` is recorded.
+    /// Returns the call's output bytes; coverage hits accumulate in `tracker`.
+    pub fn execute_on_source_with_inspector(
+        &mut self,
+        tx: &[u8],
+        tracker: &mut CoverageTracker,
+    ) -> Result<Vec<u8>, String> {
+        let (caller, to, data) = parse_execute_payload(tx)?;
+        self.source.execute_raw_call_with_inspector(caller, to, data, tracker)
+    }
+
+    /// Destination-side counterpart of [`DualEvm::execute_on_source_with_inspector`].
+    pub fn execute_on_dest_with_inspector(
+        &mut self,
+        tx: &[u8],
+        tracker: &mut CoverageTracker,
+    ) -> Result<Vec<u8>, String> {
+        let (caller, to, data) = parse_execute_payload(tx)?;
+        self.dest.execute_raw_call_with_inspector(caller, to, data, tracker)
     }
 
     /// Collect global state from both chains (balances for tracked addresses + block metadata).
