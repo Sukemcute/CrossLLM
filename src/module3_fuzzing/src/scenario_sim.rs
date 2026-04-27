@@ -15,9 +15,10 @@ pub fn global_state_from_scenario(scenario: &Scenario) -> GlobalState {
     let mut dest_storage: HashMap<String, HashMap<String, String>> = HashMap::new();
 
     for action in &scenario.actions {
+        let op = normalized_operation(action);
         match action.chain.as_str() {
             "source" => {
-                if action.function.as_deref() == Some("dispatch") {
+                if matches!(op.as_str(), "dispatch" | "deposit" | "lock" | "send") {
                     saw_dispatch = true;
                     let amt = amount_from_action(action);
                     source_locked = source_locked.saturating_add(amt);
@@ -25,7 +26,8 @@ pub fn global_state_from_scenario(scenario: &Scenario) -> GlobalState {
                 }
             }
             "destination" => {
-                if action.function.as_deref() == Some("process") {
+                if matches!(op.as_str(), "process" | "handle" | "release" | "processandrelease")
+                {
                     if let Some(msg) = action.params.get("message") {
                         if let Some(s) = msg.as_str() {
                             if is_all_zero_hex_message(s) {
@@ -41,8 +43,8 @@ pub fn global_state_from_scenario(scenario: &Scenario) -> GlobalState {
                 }
 
                 if matches!(
-                    action.function.as_deref(),
-                    Some("proveAndProcess") | Some("handle")
+                    op.as_str(),
+                    "proveandprocess" | "processandrelease" | "handle" | "mint" | "release"
                 ) {
                     let inc = if last_lock_amount > 0 {
                         last_lock_amount
@@ -101,29 +103,16 @@ pub fn evaluate_waypoints(state: &GlobalState, scenario: &Scenario) -> Vec<Strin
     out
 }
 
-fn waypoint_predicate_holds(state: &GlobalState, scenario: &Scenario, wp: &Waypoint) -> bool {
+fn waypoint_predicate_holds(state: &GlobalState, _scenario: &Scenario, wp: &Waypoint) -> bool {
     let pred = wp.predicate.as_str();
     let minted = u128_balance(&state.dest_state, "__minted__");
     let locked = u128_balance(&state.source_state, "__locked__");
 
-    match scenario.scenario_id.as_str() {
-        "s1_zero_root_bypass" => {
-            if wp.waypoint_id == "w1" || pred.contains("acceptableRoot") {
-                return dest_flag(state, "replica", "zero_root_accepted");
-            }
-            if wp.waypoint_id == "w2" || pred.contains("totalMinted") {
-                return minted > locked;
-            }
-        }
-        "s2_replay_attack" => {
-            if wp.waypoint_id == "w1" {
-                return minted >= 1_000_000_000_000_000_000;
-            }
-            if wp.waypoint_id == "w2" {
-                return minted >= 2_000_000_000_000_000_000;
-            }
-        }
-        _ => {}
+    if pred.contains("acceptableRoot") {
+        return dest_flag(state, "replica", "zero_root_accepted");
+    }
+    if pred.contains("totalMinted") && pred.contains("totalLocked") {
+        return minted > locked;
     }
 
     if pred.contains("zero_root") || pred.contains("bytes32(0)") {
@@ -170,6 +159,24 @@ fn amount_from_action(action: &crate::types::Action) -> u128 {
         return json_to_u128(v);
     }
     0
+}
+
+fn normalized_operation(action: &crate::types::Action) -> String {
+    if let Some(raw) = action.function.as_deref() {
+        return normalize_op(raw);
+    }
+    if let Some(raw) = action.action.as_deref() {
+        return normalize_op(raw);
+    }
+    String::new()
+}
+
+fn normalize_op(raw: &str) -> String {
+    raw.split('(')
+        .next()
+        .unwrap_or(raw)
+        .trim()
+        .to_ascii_lowercase()
 }
 
 fn json_to_u128(v: &serde_json::Value) -> u128 {
