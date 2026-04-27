@@ -346,16 +346,56 @@ fn execute_scenario(
             trace.push(format!("sim:{}:{}", action.step, action.description));
         }
 
+        // Mark ATG edges as touched. Two complementary paths so both mock
+        // fixtures and real LLM scenarios produce meaningful XCC.
+        //
+        // 1. Contract-id match — mock fixtures populate `action.contract`
+        //    with a node_id (e.g. `replica`) that equals an ATG edge's src
+        //    or dst. Direct match.
+        // 2. Function-signature op match — Module 2 LLM scenarios leave
+        //    `action.contract` as None and put the full Solidity signature
+        //    in `action.function`. We extract the bare op name from both
+        //    `action.function` and `edge.function_signature`; if they
+        //    agree, the edge counts as exercised.
         for edge in &ctx.atg.edges {
-            if let Some(contract) = action.contract.as_deref() {
-                if edge.src == contract || edge.dst == contract {
-                    touched_edges.insert(edge.edge_id.clone());
-                }
+            let contract_match = action
+                .contract
+                .as_deref()
+                .map(|c| edge.src == c || edge.dst == c)
+                .unwrap_or(false);
+
+            let function_match = action
+                .function
+                .as_deref()
+                .map(|fn_sig| {
+                    let action_op = bare_op_lower(fn_sig);
+                    let edge_op = bare_op_lower(&edge.function_signature);
+                    !action_op.is_empty() && action_op == edge_op
+                })
+                .unwrap_or(false);
+
+            if contract_match || function_match {
+                touched_edges.insert(edge.edge_id.clone());
             }
         }
     }
 
     trace
+}
+
+/// Strip a Solidity signature down to the bare op name (lowercased) so we
+/// can match `lock(uint256, address)` against `lock(address,uint256)` etc.
+/// Mirrors `scenario_sim::extract_op` semantics; kept inline here to avoid
+/// exposing that function publicly outside `scenario_sim`.
+fn bare_op_lower(raw: &str) -> String {
+    raw.trim()
+        .split('(')
+        .next()
+        .unwrap_or("")
+        .split_whitespace()
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase()
 }
 
 fn merge_balances(dst: &mut HashMap<String, String>, src: HashMap<String, String>) {
@@ -386,5 +426,23 @@ mod tests {
         }
         assert!(counts[1] > counts[0]);
         assert!(counts[1] > counts[2]);
+    }
+
+    #[test]
+    fn bare_op_lower_matches_solidity_signatures() {
+        // Same op, different param formatting — should compare equal.
+        assert_eq!(
+            bare_op_lower("lock(uint256 amount, address token, address recipient)"),
+            bare_op_lower("lock(address,uint256)")
+        );
+        // Mock vocabulary still works.
+        assert_eq!(bare_op_lower("dispatch"), "dispatch");
+        // Case insensitivity.
+        assert_eq!(bare_op_lower("ProcessAndRelease(NomadMessage.Body)"), "processandrelease");
+        // View suffix stripped.
+        assert_eq!(bare_op_lower("totalLocked() view"), "totallocked");
+        // Empty string stays empty.
+        assert_eq!(bare_op_lower(""), "");
+        assert_eq!(bare_op_lower("   "), "");
     }
 }
