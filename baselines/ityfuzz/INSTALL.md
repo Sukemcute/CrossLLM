@@ -11,21 +11,49 @@
 
 ## Prerequisites — SYSTEM PACKAGES (need sudo)
 
-ItyFuzz pulls in `c-kzg` / `blst` deps that require `cmake` to build.
-Install before `cargo build`:
+ItyFuzz pulls in two FFI-heavy native deps:
+
+- `c-kzg` / `blst` (via revm) — require `cmake` to build
+- `z3-sys` (for concolic / SMT solving in cmp + dataflow features) — Z3
+  itself is C++ source, plus `bindgen` needs `libclang` to generate
+  Rust bindings
+
+Install all prerequisites before `cargo build`:
 
 ```bash
 sudo apt update
-sudo apt install -y cmake build-essential libssl-dev pkg-config
+sudo apt install -y \
+    cmake build-essential libssl-dev pkg-config \
+    clang libclang-dev
 ```
 
-Without `cmake`, `cargo build` fails with:
+### Failure mode 1 — missing cmake
 
 ```
 thread 'main' panicked at .../cmake-0.1.50/src/lib.rs:1098:5:
 failed to execute command: No such file or directory (os error 2)
 is `cmake` not installed?
 ```
+
+→ Fix: `sudo apt install -y cmake`.
+
+### Failure mode 2 — missing libclang
+
+```
+thread 'main' panicked at .../bindgen-0.66.1/lib.rs:604:31:
+Unable to find libclang: "couldn't find any valid shared libraries
+matching: ['libclang.so', ...], set the `LIBCLANG_PATH` environment
+variable..."
+```
+
+→ Fix: `sudo apt install -y clang libclang-dev`.
+
+### Build time warning
+
+Z3 itself is a large C++ project (100k+ LOC of solver source). Even on
+a fast laptop, `cargo build` will spend **30-60 minutes** compiling Z3
+the first time. Subsequent rebuilds are incremental. Consider running
+the initial build overnight.
 
 ## Toolchain
 
