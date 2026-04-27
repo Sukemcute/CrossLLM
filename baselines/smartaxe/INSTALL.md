@@ -1,69 +1,47 @@
-# SmartAxe install + run
+# SmartAxe — cite-published path (B4)
 
-> SmartAxe — cross-contract vulnerability detector (Python + Slither).
-> https://github.com/CGCL-codes/SmartAxe
+> SmartAxe — cross-contract vulnerability detector. Originally
+> published as paper artifact; **the public repository at
+> https://github.com/CGCL-codes/SmartAxe (and several capitalisation
+> variants) returns 404 as of 2026-04-27**. Likely the artifact is
+> only available on Zenodo / paper supplementary material, or has
+> been taken down.
 
-## Status
+## Status (2026-04-27)
 
-- **Public repo**: yes
-- **Install path**: Python 3.10 + Slither (already in our venv) + custom rules
-- **Input**: Solidity source files
-- **Output**: JSON report with detected vulnerability patterns
+- **Public repo found**: NO (404 on canonical URL + 4 alternative
+  spellings tried — see `baselines/README.md` audit).
+- **Approach**: cite published results path (B4) — extract numbers
+  from SmartAxe paper Tables. Same pattern as SmartShot / VulSEye /
+  XScope.
+- **Adapter retained**: [`adapter.sh`](adapter.sh) is left in place
+  for future use if the artifact becomes available; it expects a
+  Python module `smartaxe` to be importable. Currently it will fail
+  with "ERROR: SmartAxe not installed" if invoked.
 
-## Install
+## Cite published values
 
-```bash
-mkdir -p ~/baselines/smartaxe
-cd ~/baselines/smartaxe
-git clone --depth 1 https://github.com/CGCL-codes/SmartAxe.git
-cd SmartAxe
-git rev-parse HEAD > ../version.txt
+Same procedure as `smartshot`:
 
-# Use existing venv (has slither already)
-source ~/CrossLLM/.crossllm/bin/activate
-pip install -r requirements.txt
+1. Locate the SmartAxe paper:
+   - Likely IEEE / ACM / arXiv. Search `"SmartAxe" cross-chain`.
+2. Find Table N reporting per-bridge detection.
+3. Populate
+   [`baselines/_cited_results/smartaxe.json`](../_cited_results/smartaxe.json)
+   (template — created same time as this doc).
+4. `scripts/collect_baseline_results.py` will merge automatically.
 
-# Or per the SmartAxe docs:
-# python3 -m pip install -e .
-```
+## Methodology note for paper
 
-Disk: <100MB. Time: ~5 minutes.
+In §5.3 / RQ1 results table, mark column header for SmartAxe as
+*static* tool type. TTE column = analysis wall-clock from paper
+(typically 1-30 seconds for static analyzers). Cells where SmartAxe
+paper didn't test a benchmark → `"detected": null, "note": "not
+tested in original paper"` → renders as `n/a` in our table.
 
-## CLI
+## If artifact becomes available
 
-SmartAxe is invoked as a Python module:
-
-```bash
-python -m smartaxe analyze \
-    --contracts benchmarks/<bridge>/contracts/ \
-    --output results/baselines/smartaxe/<bridge>/run_NNN.json
-```
-
-(Exact CLI signature varies by repo version — verify via
-`python -m smartaxe --help` after install.)
-
-## Run on a benchmark
-
-```bash
-SMARTAXE=~/baselines/smartaxe/SmartAxe
-source ~/CrossLLM/.crossllm/bin/activate
-
-# Run on Nomad
-python $SMARTAXE/main.py \
-    --contracts ~/CrossLLM/benchmarks/nomad/contracts/ \
-    --output ~/CrossLLM/results/baselines/smartaxe/nomad/run_001.json
-```
-
-## Adapter
-
-`baselines/smartaxe/adapter.sh` runs SmartAxe with the right contract
-folder + writes uniform output JSON. See file in same directory.
-
-## Known issues / mitigations
-
-- **Slither version coupling**: SmartAxe was developed against a specific
-  Slither version. Use `solc-select use 0.8.20` (already in our env).
-- **No fuzzing time**: SmartAxe is static analysis → reports DR (yes/no)
-  but **TTE is not applicable** (analysis time ≠ fuzz time). For RQ1
-  table, mark TTE as "static" or report static-analysis wall-clock.
-- **Output schema differs from BridgeSentry's** — adapter must normalize.
+Update this file, document install steps, populate `version.txt` with
+commit hash, and run via the existing
+[`adapter.sh`](adapter.sh) — no other changes needed in the
+aggregator pipeline.

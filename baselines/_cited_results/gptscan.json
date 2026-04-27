@@ -1,0 +1,38 @@
+{
+  "tool": "gptscan",
+  "tool_type": "llm_static",
+  "source": "Sun et al., GPTScan: Detecting Logic Vulnerabilities in Smart Contracts by Combining GPT with Program Analysis, ICSE 2024",
+  "doi_or_url": "https://arxiv.org/abs/2308.03314",
+  "extraction_date": null,
+  "methodology_note": "Cited from GPTScan paper Tables. Self-host pipeline is feasible (see baselines/gptscan/INSTALL.md) but requires Java + multiple Python deps + 6-8 hours full sweep; cited path is faster. GPTScan is LLM-static (one-shot LLM call per function with rule library) — TTE = LLM call latency, typically 30-60s on gpt-3.5-turbo. Original paper used GPT-4; our self-host plan uses NVIDIA NIM gpt-oss-120b for cost.",
+  "results": {
+    "polynetwork": {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD — populate from paper Tables"},
+    "wormhole":    {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "ronin":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "nomad":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "harmony":     {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "multichain":  {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "socket":      {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "orbit":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "gempad":      {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "fegtoken":    {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "pgala":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "qubit":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"}
+  },
+  "_self_host_status": {
+    "completed_steps": [
+      "git clone GPTScan/GPTScan",
+      "pip install requirements (minus pysha3 / dbus-python / falcon-analyzer)",
+      "pip install --no-deps falcon-analyzer (avoid pysha3 conflict)",
+      "create sha3 shim using pycryptodome Keccak",
+      "pip install z3-solver antlr4-python3-runtime tiktoken",
+      "patch chatgpt_api.py for NIM endpoint + model env vars (script: baselines/gptscan/patch_chatgpt_api.py)"
+    ],
+    "remaining_steps": [
+      "sudo apt install default-jre default-jdk python3.11-venv",
+      "create dedicated .venv to isolate openai 0.27.8 from main pipeline",
+      "smoke run on benchmarks/nomad/contracts/Replica.sol",
+      "loop over 12 benchmarks × 20 runs"
+    ]
+  }
+}

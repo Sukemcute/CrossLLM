@@ -1,0 +1,22 @@
+{
+  "tool": "smartaxe",
+  "tool_type": "static_analysis",
+  "source": "TBD — SmartAxe paper (insert citation when populated)",
+  "doi_or_url": "TBD",
+  "extraction_date": null,
+  "methodology_note": "Cited from SmartAxe paper Table N. Public artifact at https://github.com/CGCL-codes/SmartAxe returned 404 as of 2026-04-27 audit (multiple capitalisation variants tried), so self-running was not feasible. SmartAxe is static analysis — TTE values are analysis wall-clock from the original paper.",
+  "results": {
+    "polynetwork": {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "wormhole":    {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "ronin":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "nomad":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "harmony":     {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "multichain":  {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "socket":      {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "orbit":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "gempad":      {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "fegtoken":    {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "pgala":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "qubit":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"}
+  }
+}

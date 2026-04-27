@@ -8,36 +8,45 @@
 
 | Tool | Loại | Repo / paper | Input | Status (this branch) |
 |---|---|---|---|---|
-| **ItyFuzz** | Bytecode fuzzer (Rust) | https://github.com/fuzzland/ityfuzz | RPC fork + target addresses | **Cloned** + adapter ready; build **BLOCKED** on `sudo apt install cmake` (system pkg, interactive password) |
+| **ItyFuzz** | Bytecode fuzzer (Rust) | https://github.com/fuzzland/ityfuzz | RPC fork + target addresses | **WORKING ✅** — built (53MB binary), smoke tested on Nomad real bytecode (44.18% instruction coverage in 90s, 0 objectives in short budget) |
 | **SmartShot** | Hybrid (rule + LLM) | Paper-only (no public repo at time of writing) | Solidity | Cite-published path; `_cited_results/smartshot.json` template ready (TBD-populated) |
 | **VulSEye** | Symbolic + ML | Paper-only | Solidity | Cite-published path; `_cited_results/vulseye.json` template ready |
-| **SmartAxe** | Static analysis (Python) | https://github.com/CGCL-codes/SmartAxe | Solidity | Adapter ready; install pending (Python-only, no system deps) |
-| **GPTScan** | LLM-based static (Python) | https://github.com/Beokro/GPTScan | Solidity + OpenAI key | Adapter ready (NIM-compatible); install pending |
+| **SmartAxe** | Static analysis (Python) | 404 on canonical URL (5 variants tried) | Solidity | Cite-published path (default); `_cited_results/smartaxe.json` template ready |
+| **GPTScan** | LLM-based static (Python) | https://github.com/GPTScan/GPTScan | Solidity + OpenAI key | Self-host **partial** — Python deps + falcon-metatrust patch + sha3 shim + NIM endpoint patch done; blocked on `sudo apt install default-jre`. Cite-published also ready (`_cited_results/gptscan.json`) |
 | **XScope** | Cross-chain analyzer | Paper-only / academic artifact | Bridge mapping | Cite-published path; `_cited_results/xscope.json` template |
 
 ## Status (2026-04-27 evening)
 
-- **B1 install attempts**: ItyFuzz cloned ✅, nightly Rust 1.77 toolchain auto-installed ✅, but `cargo build` fails on missing `cmake` system package. Member A needs to run **`sudo apt install -y cmake build-essential libssl-dev pkg-config`** then retry build.
-- **B2 adapters**: 3/3 adapter scripts shipped (ItyFuzz / SmartAxe / GPTScan).
-- **B3 run experiments**: pending B1 install completion.
-- **B4 cite published**: 3/3 JSON templates created; cells marked `TBD` for Member A to populate from each baseline's paper Table N (~3-6 hours).
+- **B1 install attempts**:
+  - **ItyFuzz**: ✅ built + smoke-tested. Nomad real bytecode fuzz at 44.18% instruction coverage / 38.33% branch coverage in 90s budget. 0 objectives in short window — needs full 600s for production.
+  - **GPTScan**: partial — Python pipeline patched (falcon, sha3 shim via pycryptodome, openai 0.27.x downgrade in shared venv, model env vars). Blocked on `sudo apt install default-jre` for SolidityCallgraph JAR.
+  - **SmartAxe**: 404 on all canonical URLs → switched to cite-published path.
+- **B2 adapters**: 3/3 adapter scripts shipped (ItyFuzz / SmartAxe / GPTScan); ItyFuzz adapter verified end-to-end.
+- **B3 run experiments**: ItyFuzz unblocked; GPTScan needs Java install; SmartAxe blocked indefinitely (no public repo).
+- **B4 cite published**: 5/6 JSON templates created (SmartShot, VulSEye, XScope + SmartAxe + GPTScan as backup). Cells marked `TBD` for Member A to populate from each baseline's paper Table N (~5-8 hours total).
 - **Aggregator**: `scripts/collect_baseline_results.py` verified end-to-end on existing BridgeSentry data — Nomad cell renders as `✓ (0.0001±0.0000s)`.
 
 ### Next-step commands for Member A
 
 ```bash
-# (1) install system deps once — needs interactive password
-sudo apt install -y cmake build-essential libssl-dev pkg-config
+# === ItyFuzz: ready to do full sweep ===
+cd ~/CrossLLM
+for b in nomad qubit pgala polynetwork wormhole socket ronin harmony multichain orbit fegtoken gempad; do
+    for run in $(seq 1 20); do
+        bash scripts/run_baseline.sh ityfuzz $b $run
+    done
+done   # ~40 hours wall-clock — overnight job
 
-# (2) finish ItyFuzz build (10-20 minutes)
-cd ~/baselines/ityfuzz/ityfuzz
-cargo build --release --no-default-features --features "evm,cmp,dataflow"
+# === GPTScan: finish Java install + smoke ===
+sudo apt install -y default-jre default-jdk python3.11-venv
+# Then follow remaining steps in baselines/gptscan/INSTALL.md
 
-# (3) install SmartAxe + GPTScan per their INSTALL.md
+# === Populate cited results (5 tools × ~1 hour reading + extraction) ===
+# Edit baselines/_cited_results/{smartshot,vulseye,xscope,smartaxe,gptscan}.json
+# Replace `null` cells with values from each paper's Table N
 
-# (4) smoke test pipeline (writes results/baselines/ityfuzz/nomad/run_001.json)
-bash scripts/run_baseline.sh ityfuzz nomad 1
-python scripts/collect_baseline_results.py --format table
+# === Aggregate to RQ1 LaTeX table ===
+python scripts/collect_baseline_results.py --format latex > /tmp/rq1.tex
 ```
 
 **Lưu ý:** SmartShot, VulSEye, XScope không có public repo tại thời điểm
