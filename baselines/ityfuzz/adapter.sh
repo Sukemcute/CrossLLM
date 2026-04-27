@@ -88,9 +88,13 @@ mkdir -p "$WORK_DIR"
 START=$(date +%s)
 RAW_LOG="$(dirname "$OUTPUT_FILE")/run_$(printf '%03d' "$RUN_IDX").raw.txt"
 
-# 600s budget per paper convention; --concolic-timeout 60 cap concolic phases
+# 600s budget per paper convention. `--target-type address` tells
+# ItyFuzz to fetch ABI from Etherscan + fork at --onchain-block-number.
+# Without this flag, ItyFuzz falls back to deployment-script mode and
+# rejects the run with "Please specify --deployment-script ..." (see
+# baselines/ityfuzz/INSTALL.md known-issues).
 timeout 660 "$ITYFUZZ_BIN" evm \
-    -o \
+    --target-type address \
     -t "$TARGET_ADDR" \
     -c "$CHAIN_TYPE" \
     -b "$FORK_BLOCK" \
