@@ -5,6 +5,7 @@
 
 pub mod types;
 pub mod config;
+mod contract_loader;
 mod coverage_tracker;
 mod dual_evm;
 mod fuzz_loop;
