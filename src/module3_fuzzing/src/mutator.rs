@@ -233,14 +233,19 @@ impl CalldataMutator {
         action: &Action,
         registry: &ContractRegistry,
     ) -> Option<CalldataSeed> {
-        let node_id = action.contract.as_deref().or_else(|| {
-            // Fall back to the action's chain when contract is unset (LLM
-            // scenarios often omit the field). Pick the first node on that
-            // chain as a placeholder target.
-            None
-        })?;
+        let node_id = action.contract.as_deref()?;
         let target = registry.address_of(node_id)?;
-        let chain = registry.chain_of(node_id)?;
+        // Prefer the action's own `chain` field (Module-2 LLM scenarios are
+        // explicit about source vs destination). The registry's `chain_of`
+        // can be wrong when the ATG has duplicate node_ids with conflicting
+        // chains (LLM artefacts). Fall back to registry only when the
+        // action's chain is missing/blank.
+        let chain = ChainSide::from_atg(action.chain.as_str());
+        let chain = if matches!(chain, ChainSide::Relay) {
+            registry.chain_of(node_id).unwrap_or(ChainSide::Relay)
+        } else {
+            chain
+        };
 
         // Resolve selector: prefer the action's own function signature, then
         // any registry signature attached to the receiver.

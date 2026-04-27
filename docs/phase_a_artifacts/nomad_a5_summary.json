@@ -1,0 +1,63 @@
+{
+  "bridge_name": "nomad",
+  "time_budget_s": 60,
+  "coverage": {
+    "xcc_atg": 1.0,
+    "basic_blocks_source": 997,
+    "basic_blocks_dest": 997
+  },
+  "stats": {
+    "total_iterations": 50732,
+    "snapshots_captured": 50733,
+    "mutations_applied": 50732,
+    "corpus_size": 256,
+    "snapshot_pool_peak": 64
+  },
+  "violations_count": 162,
+  "tte_summary_s": {
+    "min": 1.0250258,
+    "max": 14.4418873,
+    "mean": 6.403386740123457
+  },
+  "sample_violations": [
+    {
+      "invariant_id": "asset_conservation_total",
+      "detected_at_s": 1.0250258,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "2000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_per_token",
+      "detected_at_s": 1.0250327,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "dest_total": "2000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_no_negative",
+      "detected_at_s": 1.0250356,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "dest_total": "2000000000000000000",
+        "source_total": "0"
+      }
+    }
+  ]
+}

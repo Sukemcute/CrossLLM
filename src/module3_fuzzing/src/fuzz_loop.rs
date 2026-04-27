@@ -84,7 +84,12 @@ pub fn init_dual_evm(ctx: &RuntimeContext) -> Option<DualEvm> {
 
 pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     let mutator = Mutator::with_atg(&ctx.atg);
-    let registry = ContractRegistry::from_atg(&ctx.atg);
+    let mut registry = ContractRegistry::from_atg(&ctx.atg);
+    if !ctx.address_overrides.is_empty() {
+        registry.merge_address_overrides(
+            ctx.address_overrides.iter().map(|(k, v)| (k.as_str(), v.as_str())),
+        );
+    }
     let calldata_mutator = CalldataMutator::from_registry(&registry, &ctx.atg);
     let mut checker = InvariantChecker::new(
         ctx.atg.invariants.clone(),
@@ -113,6 +118,14 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
 
     // Aggregate bytecode coverage across the entire fuzzing campaign.
     let mut campaign_coverage = CoverageTracker::default();
+    // Track which addresses we actually dispatched to per side. We can't
+    // rely on `registry.addresses_on(side)` alone because LLM-produced ATGs
+    // sometimes carry duplicate `node_id`s with conflicting chains, which
+    // collapses chain_of_node to whatever side was inserted last. The
+    // partition-by-side logic below uses these sets for accurate basic-block
+    // attribution.
+    let mut dispatched_source: HashSet<Address> = HashSet::new();
+    let mut dispatched_dest: HashSet<Address> = HashSet::new();
 
     let mut corpus: Vec<CorpusEntry> = ctx
         .hypotheses
@@ -187,6 +200,8 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             &calldata_mutator,
             &mut rng,
             &mut campaign_coverage,
+            &mut dispatched_source,
+            &mut dispatched_dest,
         );
 
         let mut state = crate::scenario_sim::global_state_from_scenario(&s_prime);
@@ -282,14 +297,13 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     // each side per the registry. On no-fork runs (synthetic state only),
     // both counts remain 0 — distinct from `total_iterations`, which is the
     // intent (basic_blocks ≠ iterations is the paper §7.3 acceptance).
-    let source_addrs: HashSet<Address> = registry
-        .addresses_on(ChainSide::Source)
-        .into_iter()
-        .collect();
-    let dest_addrs: HashSet<Address> = registry
-        .addresses_on(ChainSide::Destination)
-        .into_iter()
-        .collect();
+    // Combine dispatched-target tracking with the registry's static chain
+    // assignments so we still partition correctly when a node's chain is
+    // unambiguous in the ATG.
+    let mut source_addrs = dispatched_source;
+    source_addrs.extend(registry.addresses_on(ChainSide::Source));
+    let mut dest_addrs = dispatched_dest;
+    dest_addrs.extend(registry.addresses_on(ChainSide::Destination));
     let basic_blocks_source = campaign_coverage
         .touched
         .iter()
@@ -338,6 +352,8 @@ fn execute_scenario(
     calldata_mutator: &CalldataMutator,
     rng: &mut StdRng,
     campaign_coverage: &mut CoverageTracker,
+    dispatched_source: &mut HashSet<Address>,
+    dispatched_dest: &mut HashSet<Address>,
 ) -> Vec<String> {
     let mut trace = Vec::new();
 
@@ -383,18 +399,29 @@ fn execute_scenario(
                 let payload = build_payload(default_caller(), seed.target, &mutated);
                 let mut iter_cov = CoverageTracker::default();
                 let exec = match seed.chain {
-                    ChainSide::Source => dual_env
-                        .execute_on_source_with_inspector(&payload, &mut iter_cov),
-                    ChainSide::Destination => dual_env
-                        .execute_on_dest_with_inspector(&payload, &mut iter_cov),
+                    ChainSide::Source => {
+                        dispatched_source.insert(seed.target);
+                        dual_env.execute_on_source_with_inspector(&payload, &mut iter_cov)
+                    }
+                    ChainSide::Destination => {
+                        dispatched_dest.insert(seed.target);
+                        dual_env.execute_on_dest_with_inspector(&payload, &mut iter_cov)
+                    }
                     ChainSide::Relay => Err("relay chain — not directly executed".to_string()),
                 };
                 campaign_coverage.merge(&iter_cov);
+                let status = match &exec {
+                    Ok(_) => "ok".to_string(),
+                    Err(e) => {
+                        let snip = e.chars().take(80).collect::<String>();
+                        format!("err({snip})")
+                    }
+                };
                 trace.push(format!(
                     "tx:{}:{}:{}:cov={}",
                     action.step,
                     action.contract.as_deref().unwrap_or(""),
-                    if exec.is_ok() { "ok" } else { "err" },
+                    status,
                     iter_cov.unique_pc_count()
                 ));
             } else if let Some(contract_node_id) = action.contract.as_deref() {
@@ -408,8 +435,10 @@ fn execute_scenario(
                         payload.extend_from_slice(to.as_slice());
                         let mut iter_cov = CoverageTracker::default();
                         let exec = if action.chain.eq_ignore_ascii_case("source") {
+                            dispatched_source.insert(to);
                             dual_env.execute_on_source_with_inspector(&payload, &mut iter_cov)
                         } else {
+                            dispatched_dest.insert(to);
                             dual_env.execute_on_dest_with_inspector(&payload, &mut iter_cov)
                         };
                         campaign_coverage.merge(&iter_cov);

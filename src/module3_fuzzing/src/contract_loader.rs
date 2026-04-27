@@ -49,6 +49,41 @@ pub struct ContractRegistry {
 }
 
 impl ContractRegistry {
+    /// Augment a registry's address map by matching ATG `node_id` strings
+    /// against an external `node_id -> hex address` table (case-insensitive
+    /// substring match). Used to graft real on-chain addresses from a
+    /// benchmark's `metadata.json` onto ATGs the LLM produced without
+    /// addresses. Existing entries are not overwritten.
+    pub fn merge_address_overrides<S: AsRef<str>, A: AsRef<str>>(
+        &mut self,
+        overrides: impl IntoIterator<Item = (S, A)>,
+    ) {
+        let pairs: Vec<(String, Address)> = overrides
+            .into_iter()
+            .filter_map(|(k, v)| {
+                Address::from_str(v.as_ref().trim())
+                    .ok()
+                    .map(|a| (k.as_ref().to_ascii_lowercase(), a))
+            })
+            .collect();
+
+        // For each ATG node still missing an address, try to find an override
+        // whose key contains the node id (or vice versa, case-insensitive).
+        let nodes: Vec<String> = self.chain_of_node.keys().cloned().collect();
+        for node_id in nodes {
+            if self.addresses.contains_key(&node_id) {
+                continue;
+            }
+            let lower = node_id.to_ascii_lowercase();
+            if let Some((_, addr)) = pairs
+                .iter()
+                .find(|(k, _)| k.contains(&lower) || lower.contains(k.as_str()))
+            {
+                self.addresses.insert(node_id, *addr);
+            }
+        }
+    }
+
     /// Build the registry from an ATG. Nodes whose `address` is not parseable
     /// as a 20-byte hex (e.g. mock fixtures use `"0xAttacker"`) are skipped
     /// for the address map but still recorded in `chain_of_node` so the

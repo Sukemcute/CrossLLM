@@ -122,6 +122,13 @@ pub struct CliArgs {
     /// Enable verbose logging
     #[arg(long, short = 'v', default_value_t = false)]
     pub verbose: bool,
+
+    /// Optional benchmark `metadata.json`. When supplied, real on-chain
+    /// addresses listed under `contracts.<key>.address` are grafted onto
+    /// ATG nodes whose `address` field is empty/invalid (e.g. LLM-produced
+    /// ATGs). Match is case-insensitive substring on the contract key.
+    #[arg(long, value_name = "FILE")]
+    pub metadata: Option<PathBuf>,
 }
 
 // ============================================================================
@@ -139,6 +146,10 @@ pub struct RuntimeContext {
     pub hypotheses: HypothesesFile,
     /// Whether verbose logging is enabled
     pub verbose: bool,
+    /// Optional `(contract_key, hex_address)` pairs grafted from
+    /// `metadata.json`. Used by [`crate::contract_loader::ContractRegistry`]
+    /// to resolve LLM-produced ATG nodes that lack on-chain addresses.
+    pub address_overrides: Vec<(String, String)>,
 }
 
 // ============================================================================
@@ -183,12 +194,38 @@ pub fn build_context_from_args(cli: CliArgs) -> Result<RuntimeContext> {
     // Step 5: Validate cross-references
     validate_context(&config, &atg, &hypotheses)?;
 
+    // Step 6: Optional metadata.json overrides for ATG node addresses.
+    let address_overrides = if let Some(meta_path) = cli.metadata.as_ref() {
+        load_address_overrides(meta_path)?
+    } else {
+        Vec::new()
+    };
+
     Ok(RuntimeContext {
         config,
         atg,
         hypotheses,
         verbose: cli.verbose,
+        address_overrides,
     })
+}
+
+/// Read `contracts.<key>.address` pairs from a benchmark `metadata.json`.
+/// Returns an empty list if the file has no `contracts` table.
+fn load_address_overrides(path: &Path) -> Result<Vec<(String, String)>> {
+    let raw = std::fs::read_to_string(path)
+        .wrap_err_with(|| format!("Failed to read metadata: {}", path.display()))?;
+    let v: serde_json::Value = serde_json::from_str(&raw)
+        .wrap_err_with(|| format!("Failed to parse metadata: {}", path.display()))?;
+    let mut out = Vec::new();
+    if let Some(map) = v.get("contracts").and_then(|c| c.as_object()) {
+        for (key, val) in map {
+            if let Some(addr) = val.get("address").and_then(|a| a.as_str()) {
+                out.push((key.clone(), addr.to_string()));
+            }
+        }
+    }
+    Ok(out)
 }
 
 /// Merge CLI arguments with optional base config from JSON file.
@@ -517,6 +554,7 @@ mod tests {
             max_corpus: None,
             max_snapshots: None,
             no_dynamic_snapshots: false,
+            metadata: None,
             verbose: true,
         };
 
@@ -574,6 +612,7 @@ mod tests {
             max_corpus: None,
             max_snapshots: None,
             no_dynamic_snapshots: false,
+            metadata: None,
             verbose: false,
         };
 
@@ -618,6 +657,7 @@ mod tests {
             max_corpus: None,
             max_snapshots: None,
             no_dynamic_snapshots: false,
+            metadata: None,
             verbose: false,
         };
 
@@ -653,6 +693,7 @@ mod tests {
             max_corpus: None,
             max_snapshots: None,
             no_dynamic_snapshots: false,
+            metadata: None,
             verbose: true,
         };
 
