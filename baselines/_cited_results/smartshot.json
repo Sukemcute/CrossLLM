@@ -1,0 +1,29 @@
+{
+  "tool": "smartshot",
+  "tool_type": "hybrid_rule_llm",
+  "source": "TBD — paper authors (insert citation when populated)",
+  "doi_or_url": "TBD",
+  "extraction_date": null,
+  "methodology_note": "Numbers cited from original paper Table N (insert exact reference). Cells marked 'note: not tested in original paper' indicate benchmarks the original SmartShot evaluation did not cover; do not interpret as a detection failure.",
+  "results": {
+    "polynetwork": {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD — populate from paper"},
+    "wormhole":    {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "ronin":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "nomad":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "harmony":     {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "multichain":  {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "socket":      {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "orbit":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "gempad":      {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "fegtoken":    {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "pgala":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "qubit":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"}
+  },
+  "_instructions_for_filling": [
+    "1. Locate the SmartShot paper (e.g. arXiv / IEEE / ACM)",
+    "2. Find Table N reporting baseline detection per benchmark",
+    "3. For each of our 12 benchmarks: if covered, set detected (true/false), tte_seconds (median), tte_std (std). If not covered, leave detected = null and add 'not tested in original paper' to note.",
+    "4. Update 'source' and 'doi_or_url' fields with citation",
+    "5. Set 'extraction_date' to today's date (ISO 8601)"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "tool": "vulseye",
+  "tool_type": "symbolic_ml",
+  "source": "TBD — paper authors (insert citation when populated)",
+  "doi_or_url": "TBD",
+  "extraction_date": null,
+  "methodology_note": "VulSEye combines symbolic execution with ML for cross-chain bridges. Numbers cited from original paper. Static-analysis style — TTE values represent analysis wall-clock, not fuzzer time-to-violation.",
+  "results": {
+    "polynetwork": {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD — populate from paper"},
+    "wormhole":    {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "ronin":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "nomad":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "harmony":     {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "multichain":  {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "socket":      {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "orbit":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "gempad":      {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "fegtoken":    {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "pgala":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"},
+    "qubit":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "TBD"}
+  }
+}
