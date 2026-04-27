@@ -12,6 +12,8 @@ mod snapshot;
 mod mutator;
 mod checker;
 mod scenario_sim;
+mod coverage_tracker;
+mod contract_loader;
 
 use eyre::Context;
 

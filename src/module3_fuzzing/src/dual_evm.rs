@@ -13,6 +13,7 @@ use ethers_core::types::{BlockId as EthBlockId, H256 as EthH256};
 use ethers_providers::{Http, Middleware, Provider};
 use revm::db::{CacheDB, EthersDB};
 use revm::{
+    inspector_handle_register,
     primitives::{
         specification::SpecId,
         AccountInfo, Address, BlockEnv, Bytes, CfgEnv, CfgEnvWithHandlerCfg, EnvWithHandlerCfg,
@@ -22,6 +23,7 @@ use revm::{
 };
 
 use crate::types::{ChainState, GlobalState, RelaySnapshot};
+use crate::coverage_tracker::CoverageTracker;
 
 /// Default funded EOA used when executing calls from the fuzzer (unlimited balance in cache).
 pub fn default_caller() -> Address {
@@ -101,6 +103,28 @@ impl ChainVm {
         Ok(res)
     }
 
+    fn run_tx_with_coverage(&mut self, tx: TxEnv) -> Result<(ExecutionResult, std::collections::HashSet<usize>), String> {
+        let mut cfg = CfgEnv::default();
+        cfg.chain_id = self.chain_id;
+        let cfg_wh = CfgEnvWithHandlerCfg::new(cfg, HandlerCfg::new(self.spec_id));
+        let env = EnvWithHandlerCfg::new_with_cfg_env(cfg_wh, self.fork_block.clone(), tx);
+
+        let mut evm = Evm::builder()
+            .with_external_context(CoverageTracker::default())
+            .with_db(self.db.clone())
+            .with_env_with_handler_cfg(env)
+            .append_handler_register(inspector_handle_register)
+            .build();
+
+        let res = evm
+            .transact_commit()
+            .map_err(|e| format!("EVM inspector error: {e:?}"))?;
+        let touched = std::mem::take(&mut evm.context.external).into_pcs();
+        let (db, _) = evm.into_db_and_env_with_handler_cfg();
+        self.db = db;
+        Ok((res, touched))
+    }
+
     fn execute_raw_call(
         &mut self,
         caller: Address,
@@ -129,6 +153,42 @@ impl ChainVm {
 
         match result {
             ExecutionResult::Success { output, .. } => Ok(output.into_data().to_vec()),
+            ExecutionResult::Revert { output, .. } => Err(format!(
+                "execution reverted: 0x{}",
+                hex::encode(output)
+            )),
+            ExecutionResult::Halt { reason, .. } => Err(format!("execution halted: {reason:?}")),
+        }
+    }
+
+    fn execute_raw_call_with_coverage(
+        &mut self,
+        caller: Address,
+        to: Address,
+        data: Bytes,
+    ) -> Result<(Vec<u8>, std::collections::HashSet<usize>), String> {
+        let basefee = self.fork_block.basefee;
+        let tx = TxEnv {
+            caller,
+            gas_limit: 30_000_000,
+            gas_price: basefee.saturating_add(U256::from(1u8)),
+            gas_priority_fee: None,
+            transact_to: TransactTo::Call(to),
+            value: U256::ZERO,
+            data,
+            nonce: Some(self.nonce_hint(caller)),
+            chain_id: Some(self.chain_id),
+            access_list: Vec::new(),
+            blob_hashes: Vec::new(),
+            max_fee_per_blob_gas: None,
+            eof_initcodes: Vec::new(),
+            eof_initcodes_hashed: Default::default(),
+        };
+
+        let (result, touched) = self.run_tx_with_coverage(tx)?;
+
+        match result {
+            ExecutionResult::Success { output, .. } => Ok((output.into_data().to_vec(), touched)),
             ExecutionResult::Revert { output, .. } => Err(format!(
                 "execution reverted: 0x{}",
                 hex::encode(output)
@@ -311,6 +371,24 @@ impl DualEvm {
     pub fn execute_on_dest(&mut self, tx: &[u8]) -> Result<Vec<u8>, String> {
         let (caller, to, data) = parse_execute_payload(tx)?;
         self.dest.execute_raw_call(caller, to, data)
+    }
+
+    /// Execute on source with per-call bytecode coverage PCs.
+    pub fn execute_on_source_with_coverage(
+        &mut self,
+        tx: &[u8],
+    ) -> Result<(Vec<u8>, std::collections::HashSet<usize>), String> {
+        let (caller, to, data) = parse_execute_payload(tx)?;
+        self.source.execute_raw_call_with_coverage(caller, to, data)
+    }
+
+    /// Execute on destination with per-call bytecode coverage PCs.
+    pub fn execute_on_dest_with_coverage(
+        &mut self,
+        tx: &[u8],
+    ) -> Result<(Vec<u8>, std::collections::HashSet<usize>), String> {
+        let (caller, to, data) = parse_execute_payload(tx)?;
+        self.dest.execute_raw_call_with_coverage(caller, to, data)
     }
 
     /// Collect global state from both chains (balances for tracked addresses + block metadata).

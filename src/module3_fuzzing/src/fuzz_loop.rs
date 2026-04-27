@@ -9,6 +9,7 @@ use eyre::{eyre, Result};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use revm::primitives::Address;
+use revm::primitives::keccak256;
 
 use crate::checker::InvariantChecker;
 use crate::config::RuntimeContext;
@@ -70,12 +71,20 @@ pub fn init_dual_evm(ctx: &RuntimeContext) -> Option<DualEvm> {
         }
     };
 
-    let tracked: Vec<Address> = ctx
+    let mut tracked: Vec<Address> = ctx
         .atg
         .nodes
         .iter()
         .filter_map(|n| Address::from_str(&n.address).ok())
         .collect();
+    tracked.extend(
+        ctx.contract_plan
+            .node_to_address
+            .values()
+            .filter_map(|a| Address::from_str(a).ok()),
+    );
+    tracked.sort_unstable();
+    tracked.dedup();
     dual.set_tracked_addresses(tracked);
     Some(dual)
 }
@@ -130,10 +139,14 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     let mut violations = Vec::new();
     let mut violation_keys: HashSet<(String, String)> = HashSet::new();
     let mut touched_edges: HashSet<String> = HashSet::new();
+    let mut touched_source_pcs: HashSet<usize> = HashSet::new();
+    let mut touched_dest_pcs: HashSet<usize> = HashSet::new();
     let mut total_iterations = 0_u64;
     let mut mutations_applied = 0_u64;
     let mut snapshots_captured_count: u64 = pool.len() as u64;
     let mut pool_peak = pool.len() as u64;
+    let contracts_scanned = ctx.contract_plan.scan_sol_files().len() as u64;
+    let deployment_plan_log = ctx.contract_plan.deployment_plan_log(&ctx.atg);
 
     let mut iter_checkpoint = 0u64;
     let mut edges_at_checkpoint = 0usize;
@@ -165,6 +178,8 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             &mut dual,
             &mut relay,
             &mut touched_edges,
+            &mut touched_source_pcs,
+            &mut touched_dest_pcs,
         );
 
         let mut state = crate::scenario_sim::global_state_from_scenario(&s_prime);
@@ -260,8 +275,8 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         } else {
             (touched_edges.len() as f64 / ctx.atg.edges.len() as f64).min(1.0)
         },
-        basic_blocks_source: total_iterations,
-        basic_blocks_dest: total_iterations,
+        basic_blocks_source: touched_source_pcs.len() as u64,
+        basic_blocks_dest: touched_dest_pcs.len() as u64,
     };
 
     Ok(FuzzingResults {
@@ -276,6 +291,8 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             mutations_applied,
             corpus_size: corpus.len() as u64,
             snapshot_pool_peak: pool_peak,
+            contracts_scanned,
+            deployment_plan_log,
         },
     })
 }
@@ -286,6 +303,8 @@ fn execute_scenario(
     dual: &mut Option<DualEvm>,
     relay: &mut MockRelay,
     touched_edges: &mut HashSet<String>,
+    touched_source_pcs: &mut HashSet<usize>,
+    touched_dest_pcs: &mut HashSet<usize>,
 ) -> Vec<String> {
     let mut trace = Vec::new();
 
@@ -324,14 +343,19 @@ fn execute_scenario(
         if let Some(ref mut dual_env) = dual {
             if let Some(contract_node_id) = action.contract.as_deref() {
                 if let Some(node) = ctx.atg.nodes.iter().find(|n| n.node_id == contract_node_id) {
-                    if let Ok(to) = Address::from_str(&node.address) {
-                        let mut payload = Vec::with_capacity(40);
-                        payload.extend_from_slice(default_caller().as_slice());
-                        payload.extend_from_slice(to.as_slice());
+                    let resolved_addr = ctx
+                        .contract_plan
+                        .resolve_node_address(contract_node_id, &node.address);
+                    if let Ok(to) = Address::from_str(&resolved_addr) {
+                        let payload = build_evm_payload(action, to);
                         let exec = if action.chain.eq_ignore_ascii_case("source") {
-                            dual_env.execute_on_source(&payload)
+                            dual_env.execute_on_source_with_coverage(&payload).map(|(_, pcs)| {
+                                touched_source_pcs.extend(pcs);
+                            })
                         } else {
-                            dual_env.execute_on_dest(&payload)
+                            dual_env.execute_on_dest_with_coverage(&payload).map(|(_, pcs)| {
+                                touched_dest_pcs.extend(pcs);
+                            })
                         };
                         trace.push(format!(
                             "tx:{}:{}:{}",
@@ -356,6 +380,72 @@ fn execute_scenario(
     }
 
     trace
+}
+
+fn build_evm_payload(action: &crate::types::Action, to: Address) -> Vec<u8> {
+    let mut payload = Vec::with_capacity(4 + 40 + 96);
+    payload.extend_from_slice(default_caller().as_slice());
+    payload.extend_from_slice(to.as_slice());
+
+    let calldata = build_calldata(action);
+    payload.extend_from_slice(&calldata);
+    payload
+}
+
+fn build_calldata(action: &crate::types::Action) -> Vec<u8> {
+    let mut out = Vec::new();
+    let Some(sig) = action.function.as_deref() else {
+        return out;
+    };
+
+    let signature = if sig.contains('(') {
+        sig.to_string()
+    } else {
+        format!("{sig}()")
+    };
+    let selector_hash = keccak256(signature.as_bytes());
+    out.extend_from_slice(&selector_hash.as_slice()[..4]);
+
+    if let Some(amount) = action.params.get("amount").and_then(json_to_u128) {
+        out.extend_from_slice(&abi_word_from_u128(amount));
+    }
+
+    if let Some(addr) = extract_address_like(action) {
+        out.extend_from_slice(&abi_word_from_address(addr));
+    }
+
+    out
+}
+
+fn extract_address_like(action: &crate::types::Action) -> Option<Address> {
+    for key in ["recipient", "to", "token", "sender"] {
+        if let Some(raw) = action.params.get(key).and_then(|v| v.as_str()) {
+            if let Ok(addr) = Address::from_str(raw) {
+                return Some(addr);
+            }
+        }
+    }
+    None
+}
+
+fn abi_word_from_u128(v: u128) -> [u8; 32] {
+    let mut out = [0u8; 32];
+    out[16..].copy_from_slice(&v.to_be_bytes());
+    out
+}
+
+fn abi_word_from_address(addr: Address) -> [u8; 32] {
+    let mut out = [0u8; 32];
+    out[12..].copy_from_slice(addr.as_slice());
+    out
+}
+
+fn json_to_u128(v: &serde_json::Value) -> Option<u128> {
+    match v {
+        serde_json::Value::String(s) => s.parse::<u128>().ok(),
+        serde_json::Value::Number(n) => n.as_u64().map(|x| x as u128),
+        _ => None,
+    }
 }
 
 fn merge_balances(dst: &mut HashMap<String, String>, src: HashMap<String, String>) {

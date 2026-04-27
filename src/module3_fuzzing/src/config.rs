@@ -28,6 +28,7 @@ use eyre::{Context, Result};
 use std::path::{Path, PathBuf};
 
 use crate::types::{AtgGraph, FuzzerConfig, HypothesesFile};
+use crate::contract_loader::{load_contract_plan, ContractPlan};
 
 // ============================================================================
 // CLI Argument Definition
@@ -139,6 +140,8 @@ pub struct RuntimeContext {
     pub hypotheses: HypothesesFile,
     /// Whether verbose logging is enabled
     pub verbose: bool,
+    /// Benchmark-aware contract plan (A2 helper)
+    pub contract_plan: ContractPlan,
 }
 
 // ============================================================================
@@ -183,11 +186,14 @@ pub fn build_context_from_args(cli: CliArgs) -> Result<RuntimeContext> {
     // Step 5: Validate cross-references
     validate_context(&config, &atg, &hypotheses)?;
 
+    let contract_plan = load_contract_plan(&cli.atg.to_string_lossy(), &atg);
+
     Ok(RuntimeContext {
         config,
         atg,
         hypotheses,
         verbose: cli.verbose,
+        contract_plan,
     })
 }
 
