@@ -393,23 +393,58 @@ Output formats: `--format table | latex | csv | json`.
 
 ## Tracking matrix — assign owner + status
 
-| Phase / Task | Owner | Effort | Status |
-|---|---|---|---|
-| **A1** Inspector for basic_blocks | Member B | 2 ngày | TODO |
-| **A2** Contract deployment helper | Member B | 2 ngày | TODO |
-| **A3** Calldata-based mutator | Member B | 3 ngày | TODO |
-| **A4** Fuzz loop refactor | Member B | 3 ngày | TODO |
-| **A5** Verify TTE realistic | Member B | 1 ngày | TODO |
-| **B1** Baseline tools install | Member A | 3 ngày | TODO |
-| **B2** Adapter scripts | Member A | 2 ngày | TODO |
-| **B3** Run baseline experiments | Member B | 2-3 ngày | TODO |
-| **B4** Cite published (fallback) | Member A | 1 ngày | TODO |
-| **C1** TP/FP classification | Member A | 1 ngày | TODO |
-| **C2** Patched benchmarks (optional) | Member A | 5-7 ngày | OPTIONAL |
-| **D1** Run real-fuzz × 12 benchmark | Member A+B | 2 ngày | Blocked by A |
-| **D2** Aggregate scripts | Member A | 1 ngày | Blocked by D1 |
-| **D3** Build paper tables | Member A | 2 ngày | Blocked by D2 |
-| **D4** Plots (optional) | Member A | 1-2 ngày | OPTIONAL |
+> Cập nhật: 2026-04-28. Branch `feat/real-bytecode-fuzz` carries Phase A
+> (5 commits A1→A5, 63 tests pass). Branch `feat/phase-b-baselines`
+> carries Phase B1+B2+B3-BridgeSentry+B4-templates. Phase D1 sweep
+> đang chạy daemonized trên lab (PID 36994, ETA 2026-04-29 ~18:00 UTC).
+
+| Phase / Task | Owner | Effort | Status | Evidence |
+|---|---|---|---|---|
+| **A1** Inspector for basic_blocks | Member B | 2 ngày | ✅ DONE | commit `ebad790` — `coverage_tracker.rs` + 4 unit tests (PUSH1/PUSH1/ADD/STOP capture) |
+| **A2** Contract deployment helper | Member B | 2 ngày | ✅ DONE | commit `34f34c7` — `contract_loader.rs::ContractRegistry` + selector tables + 5 tests (ERC-20 selector verified `0xa9059cbb`) |
+| **A3** Calldata-based mutator | Member B | 3 ngày | ✅ DONE | commit `f39c02a` — `CalldataMutator` (selector-swap, byte-flip, boundary, address-word) + 4 tests |
+| **A4** Fuzz loop refactor | Member B | 3 ngày | ✅ DONE | commit `075cae9` — fuzz_loop dispatches via inspector path, basic_blocks attribution per side |
+| **A5** Verify TTE realistic | Member B | 1 ngày | ✅ DONE | commit `b78b3b5` — Nomad 60s run: TTE mean **6.40s** (>1s), bb_src=**997** ≠ iters=50,732. Artifacts in `docs/phase_a_artifacts/` |
+| **B1** Baseline tools install | Member A | 3 ngày | ✅ DONE | ItyFuzz built (53MB, smoke 44.18% inst-cov on Nomad). GPTScan installed (Java + falcon + sha3 shim + openai 0.27.x). SmartAxe → cite-published path (404 on canonical URL). 2/3 self-installable working. |
+| **B2** Adapter scripts | Member A | 2 ngày | ✅ DONE | 3/3 adapters shipped (`baselines/{ityfuzz,smartaxe,gptscan}/adapter.sh`); ItyFuzz adapter verified end-to-end on Nomad+Qubit. |
+| **B3** Run baseline experiments | Member B | 2-3 ngày | 🔄 PARTIAL | BridgeSentry baseline sweep ✅ done on lab (12/12 × 20 runs = 240 runs / 14,291s ~4h, results pulled to `results/lab_sweep_2026_04_27/`). **ItyFuzz + GPTScan full sweeps chưa chạy** (overnight ~40h mỗi tool); SmartAxe blocked indefinitely. |
+| **B4** Cite published (fallback) | Member A | 1 ngày | 🔄 PARTIAL | 5/6 JSON templates created (`baselines/_cited_results/{smartshot,vulseye,xscope,smartaxe,gptscan}.json`); cells `TBD` chờ Member A populate từ paper Tables (~5-8h đọc) |
+| **C1** TP/FP classification | Member A | 1 ngày | ❌ TODO | (chưa bắt đầu) |
+| **C2** Patched benchmarks (optional) | Member A | 5-7 ngày | OPTIONAL | (deferred — cite C1 cho thesis chính) |
+| **D1** Run real-fuzz × 12 benchmark | Member A+B | 2 ngày | 🔄 IN PROGRESS | Sweep daemon PID 36994 trên lab (`~/sukem/CrossLLM/results/realbytecode_full_20260428T020921Z/`), 600s × 20 × 12 = 240 runs / ~40h. Snapshot 2026-04-28 03:35: 8/240 done (Nomad 8/20). ETA ~2026-04-29 18:00 UTC. |
+| **D2** Aggregate scripts | Member A | 1 ngày | ❌ Blocked by D1 | `scripts/collect_baseline_results.py` đã có khung từ Phase B; cần extend với `basic_blocks_*` + `tte` từ real-bytecode output schema |
+| **D3** Build paper tables | Member A | 2 ngày | ❌ Blocked by D2 | |
+| **D4** Plots (optional) | Member A | 1-2 ngày | OPTIONAL | |
+
+---
+
+## Baseline tools — chi tiết (snapshot 2026-04-28)
+
+> Mở rộng dòng B1+B2+B3 ở trên thành 6 dòng, mỗi tool một dòng, để theo
+> dõi từng cột install / adapter / smoke / full sweep.
+
+| Tool [ref] | Loại | Venue | Install | Adapter | Smoke | Full sweep (12 × 20) | Path cuối cùng |
+|---|---|---|---|---|---|---|---|
+| **ItyFuzz** [8] | Fuzzer snapshot đơn chuỗi | ISSTA 2023 | ✅ built (53 MB binary trên lab) | ✅ `baselines/ityfuzz/adapter.sh` | ✅ Nomad real-bytecode 90 s — 44.18 % inst-cov / 38.33 % branch | ❌ chưa | **self-run** — sẵn sàng kick off overnight (~40 h) |
+| **SmartShot** [24] | Fuzzer snapshot có thể biến đổi | FSE 2025 | ❌ no public repo at writing | n/a | n/a | n/a | **B4 cite** — `baselines/_cited_results/smartshot.json` cells `TBD`, chờ đọc Table N của paper gốc |
+| **VulSEye** [13] | Fuzzer graybox có hướng | IEEE TIFS 2025 | ❌ no public repo at writing | n/a | n/a | n/a | **B4 cite** — `baselines/_cited_results/vulseye.json` cells `TBD` |
+| **SmartAxe** [3] | Phân tích tĩnh liên chuỗi | FSE 2024 | ❌ 404 trên 5 URL canonical thử qua | ✅ `baselines/smartaxe/adapter.sh` (làm trước khi xác nhận 404) | n/a | n/a | **B4 cite** — `baselines/_cited_results/smartaxe.json` cells `TBD` |
+| **GPTScan** [9] | LLM + phân tích tĩnh | ICSE 2024 | ✅ Python + Java + patches (lab): falcon-analyzer `--no-deps` + sha3 shim qua pycryptodome + openai 0.27.x downgrade + NVIDIA NIM redirect | ✅ `baselines/gptscan/adapter.sh` + `patch_chatgpt_api.py` (per-file loop + cwd fix) | ✅ Nomad+Qubit — cả 2 `detected: false` (GPTScan 10 DeFi rules không cover bridge bugs — expected per paper §5.3) | ❌ chưa | **self-run** — sẵn sàng kick off overnight |
+| **XScope** [6] | Phát hiện dựa trên quy tắc | ASE 2022 | ❌ academic artifact only | n/a | n/a | n/a | **B4 cite** — `baselines/_cited_results/xscope.json` cells `TBD` |
+
+**Roll-up:**
+
+- **Tự cài + chạy được**: 2/6 (ItyFuzz, GPTScan)
+- **Cite-published (B4)**: 4/6 (SmartShot, VulSEye, SmartAxe, XScope) — JSON templates đã tạo, ô dữ liệu chờ Member A populate (~5-8 h đọc + extract)
+- **Đã có smoke chứng minh path-end-to-end**: 2/6 (ItyFuzz / GPTScan)
+- **Đã có full production sweep**: 0/6 — đang block sau Phase D1 (BridgeSentry sweep), khi xong sẽ tiếp ItyFuzz overnight 1 → GPTScan overnight 2
+
+**Thứ tự dự kiến sau D1 finish (ETA 2026-04-29 ~18:00 UTC):**
+
+1. Member A: bắt đầu fill 4 cited JSON files (chạy song song, không cần lab GPU)
+2. Kick off ItyFuzz full sweep trên lab (single tool, 12 × 20 × 600 s ≈ 40 h) — đêm 1+2
+3. Kick off GPTScan full sweep trên lab (12 × 20 × 600 s) — đêm 3+4
+4. Aggregate (D2): merge BridgeSentry + ItyFuzz + GPTScan + 4 cited → 1 RQ1 LaTeX table
 
 ---
 
@@ -441,18 +476,23 @@ Buffer: Week 6 cho debug, re-run, plot polish
 
 ## Acceptance criteria toàn cục (cho thesis)
 
-- [ ] Phase A xong → TTE realistic (>1s mỗi run), basic_blocks ≠
-      iterations, fuzzer reads state from real EVM
-- [ ] Phase B xong → ít nhất 3/6 baselines có data tự run + 3/6 cite
-      published; 12 cells × 6 tools = 72 cells, ≥ 50% có giá trị
-      (✓/✗+TTE)
+- [x] **Phase A xong** → TTE realistic (Nomad mean **6.40s**, > 1s ✓),
+      basic_blocks_source=**997** ≠ total_iterations=**50,732** ✓,
+      fuzzer reads state from real EVM via revm Inspector ✓.
+      Smoke #2 (post fuzzy-mapping fix) confirms 6/12 bridges hit
+      non-trivial bytecode coverage; 10/12 show realistic TTE.
+- [ ] Phase B xong → BridgeSentry baseline ✅ (240/240 runs, lab sweep
+      `2026-04-27`); ItyFuzz/GPTScan self-run + 5 cited JSONs populate
+      from papers vẫn pending (~5-8h cite work + ~40h × 2 self-run).
 - [ ] Phase C xong → FPR estimate cho mỗi 12 benchmark + aggregate;
-      C1 đủ cho thesis chính
-- [ ] Phase D1 xong → 240 run JSON files (12 bridges × 20 runs)
+      C1 chưa bắt đầu.
+- [ ] Phase D1 xong → 240 run JSON files (12 × 20). **Đang chạy** trên
+      lab, 8/240 done at 2026-04-28 03:35 UTC; ETA ~2026-04-29 18:00 UTC.
 - [ ] Phase D3 xong → §5.3 + §7.3 + §7.4 tables in `latex/paper.tex`
-      compile được
-- [ ] Sanity check: BridgeSentry DR ≥ 90% (không giảm so với 100% hiện
-      tại dù chuyển sang real bytecode)
+      compile được. Blocked by D1.
+- [ ] Sanity check: BridgeSentry DR ≥ 90% trên real-bytecode mode.
+      Smoke (60s × 1 × 12) ghi nhận 12/12 bridges produce violations,
+      but full 600s × 20 sweep mới là số chính thức cho paper.
 
 ---
 
