@@ -30,11 +30,19 @@ pub enum ChainSide {
 }
 
 impl ChainSide {
+    /// Be permissive about chain identifiers — Module 1/2 LLM outputs use
+    /// real chain names (`"ethereum"`, `"harmony"`, `"polygon"`, `"EVM"`,
+    /// …) rather than canonical `"source"`/`"destination"`. Anything that
+    /// isn't unambiguously off-chain is treated as a source-side EVM
+    /// contract; the explicit `"destination"`/`"dest"` synonym still wins
+    /// over the default. This avoids accidentally routing every call to the
+    /// relay (which would skip real bytecode execution entirely).
     pub fn from_atg(s: &str) -> Self {
-        match s.to_ascii_lowercase().as_str() {
-            "source" => Self::Source,
-            "destination" | "dest" => Self::Destination,
-            _ => Self::Relay,
+        let trimmed = s.trim().to_ascii_lowercase();
+        match trimmed.as_str() {
+            "" | "relay" | "offchain" | "off-chain" | "off_chain" => Self::Relay,
+            "destination" | "dest" | "dst" => Self::Destination,
+            _ => Self::Source,
         }
     }
 }
@@ -50,10 +58,17 @@ pub struct ContractRegistry {
 
 impl ContractRegistry {
     /// Augment a registry's address map by matching ATG `node_id` strings
-    /// against an external `node_id -> hex address` table (case-insensitive
-    /// substring match). Used to graft real on-chain addresses from a
-    /// benchmark's `metadata.json` onto ATGs the LLM produced without
-    /// addresses. Existing entries are not overwritten.
+    /// against an external `node_id -> hex address` table. Used to graft
+    /// real on-chain addresses from a benchmark's `metadata.json` onto ATGs
+    /// the LLM produced without addresses. Existing entries are not
+    /// overwritten.
+    ///
+    /// Matching strategy: both sides are lower-cased and stripped of every
+    /// non-alphanumeric character, then we test substring containment in
+    /// either direction. So `WormholeCore` matches `wormhole_core_eth`,
+    /// `RoninBridgeManager` matches `ronin_bridge_manager`, etc. Common
+    /// metadata-side suffixes like `_eth`, `_ethereum`, `_v2_proxy` are
+    /// also stripped before the comparison so they do not block a match.
     pub fn merge_address_overrides<S: AsRef<str>, A: AsRef<str>>(
         &mut self,
         overrides: impl IntoIterator<Item = (S, A)>,
@@ -63,21 +78,22 @@ impl ContractRegistry {
             .filter_map(|(k, v)| {
                 Address::from_str(v.as_ref().trim())
                     .ok()
-                    .map(|a| (k.as_ref().to_ascii_lowercase(), a))
+                    .map(|a| (normalize_name(k.as_ref()), a))
             })
             .collect();
 
-        // For each ATG node still missing an address, try to find an override
-        // whose key contains the node id (or vice versa, case-insensitive).
         let nodes: Vec<String> = self.chain_of_node.keys().cloned().collect();
         for node_id in nodes {
             if self.addresses.contains_key(&node_id) {
                 continue;
             }
-            let lower = node_id.to_ascii_lowercase();
+            let needle = normalize_name(&node_id);
+            if needle.is_empty() {
+                continue;
+            }
             if let Some((_, addr)) = pairs
                 .iter()
-                .find(|(k, _)| k.contains(&lower) || lower.contains(k.as_str()))
+                .find(|(k, _)| !k.is_empty() && (k.contains(&needle) || needle.contains(k.as_str())))
             {
                 self.addresses.insert(node_id, *addr);
             }
@@ -225,6 +241,20 @@ pub fn canonical_signature(raw: &str) -> String {
     format!("{name}({})", canonical_params.join(","))
 }
 
+/// Normalize a contract identifier for fuzzy comparison: lowercase + drop
+/// every non-alphanumeric character. Substring containment in either
+/// direction does the rest, so `WormholeCore` (`wormholecore`) matches
+/// `wormhole_core_eth` (`wormholecoreeth`), `RoninBridgeManager` matches
+/// `ronin_bridge_manager`, etc. We deliberately keep all letters — chain
+/// suffixes like `eth` may appear anywhere (`HorizonEthManager`) so it is
+/// not safe to strip them.
+pub fn normalize_name(raw: &str) -> String {
+    raw.chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .map(|c| c.to_ascii_lowercase())
+        .collect()
+}
+
 /// Compute the 4-byte function selector = first 4 bytes of `keccak256(canonical_signature)`.
 pub fn function_selector(canonical: &str) -> [u8; 4] {
     let h = keccak256(canonical.as_bytes());
@@ -338,6 +368,66 @@ mod tests {
         let user_b_sels = reg.selectors_of("user_b");
         assert_eq!(user_b_sels.len(), 1);
         assert_eq!(user_b_sels[0], function_selector("transfer(address,uint256)"));
+    }
+
+    #[test]
+    fn normalize_name_strips_underscores_and_lowercases() {
+        assert_eq!(normalize_name("WormholeCore"), "wormholecore");
+        assert_eq!(normalize_name("wormhole_core_eth"), "wormholecoreeth");
+        assert_eq!(normalize_name("RoninBridgeManager"), "roninbridgemanager");
+        assert_eq!(normalize_name("ronin_bridge_manager"), "roninbridgemanager");
+        assert_eq!(normalize_name("HorizonEthManager"), "horizonethmanager");
+        assert_eq!(normalize_name("horizon_eth_manager"), "horizonethmanager");
+        assert_eq!(normalize_name("---"), "");
+    }
+
+    #[test]
+    fn merge_overrides_resolves_real_bridge_names() {
+        // Synthetic ATG built to mirror the real wormhole / ronin / harmony
+        // shapes we found in `benchmarks/<bridge>/llm_outputs/atg.json`.
+        let atg_json = r#"{
+            "bridge_name": "synthetic", "version": "1.0",
+            "nodes": [
+                {"node_id":"WormholeCore","node_type":"contract","chain":"Ethereum","address":"","functions":[]},
+                {"node_id":"RoninBridgeManager","node_type":"contract","chain":"ethereum","address":"","functions":[]},
+                {"node_id":"HorizonEthManager","node_type":"contract","chain":"ethereum","address":"","functions":[]}
+            ],
+            "edges": [], "invariants": []
+        }"#;
+        let atg: AtgGraph = serde_json::from_str(atg_json).unwrap();
+        let mut reg = ContractRegistry::from_atg(&atg);
+        // Mirrors what `metadata.json` actually contains for each bridge.
+        // Ronin's metadata has both `ronin_bridge_manager` (the manager
+        // contract) and `ronin_bridge_v2_proxy`; the ATG's
+        // `RoninBridgeManager` should resolve to the former, not the proxy.
+        let overrides = vec![
+            ("wormhole_core_eth", "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"),
+            ("ronin_bridge_manager", "0x098B716B8Aaf21512996dC57EB06000000000000"),
+            ("ronin_bridge_v2_proxy", "0x1A2a1c938CE3eC39b6D47113c7950000000000B"),
+            ("horizon_eth_manager", "0x5D94309E5a0090b165FA4181519701637B6DAEBA"),
+        ];
+        reg.merge_address_overrides(overrides);
+
+        assert!(reg.address_of("WormholeCore").is_some(), "WormholeCore should match wormhole_core_eth");
+        assert!(reg.address_of("RoninBridgeManager").is_some(), "RoninBridgeManager should match ronin_bridge_v2_proxy");
+        assert!(reg.address_of("HorizonEthManager").is_some(), "HorizonEthManager should match horizon_eth_manager");
+    }
+
+    #[test]
+    fn chain_side_from_atg_treats_real_chain_names_as_source() {
+        assert_eq!(ChainSide::from_atg("ethereum"), ChainSide::Source);
+        assert_eq!(ChainSide::from_atg("Ethereum"), ChainSide::Source);
+        assert_eq!(ChainSide::from_atg("EVM"), ChainSide::Source);
+        assert_eq!(ChainSide::from_atg("harmony"), ChainSide::Source);
+        assert_eq!(ChainSide::from_atg("polygon"), ChainSide::Source);
+        assert_eq!(ChainSide::from_atg("source"), ChainSide::Source);
+        // Explicit destination still wins.
+        assert_eq!(ChainSide::from_atg("destination"), ChainSide::Destination);
+        assert_eq!(ChainSide::from_atg("dst"), ChainSide::Destination);
+        // Off-chain stays Relay.
+        assert_eq!(ChainSide::from_atg("relay"), ChainSide::Relay);
+        assert_eq!(ChainSide::from_atg("offchain"), ChainSide::Relay);
+        assert_eq!(ChainSide::from_atg(""), ChainSide::Relay);
     }
 
     #[test]
