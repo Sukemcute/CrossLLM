@@ -88,14 +88,18 @@ Rules trong paper §3:
 
 **Scope:**
 
-| Sub-task | Effort | Output |
-|---|---|---|
-| **X1** Đọc paper §3-4, viết spec 5-7 rules dạng pseudocode | 1 ngày | `docs/REIMPL_XSCOPE_SPEC.md` |
-| **X2** Tạo `src/module3_fuzzing/src/baselines/xscope.rs` với struct `XScopeChecker` impl trait `BaselineDetector` | 2 ngày | Rust module + 5 rule fns |
-| **X3** Wire vào fuzz_loop: mode `--baseline-mode xscope` chỉ chạy detector trên scenario actions, KHÔNG mutate calldata | 1 ngày | CLI arg + dispatch |
-| **X4** Validate: reproduce 4 bridges paper gốc (THORChain/pNetwork/Anyswap/Qubit) — confirm Qubit "Unrestricted Deposit Emitting" rule fires trên benchmark Qubit của ta | 2 ngày | Tests pass + commit |
-| **X5** Run 12 × 20 sweep trên lab | ~2h (XScope nhanh, không phải fuzz) | `results/baselines/xscope/<bridge>/run_NNN.json` |
-| **X6** Update `baselines/_cited_results/xscope.json` thành self-run version với per-bridge data | 0.5 ngày | JSON updated |
+> 📌 **Implementation contract**: sub-tasks X2-X6 phải bám sát
+> [`docs/REIMPL_XSCOPE_SPEC.md`](REIMPL_XSCOPE_SPEC.md). Khi `/execute X<n>`,
+> Claude session BẮT BUỘC đọc spec đó trước khi viết code.
+
+| Sub-task | Effort | Output | Bám section nào của spec |
+|---|---|---|---|
+| **X1** Đọc paper §3-4, viết spec 5-7 rules dạng pseudocode | 1 ngày | `docs/REIMPL_XSCOPE_SPEC.md` | n/a (spec là output) |
+| **X2** Tạo `src/module3_fuzzing/src/baselines/xscope.rs` với 6 predicate functions + unit tests | 2 ngày | Rust module + 6 rule fns | **SPEC §2** (pseudocode 6 predicates I-1…I-6), **§3** (data wires bindings), **§6** (schema additions) |
+| **X3** Wire vào fuzz_loop: mode `--baseline-mode xscope` chỉ chạy detector, KHÔNG mutate calldata | 1 ngày | CLI arg + dispatch | **SPEC §3** (BridgeSentry input mapping table), **§6.2** (`MockRelay::parsed_message_log` extension) |
+| **X4** Validate per-bridge: reproduce paper's 4 bridges + match SPEC §4 expected detection map | 2 ngày | Tests pass + commit | **SPEC §4** (per-bridge expected predicate map), **§7** (acceptance commands) |
+| **X5** Run 12 × 20 sweep trên lab | ~2h (XScope nhanh, không phải fuzz) | `results/baselines/xscope/<bridge>/run_NNN.json` | **SPEC §7** (acceptance commands) |
+| **X6** Update `baselines/_cited_results/xscope.json` thành self-run version | 0.5 ngày | JSON updated | giữ schema hiện tại, chỉ replace cells |
 
 **Acceptance**: Qubit detected=true (matches paper's positive result),
 12/12 bridges có run_*.json, JSON schema khớp aggregator.
@@ -123,16 +127,20 @@ Core method §4:
 
 **Scope:**
 
-| Sub-task | Effort | Output |
-|---|---|---|
-| **SA1** Đọc paper §3-5 + arXiv appendix; tóm tắt thuật toán xCFG/xDFG construction | 2 ngày | `docs/REIMPL_SMARTAXE_SPEC.md` |
-| **SA2** Setup Python project `tools/smartaxe_reimpl/` với deps: `slither-analyzer`, `py-solc-ast`, `networkx` | 1 ngày | venv + pyproject.toml |
-| **SA3** Implement single-contract CFG/DFG via Slither's IR (Slither đã có sẵn — chỉ cần adapter) | 3 ngày | `cfg_builder.py` + tests |
-| **SA4** Implement cross-contract linking: parse `emit MessageDispatched` ↔ `function handle(...)` patterns thành xCFG edges | 5 ngày | `xcfg_builder.py` + tests trên Nomad benchmark |
-| **SA5** Implement probabilistic pattern inference: từ tập K access-control patterns labeled trong `data/patterns/`, học expected check positions, flag mismatch | 5 ngày | `pattern_inference.py` + tests |
-| **SA6** Validate: reproduce paper's aggregate P=84.95% / R=89.77% trên 1-2 example bugs họ list (PolyNetwork access-control bug). Nếu re-impl đạt P/R trong ±5pp → OK | 3 ngày | reproduction report |
-| **SA7** Run trên 12 benchmarks (`benchmarks/<bridge>/contracts/*.sol`) | ~3-4h (static, single-pass) | `results/baselines/smartaxe/<bridge>/run_001.json` |
-| **SA8** Update `baselines/_cited_results/smartaxe.json` → self-run version | 0.5 ngày | JSON updated |
+> 📌 **Implementation contract**: sub-tasks SA2-SA8 phải bám sát
+> [`docs/REIMPL_SMARTAXE_SPEC.md`](REIMPL_SMARTAXE_SPEC.md). Khi
+> `/execute SA<n>`, Claude session BẮT BUỘC đọc spec đó trước.
+
+| Sub-task | Effort | Output | Bám section nào của spec |
+|---|---|---|---|
+| **SA1** Đọc paper §3-5 + arXiv appendix; tóm tắt thuật toán xCFG/xDFG construction | 2 ngày | `docs/REIMPL_SMARTAXE_SPEC.md` | n/a (spec là output) |
+| **SA2** Setup Python project `tools/smartaxe_reimpl/` với deps: `slither-analyzer`, `networkx`, `pydantic` | 1 ngày | venv + pyproject.toml | **SPEC §6** (project layout — 4 modules + 4 tests + venv config) |
+| **SA3** Implement single-contract CFG/DFG via Slither's IR | 3 ngày | `cfg_builder.py` + tests | **SPEC §2.1** (`CfgNode` dataclass), **§3** (Slither substitution for SmartDagger) |
+| **SA4** Implement xCFG + xDFG construction (emitting/informing edges + propagation rules) | 5 ngày | `xcfg_builder.py` + `xdfg_builder.py` + tests trên Nomad | **SPEC §2.2-2.3** (Algorithm 1 build_xcfg + propagation rules), **§3** (event-signature table from `metadata.json`) |
+| **SA5** Implement security check model + probabilistic pattern inference | 5 ngày | `security_checks.py` + `pattern_inference.py` + tests | **SPEC §2.4** (Table 1 SC1..SC6 + R1..R4 verbatim), **§2.5** (Table 2 P1..P5 + max-score formula), **§2.6** (detect_ccv with threshold 0.5) |
+| **SA6** Validate: reproduce PolyNetwork SC3 omission case from paper §1 | 3 ngày | reproduction report | **SPEC §8** (validation plan against polynetwork/eth-contracts@d16252b2) |
+| **SA7** Run trên 12 benchmarks; verify per-bridge predicted detection map | ~3-4h (static) | `results/baselines/smartaxe/<bridge>/run_001.json` | **SPEC §4** (per-bridge expected SC violation map), **§7** (acceptance commands) |
+| **SA8** Update `baselines/_cited_results/smartaxe.json` → self-run version | 0.5 ngày | JSON updated | giữ schema hiện tại, replace cells |
 
 **Acceptance**: PolyNetwork detected=true (per paper's motivating example),
 re-impl P/R trong ±5pp paper claim, 12/12 bridges có data.
@@ -158,15 +166,19 @@ Core method §3-4:
 
 **Scope:**
 
-| Sub-task | Effort | Output |
-|---|---|---|
-| **VS1** Đọc paper §3-4; tóm tắt thuật toán directed fitness | 2 ngày | `docs/REIMPL_VULSEYE_SPEC.md` |
-| **VS2** Implement code-target identification: 5-7 vulnerability patterns (reentrancy, unchecked-call, access-control) from paper Table 2 → matched on revm bytecode | 4 ngày | `src/module3_fuzzing/src/baselines/vulseye_targets.rs` |
-| **VS3** Implement state-target backward analysis: từ vulnerability site, trace back required storage/balance preconditions | 5 ngày | `vulseye_backward.rs` + tests |
-| **VS4** Implement directed fitness function: `f(input) = α·code_distance + β·state_distance` thay cho reward function hiện tại | 3 ngày | `vulseye_fuzz_loop.rs` |
-| **VS5** Validate: reproduce paper's headline 9.7× speedup vs ItyFuzz trên 1 example contract (paper Fig. 5). Nếu speedup >= 5× → OK (ta dùng pattern subset, không cần đạt 9.7×) | 3 ngày | reproduction report |
-| **VS6** Run 12 × 20 sweep trên lab (graybox fuzzer, ~600s/run = 40h overnight) | ~40h | `results/baselines/vulseye/...` |
-| **VS7** Update `baselines/_cited_results/vulseye.json` → self-run | 0.5 ngày | JSON updated |
+> 📌 **Implementation contract**: sub-tasks VS2-VS7 phải bám sát
+> [`docs/REIMPL_VULSEYE_SPEC.md`](REIMPL_VULSEYE_SPEC.md). Khi
+> `/execute VS<n>`, Claude session BẮT BUỘC đọc spec đó trước.
+
+| Sub-task | Effort | Output | Bám section nào của spec |
+|---|---|---|---|
+| **VS1** Đọc paper §3-4; tóm tắt thuật toán directed fitness | 2 ngày | `docs/REIMPL_VULSEYE_SPEC.md` | n/a (spec là output) |
+| **VS2** Implement code-target identification: 7 GP patterns + **6 BP bridge-specific patterns** matched on revm bytecode | 4 ngày | `src/module3_fuzzing/src/baselines/vulseye/{patterns,code_targets}.rs` | **SPEC §2.1** (Algorithm 1 + 7 GP patterns verbatim), **§2.4** (6 BP bridge-specific patterns BP1..BP6) |
+| **VS3** Implement state-target backward analysis (with Z3 cut-loss path) | 5 ngày | `state_targets.rs` + tests | **SPEC §2.2** (Algorithm 2+3), **§8** (cut-loss decision tree week 8) |
+| **VS4** Implement directed fitness function (Eq. 3, 5, 8) + GA selection | 3 ngày | `fitness.rs` + `ga_select.rs` | **SPEC §2.3** (Eq. 3 CodeDistance / Eq. 5 StateDistance / Eq. 8 Fitness + P(S)), **§3** (replace `InvariantChecker::reward`) |
+| **VS5** Validate: ≥ 5× speedup vs ItyFuzz on 1 example, plus ≥ 11/12 BP firing on smoke | 3 ngày | reproduction report | **SPEC §4** (per-bridge BP firing distribution), **§7** (acceptance commands), **§9** (cut-loss decision tree if Z3 fails) |
+| **VS6** Run 12 × 20 sweep trên lab (~40h overnight) | ~40h | `results/baselines/vulseye/...` | **SPEC §7** (sweep command) |
+| **VS7** Update `baselines/_cited_results/vulseye.json` → self-run | 0.5 ngày | JSON updated | giữ schema hiện tại, replace cells |
 
 **Acceptance**: speedup ≥ 5× ItyFuzz baseline trên ít nhất 1 example,
 12/12 bridges run.
@@ -193,15 +205,19 @@ Core method:
 
 **Scope:**
 
-| Sub-task | Effort | Output |
-|---|---|---|
-| **SS1** Đọc paper §3-5; tóm tắt mutable-snapshot design | 2 ngày | `docs/REIMPL_SMARTSHOT_SPEC.md` |
-| **SS2** Extend BridgeSentry's `SnapshotPool` to support mutation: add `mutate_snapshot(s, taint)` method that flips storage slots / advances timestamp / etc | 4 ngày | `src/module3_fuzzing/src/snapshot.rs` extended |
-| **SS3** Implement symbolic taint analysis (simplified): track which storage slots a function reads → those are "interesting" để mutate | 5 ngày | `taint_tracker.rs` + Inspector hook |
-| **SS4** Wire mutable-snapshot fuzz loop: pick snapshot, mutate, run, check violation, double-validate với original | 3 ngày | `fuzz_loop_smartshot.rs` |
-| **SS5** Validate: reproduce paper's 4.8× speedup vs ItyFuzz trên 1 contract example. Nếu speedup ≥ 3× → OK | 2 ngày | reproduction report |
-| **SS6** Run 12 × 20 sweep | ~40h | `results/baselines/smartshot/...` |
-| **SS7** Update JSON | 0.5 ngày | done |
+> 📌 **Implementation contract**: sub-tasks SS2-SS7 phải bám sát
+> [`docs/REIMPL_SMARTSHOT_SPEC.md`](REIMPL_SMARTSHOT_SPEC.md). Khi
+> `/execute SS<n>`, Claude session BẮT BUỘC đọc spec đó trước.
+
+| Sub-task | Effort | Output | Bám section nào của spec |
+|---|---|---|---|
+| **SS1** Đọc paper §3-5; tóm tắt mutable-snapshot design | 2 ngày | `docs/REIMPL_SMARTSHOT_SPEC.md` | n/a (spec là output) |
+| **SS2** Extend `SnapshotPool` với 6 mutation operators MS1..MS6 + checkpoint policy CK1..CK4 | 4 ngày | `mutable_snapshot.rs` + `checkpoint_policy.rs` | **SPEC §2.1** (`MutableSnapshot` struct + MS1..MS6 operators), **§2.4** (CK1..CK4 triggers) |
+| **SS3** Implement symbolic-taint cache via `SLoadInspector` (with cut-loss path) | 5 ngày | `sload_inspector.rs` + `taint_cache.rs` + tests | **SPEC §2.2** (collect_read_set algorithm + mutation pool), **§8** (cut-loss decision tree week 11) |
+| **SS4** Wire mutable-snapshot fuzz loop với double-validation | 3 ngày | `fuzz_loop_smartshot.rs` + `double_validate.rs` | **SPEC §2.3** (run_with_double_validation pseudocode), **§3** (BridgeSentry input mapping) |
+| **SS5** Validate: ≥ 3× speedup vs ItyFuzz on Nomad Replica + 11/12 MS firing | 2 ngày | reproduction report | **SPEC §4** (per-bridge expected MS map), **§9** (validation plan), **§7** (acceptance commands) |
+| **SS6** Run 12 × 20 sweep trên lab (~40h overnight) | ~40h | `results/baselines/smartshot/...` | **SPEC §7** (sweep command) |
+| **SS7** Update `baselines/_cited_results/smartshot.json` → self-run | 0.5 ngày | JSON updated | giữ schema hiện tại, replace cells |
 
 **Acceptance**: speedup ≥ 3× ItyFuzz, 12/12 bridges run.
 
