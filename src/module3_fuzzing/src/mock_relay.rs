@@ -9,6 +9,8 @@
 
 use std::collections::{HashSet, VecDeque};
 
+use revm::primitives::{Address, B256, U256};
+
 use crate::types::RelayMessage;
 
 /// Relay operation mode.
@@ -20,6 +22,31 @@ pub enum RelayMode {
     Replayed,
 }
 
+/// One parsed cross-chain message recorded by the relay. Required by
+/// XScope predicates I-3 / I-4 to detect when the relayer parsed an
+/// event differently from how the source chain emitted it.
+///
+/// Per [`docs/REIMPL_XSCOPE_SPEC.md`] §6.2 — kept independent of
+/// `crate::baselines::xscope` to avoid an upward dep; the XScope
+/// adapter (X3) maps from this type into its own `ParsedRelayMessage`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ParsedRelayMessage {
+    /// Original payload received by the relay (before any mode tampering).
+    pub raw_payload: Vec<u8>,
+    /// What the relay decided the amount field was. Faithful mode = source
+    /// amount, Tampered mode = mutated amount, Replayed mode = previous
+    /// message's amount.
+    pub parsed_amount: U256,
+    /// What the relay decided the recipient field was. Same semantics.
+    pub parsed_recipient: Address,
+    /// The mode that produced this parse (encoded as a tag string so
+    /// callers can include it in violation evidence).
+    pub parse_mode: &'static str,
+    /// Hash of the source-side message (best effort — `keccak256(raw)`
+    /// works for our scenario fixtures).
+    pub source_msg_hash: Option<B256>,
+}
+
 /// Mock relay connecting source and destination chains.
 pub struct MockRelay {
     mode: RelayMode,
@@ -28,6 +55,9 @@ pub struct MockRelay {
     history: Vec<Vec<u8>>,
     message_count: u64,
     current_block: u64,
+    /// Per-call parsed-message log used by the XScope baseline
+    /// (`docs/REIMPL_XSCOPE_SPEC.md` §6.2).
+    parsed_log: Vec<ParsedRelayMessage>,
 }
 
 #[derive(Clone)]
@@ -46,7 +76,20 @@ impl MockRelay {
             history: Vec::new(),
             message_count: 0,
             current_block: 0,
+            parsed_log: Vec::new(),
         }
+    }
+
+    /// Read access to the running parsed-message log. The XScope adapter
+    /// consumes this between fuzz iterations to feed predicates I-3 / I-4.
+    pub fn parsed_log(&self) -> &[ParsedRelayMessage] {
+        &self.parsed_log
+    }
+
+    /// Drop everything in the parsed log — called between scenarios so
+    /// per-iteration reasoning doesn't see stale messages.
+    pub fn clear_parsed_log(&mut self) {
+        self.parsed_log.clear();
     }
 
     pub fn set_mode(&mut self, mode: RelayMode) {
@@ -61,16 +104,35 @@ impl MockRelay {
     /// Process a message from source chain and relay to destination.
     pub fn relay_message(&mut self, message: &[u8]) -> Result<Vec<u8>, String> {
         self.current_block = self.current_block.saturating_add(1);
+        // Decode source-side fields up front so every branch can record
+        // what was parsed even when the call returns Err.
+        let src_amount = decode_amount(message);
+        let src_recipient = decode_recipient(message);
+        let src_hash = best_effort_msg_hash(message);
 
         match self.mode {
             RelayMode::Faithful => {
                 let id = message_id(message);
                 if self.processed_set.contains(&id) {
+                    self.parsed_log.push(ParsedRelayMessage {
+                        raw_payload: message.to_vec(),
+                        parsed_amount: src_amount,
+                        parsed_recipient: src_recipient,
+                        parse_mode: "faithful_already_processed",
+                        source_msg_hash: src_hash,
+                    });
                     return Err("message already processed".to_string());
                 }
                 self.processed_set.insert(id);
                 self.message_count = self.message_count.saturating_add(1);
                 self.history.push(message.to_vec());
+                self.parsed_log.push(ParsedRelayMessage {
+                    raw_payload: message.to_vec(),
+                    parsed_amount: src_amount,
+                    parsed_recipient: src_recipient,
+                    parse_mode: "faithful",
+                    source_msg_hash: src_hash,
+                });
                 Ok(message.to_vec())
             }
             RelayMode::Delayed { delta_blocks } => {
@@ -85,15 +147,36 @@ impl MockRelay {
                     if front.available_at_block <= self.current_block {
                         let ready = self.message_queue.pop_front().expect("front exists");
                         if self.processed_set.contains(&ready.id) {
+                            self.parsed_log.push(ParsedRelayMessage {
+                                raw_payload: ready.payload.clone(),
+                                parsed_amount: src_amount,
+                                parsed_recipient: src_recipient,
+                                parse_mode: "delayed_already_processed",
+                                source_msg_hash: src_hash,
+                            });
                             return Err("delayed message already processed".to_string());
                         }
                         self.processed_set.insert(ready.id);
                         self.message_count = self.message_count.saturating_add(1);
                         self.history.push(ready.payload.clone());
+                        self.parsed_log.push(ParsedRelayMessage {
+                            raw_payload: ready.payload.clone(),
+                            parsed_amount: src_amount,
+                            parsed_recipient: src_recipient,
+                            parse_mode: "delayed_delivered",
+                            source_msg_hash: src_hash,
+                        });
                         return Ok(ready.payload);
                     }
                 }
 
+                self.parsed_log.push(ParsedRelayMessage {
+                    raw_payload: message.to_vec(),
+                    parsed_amount: src_amount,
+                    parsed_recipient: src_recipient,
+                    parse_mode: "delayed_queued",
+                    source_msg_hash: src_hash,
+                });
                 Err("message queued for delayed delivery".to_string())
             }
             RelayMode::Tampered => {
@@ -102,6 +185,18 @@ impl MockRelay {
                 self.processed_set.insert(id);
                 self.message_count = self.message_count.saturating_add(1);
                 self.history.push(tampered.clone());
+                // Tampered mode rewrites recipient / amount inside
+                // `tamper_payload`. Parse the tampered version so the
+                // relay log reflects what actually got dispatched —
+                // exactly what XScope I-3 / I-4 want to compare against
+                // the source-side event.
+                self.parsed_log.push(ParsedRelayMessage {
+                    raw_payload: message.to_vec(),
+                    parsed_amount: decode_amount(&tampered),
+                    parsed_recipient: decode_recipient(&tampered),
+                    parse_mode: "tampered",
+                    source_msg_hash: src_hash,
+                });
                 Ok(tampered)
             }
             RelayMode::Replayed => {
@@ -110,7 +205,15 @@ impl MockRelay {
                 }
                 let idx = (self.message_count as usize) % self.history.len();
                 self.message_count = self.message_count.saturating_add(1);
-                Ok(self.history[idx].clone())
+                let payload = self.history[idx].clone();
+                self.parsed_log.push(ParsedRelayMessage {
+                    raw_payload: message.to_vec(),
+                    parsed_amount: decode_amount(&payload),
+                    parsed_recipient: decode_recipient(&payload),
+                    parse_mode: "replayed",
+                    source_msg_hash: src_hash,
+                });
+                Ok(payload)
             }
         }
     }
@@ -193,6 +296,44 @@ fn tamper_payload(message: &[u8]) -> Vec<u8> {
         tampered[0] ^= 0x01;
     }
     tampered
+}
+
+/// Read a u256 amount from a relay payload. We follow the same layout as
+/// the existing `MockRelay`-fed scenarios — the payload is treated as an
+/// opaque blob whose first 32 bytes are interpreted as an ABI-encoded
+/// uint256. Shorter blobs are right-padded with zeros so we always have
+/// something to compare against.
+fn decode_amount(payload: &[u8]) -> U256 {
+    let mut buf = [0u8; 32];
+    let n = payload.len().min(32);
+    if n > 0 {
+        buf[32 - n..].copy_from_slice(&payload[..n]);
+    }
+    U256::from_be_bytes(buf)
+}
+
+/// Read a 20-byte recipient address starting at offset 32 (after the
+/// amount slot). Same layout as `decode_amount`; missing bytes default
+/// to zero, which is exactly what the XScope I-2 / I-4 predicates need
+/// to flag a malformed-recipient transmission.
+fn decode_recipient(payload: &[u8]) -> Address {
+    if payload.len() <= 32 {
+        return Address::ZERO;
+    }
+    let tail = &payload[32..];
+    let take = tail.len().min(20);
+    let mut buf = [0u8; 20];
+    if take > 0 {
+        // Right-align: ABI encoding pads addresses to 20 bytes.
+        buf[20 - take..].copy_from_slice(&tail[..take]);
+    }
+    Address::from(buf)
+}
+
+/// Best-effort hash of the message — `keccak256(payload)`. Returned as
+/// `Some` so callers can ignore it when no source-side hash is known.
+fn best_effort_msg_hash(payload: &[u8]) -> Option<B256> {
+    Some(revm::primitives::keccak256(payload))
 }
 
 fn message_id(payload: &[u8]) -> String {

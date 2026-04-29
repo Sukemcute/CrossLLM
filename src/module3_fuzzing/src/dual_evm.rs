@@ -17,7 +17,7 @@ use revm::{
     primitives::{
         specification::SpecId,
         AccountInfo, Address, BlockEnv, Bytes, CfgEnv, CfgEnvWithHandlerCfg, EnvWithHandlerCfg,
-        ExecutionResult, HandlerCfg, Output, TransactTo, TxEnv, B256, KECCAK_EMPTY, U256,
+        ExecutionResult, HandlerCfg, Log, Output, TransactTo, TxEnv, B256, KECCAK_EMPTY, U256,
     },
     Database, DatabaseRef, Evm, Inspector,
 };
@@ -159,6 +159,25 @@ impl ChainVm {
         Self::map_call_result(self.run_tx_with_inspector(tx, inspector)?)
     }
 
+    /// Same as [`Self::execute_raw_call_with_inspector`] but returns the
+    /// full [`TxOutcome`] including emitted log entries instead of just
+    /// the call output. Reverts and halts produce `success = false` but
+    /// still return Ok — the caller decides how to treat them.
+    fn execute_raw_call_with_inspector_full<I>(
+        &mut self,
+        caller: Address,
+        to: Address,
+        data: Bytes,
+        inspector: I,
+    ) -> Result<TxOutcome, String>
+    where
+        I: Inspector<ChainDb>,
+    {
+        let tx = self.build_call_tx(caller, to, data);
+        let result = self.run_tx_with_inspector(tx, inspector)?;
+        Ok(TxOutcome::from_execution_result(result))
+    }
+
     fn build_call_tx(&mut self, caller: Address, to: Address, data: Bytes) -> TxEnv {
         let basefee = self.fork_block.basefee;
         TxEnv {
@@ -258,6 +277,81 @@ impl ChainVm {
         self.spec_id = s.spec_id;
         self.chain_id = s.chain_id;
         self.block_number = s.block_number;
+    }
+}
+
+/// Result of a single transaction. Unlike `Result<Vec<u8>, String>` from
+/// [`DualEvm::execute_on_source`] this preserves the **emitted logs** and
+/// the success/revert/halt status, which the XScope baseline detector
+/// needs to reconstruct lock / unlock events.
+#[derive(Debug, Clone)]
+pub struct TxOutcome {
+    /// Whether the call ended in `ExecutionResult::Success`.
+    pub success: bool,
+    /// Output bytes (success → return data, revert → revert data, halt → empty).
+    pub output: Vec<u8>,
+    /// Event logs emitted before the (possibly successful) end of the call.
+    /// Reverts and halts produce an empty list — revm strips logs when the
+    /// call did not commit.
+    pub logs: Vec<Log>,
+    /// Gas consumed by the transaction.
+    pub gas_used: u64,
+    /// One-line human-readable status (used in trace strings).
+    pub status: String,
+}
+
+impl TxOutcome {
+    fn from_execution_result(result: ExecutionResult) -> Self {
+        match result {
+            ExecutionResult::Success { gas_used, logs, output, .. } => Self {
+                success: true,
+                output: output.into_data().to_vec(),
+                logs,
+                gas_used,
+                status: "ok".to_string(),
+            },
+            ExecutionResult::Revert { gas_used, output } => Self {
+                success: false,
+                output: output.to_vec(),
+                logs: Vec::new(),
+                gas_used,
+                status: format!("reverted: 0x{}", hex::encode(&output)),
+            },
+            ExecutionResult::Halt { gas_used, reason } => Self {
+                success: false,
+                output: Vec::new(),
+                logs: Vec::new(),
+                gas_used,
+                status: format!("halted: {reason:?}"),
+            },
+        }
+    }
+}
+
+/// Compute `now - baseline` as a saturating signed `i128`. Both inputs are
+/// 256-bit balances; we collapse to 128 bits with saturation since real
+/// token balances comfortably fit.
+fn u256_signed_delta(baseline: U256, now: U256) -> i128 {
+    if now >= baseline {
+        let diff = now - baseline;
+        u256_clip_to_u128(diff) as i128
+    } else {
+        let diff = baseline - now;
+        let clipped = u256_clip_to_u128(diff);
+        if clipped > i128::MAX as u128 {
+            i128::MIN
+        } else {
+            -(clipped as i128)
+        }
+    }
+}
+
+fn u256_clip_to_u128(v: U256) -> u128 {
+    let limbs = v.as_limbs();
+    if limbs.iter().skip(2).any(|l| *l != 0) {
+        u128::MAX
+    } else {
+        ((limbs[1] as u128) << 64) | (limbs[0] as u128)
     }
 }
 
@@ -386,6 +480,49 @@ impl DualEvm {
     ) -> Result<Vec<u8>, String> {
         let (caller, to, data) = parse_execute_payload(tx)?;
         self.dest.execute_raw_call_with_inspector(caller, to, data, tracker)
+    }
+
+    /// Same as [`DualEvm::execute_on_source_with_inspector`] but returns
+    /// the full [`TxOutcome`] (output + logs + success flag) so callers
+    /// like the XScope baseline detector can scan emitted events. Wraps
+    /// reverts as `success = false` rather than `Err`.
+    pub fn execute_on_source_with_inspector_full(
+        &mut self,
+        tx: &[u8],
+        tracker: &mut CoverageTracker,
+    ) -> Result<TxOutcome, String> {
+        let (caller, to, data) = parse_execute_payload(tx)?;
+        self.source
+            .execute_raw_call_with_inspector_full(caller, to, data, tracker)
+    }
+
+    /// Destination-side counterpart of
+    /// [`DualEvm::execute_on_source_with_inspector_full`].
+    pub fn execute_on_dest_with_inspector_full(
+        &mut self,
+        tx: &[u8],
+        tracker: &mut CoverageTracker,
+    ) -> Result<TxOutcome, String> {
+        let (caller, to, data) = parse_execute_payload(tx)?;
+        self.dest
+            .execute_raw_call_with_inspector_full(caller, to, data, tracker)
+    }
+
+    /// Read the **token-level** balance change observed for `who` on the
+    /// source fork relative to a baseline value. Used by the XScope I-1
+    /// predicate to compare lock-event amount against real balance delta.
+    /// The baseline is whatever the caller captured before the call —
+    /// typically via [`Self::source_balance`].
+    pub fn source_balance_delta_since(&mut self, who: Address, baseline: U256) -> Result<i128, String> {
+        let now = self.source.balance_of(who)?;
+        Ok(u256_signed_delta(baseline, now))
+    }
+
+    /// Destination-side counterpart of
+    /// [`Self::source_balance_delta_since`].
+    pub fn dest_balance_delta_since(&mut self, who: Address, baseline: U256) -> Result<i128, String> {
+        let now = self.dest.balance_of(who)?;
+        Ok(u256_signed_delta(baseline, now))
     }
 
     /// Collect global state from both chains (balances for tracked addresses + block metadata).

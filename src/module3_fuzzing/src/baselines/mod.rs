@@ -12,3 +12,4 @@
 //! * [`xscope`] — six rule-based invariant predicates (X2 milestone).
 
 pub mod xscope;
+pub mod xscope_adapter;

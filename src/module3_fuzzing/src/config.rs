@@ -23,11 +23,30 @@
 //! - This ensures Member A can pass everything via subprocess args (simple integration)
 //!   while Member B can use config files for local dev/benchmarking
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use eyre::{Context, Result};
 use std::path::{Path, PathBuf};
 
 use crate::types::{AtgGraph, FuzzerConfig, HypothesesFile};
+
+/// Which detection algorithm the fuzzer drives. Default is BridgeSentry's
+/// invariant checker; the other variants run re-implementations of
+/// closed-source baselines for paper §5.3 RQ1 comparison.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+#[clap(rename_all = "lowercase")]
+pub enum BaselineMode {
+    /// Stock BridgeSentry mode (Phase A real-bytecode + invariant checker).
+    Bridgesentry,
+    /// XScope re-implementation: rule-based detector, no calldata mutation.
+    /// See `docs/REIMPL_XSCOPE_SPEC.md`.
+    Xscope,
+}
+
+impl Default for BaselineMode {
+    fn default() -> Self {
+        Self::Bridgesentry
+    }
+}
 
 // ============================================================================
 // CLI Argument Definition
@@ -129,6 +148,12 @@ pub struct CliArgs {
     /// ATGs). Match is case-insensitive substring on the contract key.
     #[arg(long, value_name = "FILE")]
     pub metadata: Option<PathBuf>,
+
+    /// Detection algorithm. `bridgesentry` (default) runs the stock
+    /// invariant checker; `xscope` runs the XScope re-implementation
+    /// detector — see `docs/REIMPL_XSCOPE_SPEC.md`.
+    #[arg(long, value_enum, default_value_t = BaselineMode::Bridgesentry)]
+    pub baseline_mode: BaselineMode,
 }
 
 // ============================================================================
@@ -150,6 +175,8 @@ pub struct RuntimeContext {
     /// `metadata.json`. Used by [`crate::contract_loader::ContractRegistry`]
     /// to resolve LLM-produced ATG nodes that lack on-chain addresses.
     pub address_overrides: Vec<(String, String)>,
+    /// Which detection algorithm to run. Resolved from `--baseline-mode`.
+    pub baseline_mode: BaselineMode,
 }
 
 // ============================================================================
@@ -207,6 +234,7 @@ pub fn build_context_from_args(cli: CliArgs) -> Result<RuntimeContext> {
         hypotheses,
         verbose: cli.verbose,
         address_overrides,
+        baseline_mode: cli.baseline_mode,
     })
 }
 
@@ -555,6 +583,7 @@ mod tests {
             max_snapshots: None,
             no_dynamic_snapshots: false,
             metadata: None,
+            baseline_mode: BaselineMode::Bridgesentry,
             verbose: true,
         };
 
@@ -613,6 +642,7 @@ mod tests {
             max_snapshots: None,
             no_dynamic_snapshots: false,
             metadata: None,
+            baseline_mode: BaselineMode::Bridgesentry,
             verbose: false,
         };
 
@@ -658,6 +688,7 @@ mod tests {
             max_snapshots: None,
             no_dynamic_snapshots: false,
             metadata: None,
+            baseline_mode: BaselineMode::Bridgesentry,
             verbose: false,
         };
 
@@ -694,6 +725,7 @@ mod tests {
             max_snapshots: None,
             no_dynamic_snapshots: false,
             metadata: None,
+            baseline_mode: BaselineMode::Bridgesentry,
             verbose: true,
         };
 
