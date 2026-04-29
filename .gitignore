@@ -49,3 +49,7 @@ docker-compose.override.yml
 
 # Notting text file
 Noting/
+
+# Local debug / scratch artifacts (Phase A5 nomad_*.json etc.).
+# Authoritative copies of acceptance runs live in docs/phase_a_artifacts/.
+tmp/
