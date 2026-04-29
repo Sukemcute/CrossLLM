@@ -5,6 +5,7 @@
 
 pub mod types;
 pub mod config;
+mod baselines;
 mod contract_loader;
 mod coverage_tracker;
 mod dual_evm;
