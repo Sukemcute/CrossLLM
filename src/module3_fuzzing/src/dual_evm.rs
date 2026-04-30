@@ -486,26 +486,38 @@ impl DualEvm {
     /// the full [`TxOutcome`] (output + logs + success flag) so callers
     /// like the XScope baseline detector can scan emitted events. Wraps
     /// reverts as `success = false` rather than `Err`.
-    pub fn execute_on_source_with_inspector_full(
+    ///
+    /// Generic over the [`Inspector`] type so callers can pass the
+    /// existing [`CoverageTracker`], the new
+    /// [`crate::storage_tracker::StorageTracker`], or composite
+    /// inspectors that delegate to several at once (the XScope baseline
+    /// uses the latter).
+    pub fn execute_on_source_with_inspector_full<I>(
         &mut self,
         tx: &[u8],
-        tracker: &mut CoverageTracker,
-    ) -> Result<TxOutcome, String> {
+        inspector: I,
+    ) -> Result<TxOutcome, String>
+    where
+        I: Inspector<ChainDb>,
+    {
         let (caller, to, data) = parse_execute_payload(tx)?;
         self.source
-            .execute_raw_call_with_inspector_full(caller, to, data, tracker)
+            .execute_raw_call_with_inspector_full(caller, to, data, inspector)
     }
 
     /// Destination-side counterpart of
     /// [`DualEvm::execute_on_source_with_inspector_full`].
-    pub fn execute_on_dest_with_inspector_full(
+    pub fn execute_on_dest_with_inspector_full<I>(
         &mut self,
         tx: &[u8],
-        tracker: &mut CoverageTracker,
-    ) -> Result<TxOutcome, String> {
+        inspector: I,
+    ) -> Result<TxOutcome, String>
+    where
+        I: Inspector<ChainDb>,
+    {
         let (caller, to, data) = parse_execute_payload(tx)?;
         self.dest
-            .execute_raw_call_with_inspector_full(caller, to, data, tracker)
+            .execute_raw_call_with_inspector_full(caller, to, data, inspector)
     }
 
     /// Read the **token-level** balance change observed for `who` on the

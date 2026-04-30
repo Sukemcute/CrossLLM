@@ -15,6 +15,7 @@ mod snapshot;
 mod mutator;
 mod checker;
 mod scenario_sim;
+mod storage_tracker;
 
 use eyre::Context;
 
