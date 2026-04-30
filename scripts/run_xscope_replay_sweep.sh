@@ -61,9 +61,18 @@ for b in $BRIDGES; do
     block=$($PYTHON -c "import json,sys; m=json.load(open(sys.argv[1])); print(m['fork']['block_number'])" "$META" 2>/dev/null)
     [ -n "${block:-}" ] || { echo "skip $b (no fork.block_number)"; continue; }
 
-    src_env=$($PYTHON -c "import json,sys; m=json.load(open(sys.argv[1])); print(m.get('source_chain',{}).get('rpc_env','ETH_RPC_URL'))" "$META" 2>/dev/null)
+    # Replay-specific RPC override: `exploit_replay.rpc_env` wins over
+    # `source_chain.rpc_env` so a bridge declared as ETH→BSC (like
+    # qubit / pgala — `source` = the *deposit* chain) can still be
+    # forked on the chain where the exploit tx actually executed.
+    src_env=$($PYTHON -c "import json,sys; m=json.load(open(sys.argv[1])); print(m.get('exploit_replay',{}).get('rpc_env') or m.get('source_chain',{}).get('rpc_env','ETH_RPC_URL'))" "$META" 2>/dev/null)
     dst_env=$($PYTHON -c "import json,sys; m=json.load(open(sys.argv[1])); print(m.get('destination_chain',{}).get('rpc_env','ETH_RPC_URL'))" "$META" 2>/dev/null)
-    src_rpc="${!src_env:-$ETH_RPC_URL}"
+    if [ -z "${!src_env:-}" ]; then
+        skipped=$((skipped + 1))
+        printf "[%5ds] %-12s SKIP (env %s unset — archival RPC required)\n" "$(( $(date +%s) - t0 ))" "$b" "$src_env"
+        continue
+    fi
+    src_rpc="${!src_env}"
     dst_rpc="${!dst_env:-$ETH_RPC_URL}"
 
     BOUT="$OUTDIR/$b"
