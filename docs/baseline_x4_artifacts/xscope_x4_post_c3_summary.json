@@ -1,0 +1,106 @@
+[
+  {
+    "bridge": "fegtoken",
+    "iters": 20,
+    "bb_src": 0,
+    "bb_dst": 0,
+    "violations": 0,
+    "fired_predicates": []
+  },
+  {
+    "bridge": "gempad",
+    "iters": 20,
+    "bb_src": 0,
+    "bb_dst": 0,
+    "violations": 0,
+    "fired_predicates": []
+  },
+  {
+    "bridge": "harmony",
+    "iters": 19,
+    "bb_src": 0,
+    "bb_dst": 0,
+    "violations": 0,
+    "fired_predicates": []
+  },
+  {
+    "bridge": "multichain",
+    "iters": 21,
+    "bb_src": 132,
+    "bb_dst": 0,
+    "violations": 1,
+    "fired_predicates": [
+      "I-2"
+    ]
+  },
+  {
+    "bridge": "nomad",
+    "iters": 18,
+    "bb_src": 1222,
+    "bb_dst": 0,
+    "violations": 0,
+    "fired_predicates": []
+  },
+  {
+    "bridge": "orbit",
+    "iters": 18,
+    "bb_src": 721,
+    "bb_dst": 0,
+    "violations": 5,
+    "fired_predicates": [
+      "I-2"
+    ]
+  },
+  {
+    "bridge": "pgala",
+    "iters": 19,
+    "bb_src": 212,
+    "bb_dst": 0,
+    "violations": 0,
+    "fired_predicates": []
+  },
+  {
+    "bridge": "polynetwork",
+    "iters": 16,
+    "bb_src": 215,
+    "bb_dst": 0,
+    "violations": 0,
+    "fired_predicates": []
+  },
+  {
+    "bridge": "qubit",
+    "iters": 20,
+    "bb_src": 0,
+    "bb_dst": 0,
+    "violations": 0,
+    "fired_predicates": []
+  },
+  {
+    "bridge": "ronin",
+    "iters": 20,
+    "bb_src": 405,
+    "bb_dst": 0,
+    "violations": 5,
+    "fired_predicates": [
+      "I-2"
+    ]
+  },
+  {
+    "bridge": "socket",
+    "iters": 19,
+    "bb_src": 217,
+    "bb_dst": 0,
+    "violations": 0,
+    "fired_predicates": []
+  },
+  {
+    "bridge": "wormhole",
+    "iters": 19,
+    "bb_src": 1672,
+    "bb_dst": 0,
+    "violations": 4,
+    "fired_predicates": [
+      "I-2"
+    ]
+  }
+]

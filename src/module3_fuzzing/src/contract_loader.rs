@@ -57,6 +57,29 @@ pub struct ContractRegistry {
 }
 
 impl ContractRegistry {
+    /// Insert an **exact-match** ATG-node-name → address alias. Used by
+    /// the metadata `address_aliases` block (X3-polish C2) when the
+    /// fuzzy substring match in [`Self::merge_address_overrides`] would
+    /// either miss the node entirely (e.g. generic names like
+    /// `"MockToken"` not present in metadata) or pick the wrong contract
+    /// (e.g. `"WrappedToken"` matching whatever wrapped-token entry was
+    /// inserted last). Wins over fuzzy because the caller in `fuzz_loop`
+    /// applies aliases **first**, and `Self::merge_address_overrides`
+    /// only writes when the address slot is currently empty.
+    pub fn add_explicit_alias(&mut self, node_id: &str, address: &str) -> bool {
+        let Ok(addr) = Address::from_str(address.trim()) else {
+            return false;
+        };
+        // Add the chain side as Source if we haven't seen this node id yet —
+        // the LLM ATG often omits these stub nodes entirely. Source is the
+        // safe default per ChainSide::from_atg's permissive policy.
+        self.chain_of_node
+            .entry(node_id.to_string())
+            .or_insert(ChainSide::Source);
+        self.addresses.insert(node_id.to_string(), addr);
+        true
+    }
+
     /// Augment a registry's address map by matching ATG `node_id` strings
     /// against an external `node_id -> hex address` table. Used to graft
     /// real on-chain addresses from a benchmark's `metadata.json` onto ATGs

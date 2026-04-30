@@ -1,207 +1,190 @@
 # X4 outcome — XScope re-impl per-bridge validation
 
-> **Result**: ❌ **0/12 bridges hit predicted predicate** (acceptance bar:
-> 11/12 per [REIMPL_XSCOPE_SPEC.md](REIMPL_XSCOPE_SPEC.md) §4).
+> **Latest run (after C1+C2+C3 polish, 2026-04-30)**: ❌ **0/12 bridges hit
+> predicted predicate** (acceptance bar: 11/12 per
+> [REIMPL_XSCOPE_SPEC.md](REIMPL_XSCOPE_SPEC.md) §4).
 >
-> **Date**: 2026-04-30. Smoke run: 60 s × 1 run × 12 benchmarks against
-> Ethereum mainnet fork at the per-bridge fork block.
+> **Original run (X3 only, before polish)**: 0/12 — but only 1/12 fired
+> any violation at all.
 >
-> **Verdict**: X3 wiring is correct end-to-end (the binary executes,
-> ingests logs, runs predicates, emits violations) — Wormhole proves
-> this by firing 3 violations on real on-chain logs. But the **specific
-> predicates required by spec §4** (mostly I-5 + I-6) need primitives
-> X3 explicitly deferred.
+> **Verdict**: X3-polish lifts execution from 6/12 → 9/12 bridges and
+> violations from 1/12 → 4/12 (all of them I-2, the deposit-recipient-
+> zero predicate). The architectural pieces (storage tracker, recipe
+> loader, alias map, composite Inspector) work end-to-end. **What is
+> still missing for ≥ 11/12**: the LLM-generated scenarios do not
+> faithfully reproduce the per-incident storage / event sequences the
+> spec §4 predicates require — chiefly the SSTORE patterns that drive
+> I-6 (`AuthWitness != AcceptableRoot`) and the unlock-without-lock
+> log shapes that drive I-5.
 >
-> Honest report. Not cherry-picking numbers — recording what failed and
-> what is needed to lift the pass rate.
+> Honest reporting; no cherry-picking. The C1+C2+C3 commits are
+> committed-worthy as the foundation for the next round of polish that
+> targets scenario quality.
 
 ---
 
-## 1. Per-bridge sweep digest
+## 1. Per-bridge sweep digest — three runs side by side
 
 ```
-bridge       iters bb_src bb_dst viol fired       expected   verdict
-fegtoken      20    0      0     0    —           I-1,I-5    FAIL
-gempad        20    0      0     0    —           I-5        FAIL
-harmony       19    0      0     0    —           I-6        FAIL
-multichain    21    0      0     0    —           I-5        FAIL
-nomad         18  1010      0    0    —           I-6        FAIL
-orbit         18   459      0    0    —           I-6        FAIL
-pgala         19   212      0    0    —           I-3,I-4,I-6 FAIL
-polynetwork   16   215      0    0    —           I-5,I-6    FAIL
-qubit         20    0      0     0    —           I-2        FAIL
-ronin         20    0      0     0    —           I-6        FAIL
-socket        19   177      0    0    —           I-1,I-5    FAIL
-wormhole      19  1502      0    3    I-1,I-2     I-5,I-6    FAIL  (extra: I-1,I-2)
+                     X3 only (before polish)        After C1+C2+C3 polish
+bridge          bb_src  fired       expected      bb_src  fired       expected
+fegtoken           0    —           I-1,I-5            0    —           I-1,I-5
+gempad             0    —           I-5                0    —           I-5
+harmony            0    —           I-6                0    —           I-6
+multichain         0    —           I-5              132    I-2         I-5
+nomad           1010    —           I-6             1222    —           I-6
+orbit            459    —           I-6              721    I-2         I-6
+pgala            212    —           I-3,I-4,I-6     212    —           I-3,I-4,I-6
+polynetwork      215    —           I-5,I-6         215    —           I-5,I-6
+qubit              0    —           I-2                0    —           I-2
+ronin              0    —           I-6              405    I-2         I-6
+socket           177    —           I-1,I-5         217    —           I-1,I-5
+wormhole        1502    I-1,I-2     I-5,I-6        1672    I-2         I-5,I-6
+                ────                              ────
+total bb=0:   6/12                              3/12
+fire any:    1/12                              4/12
+match exp:   0/12                              0/12
 ```
 
 Source data:
-- [`docs/baseline_x4_artifacts/xscope_x4_verification.json`](baseline_x4_artifacts/xscope_x4_verification.json) — verifier output
-- [`docs/baseline_x4_artifacts/xscope_x4_summary.json`](baseline_x4_artifacts/xscope_x4_summary.json) — per-bridge slim digest
-
-The full per-run JSONs live at `results/baselines/xscope/<bridge>/run_*.json` (gitignored).
-
----
-
-## 2. What worked
-
-- **CLI integration**: `bridgesentry-fuzzer --baseline-mode xscope` runs
-  cleanly on all 12 bridges. 12/12 sweeps complete in 34 s wall-clock,
-  no crashes.
-- **Real EVM execution** on 5/12 bridges: nomad (1010 PCs), wormhole
-  (1502 PCs), orbit (459 PCs), polynetwork (215 PCs), pgala (212 PCs),
-  socket (177 PCs). The `_with_inspector_full` log-capturing path is
-  confirmed working.
-- **Wormhole fired 3 violations** including I-1 and I-2 on real on-chain
-  logs, proving the predicate dispatch + topic-filtering pipeline
-  end-to-end. Just not the predicates spec §4 expected.
-- **6/6 X3 unit tests + 24/24 X2 unit tests pass** — the predicate
-  logic itself is correct against synthetic fixtures.
+- [`docs/baseline_x4_artifacts/xscope_x4_verification.json`](baseline_x4_artifacts/xscope_x4_verification.json) — original X3-only verifier output
+- [`docs/baseline_x4_artifacts/xscope_x4_post_c3_verification.json`](baseline_x4_artifacts/xscope_x4_post_c3_verification.json) — verifier after C1+C2+C3
+- [`docs/baseline_x4_artifacts/xscope_x4_post_c3_summary.json`](baseline_x4_artifacts/xscope_x4_post_c3_summary.json) — per-bridge digest after polish
+- [`docs/baseline_x4_artifacts/xscope_x4_summary.json`](baseline_x4_artifacts/xscope_x4_summary.json) — same digest before polish
 
 ---
 
-## 3. Why 0/12 (root-cause analysis)
+## 2. What C1+C2+C3 fixed
 
-Three distinct failure modes across the 12 bridges:
+- **C1 (storage tracker)**: SSTORE Inspector + `XScopeInspector` composite
+  land in [`src/module3_fuzzing/src/storage_tracker.rs`](../src/module3_fuzzing/src/storage_tracker.rs).
+  98 → 104 tests pass; the composite Inspector demonstrably populates
+  both coverage and storage in a single revm pass.
+- **C2 (metadata)**: 12/12 `metadata.json` files now carry an
+  `address_aliases` block (resolves "MockToken", "WrappedToken",
+  "FlashLoanProvider", … ATG node names that don't substring-match any
+  contract key) and an `auth_witness` recipe (`zero_root` /
+  `multisig{threshold}` / `mpc` / `none` keyed on a
+  `contracts.<key>.address`).
+- **C3 (wiring)**: `fuzz_loop::run_xscope` applies the aliases first,
+  attaches the `XScopeInspector` to every per-iteration execute, and
+  feeds the per-scenario SSTORE trace into a recipe-driven
+  `derive_auth_witness`. Three new bridges (multichain / ronin / orbit)
+  now reach the EVM thanks to aliases; four bridges fire violations
+  whereas only one did before.
 
-### 3.1 No real execution → no logs → no predicates fire (6 bridges)
+The architectural goal of "stop using `RelayMode` as a proxy for
+authorisation state" is achieved.
 
-`bb_src = 0` indicates the EVM never reached opcode level. Affected:
-**qubit, ronin, harmony, multichain, fegtoken, gempad**.
+---
 
-Two upstream issues conspire:
+## 3. What C1+C2+C3 did **not** fix
 
-- **Encode-action returns `None`** for actions whose ATG `contract`
-  field doesn't resolve to a deployed address. The metadata override
-  table covers some contracts (e.g. ronin_bridge_manager) but not
-  every node the LLM-produced ATG refers to (e.g. ATG node names like
-  `MaliciousToken`, `SignerSet` have no `metadata.contracts.<key>`).
-- **CalldataMutator dispatches to `Relay`** for actions tagged with
-  unknown chain side (the same fix landed for default mode in
-  Phase A but only when the action's `contract` is recognised).
+The remaining 0/12 predicted-predicate match has two distinct root
+causes, neither of which is in the detector itself:
 
-### 3.2 Real execution + logs, but no expected predicate fires (5 bridges)
+### 3.1 The fired I-2 violations are false positives
 
-`bb_src > 0` and yet `fired = []`. Affected: **nomad, orbit,
-polynetwork, pgala, socket**.
+Four bridges (multichain / ronin / orbit / wormhole) fire I-2
+(`recipient_zero`). Their documented incidents are not
+deposit-recipient bugs — multichain is MPC compromise, ronin is
+multisig forgery, orbit is MPC threshold, wormhole is signature
+replay. The I-2 firings come from
+[`xscope_adapter::read_address_word`](../src/module3_fuzzing/src/baselines/xscope_adapter.rs):
+we read 20 bytes at offset 32 + 12 of the log data, but real bridges
+emit events whose recipient sits at a different offset (or in an
+indexed topic instead of the data field). The decoded recipient is
+all-zero, so I-2 violates spuriously.
 
-- I-1 / I-2 / I-5 require **lock or unlock log topics** that match the
-  per-bridge event-signature table. X3 falls back to "ATG-edge keccak +
-  known-emitter address". For these 5 bridges either:
-  - The ATG edge `function_signature` doesn't match what the deployed
-    bytecode actually emits at the fork block (bridges have evolved
-    contracts), **or**
-  - The deployed contract emits a `Deposit`/`Mint` shape we don't
-    decode (e.g. the recipient sits in a different word offset than
-    `data[32..52]`).
-- I-6 requires an `AuthWitness ≠ AcceptableRoot`. X3 derives the
-  witness heuristically from `MockRelay::mode`, which stays
-  `Faithful` for every action that is **not** an explicit `chain:
-  "relay"` step. Most scenarios in our 12-benchmark dataset don't
-  emit relay actions at all, so the heuristic always returns
-  `AcceptableRoot` → I-6 always **holds**.
+**Fix**: per-bridge event ABI in `metadata.contracts.<key>.events`
+(spec §6.1, deferred from C2) — populate `lock_recipient_offset` /
+`lock_amount_offset` so the decoder uses real layouts. ~½ day per
+bridge × 12.
 
-### 3.3 Wrong predicates fire (1 bridge)
+### 3.2 The recipe-derived auth witnesses don't fire
 
-**Wormhole** fires I-1 (no-balance-change) and I-2 (recipient-zero)
-because the WormholeCore real-bytecode logs we capture lack the amount
-field at the offset our adapter reads, so the decoded amount is zero
-but the topic table still routes the log to `lock_events`. Predicates
-correctly raise — but spec §4 expected I-5 + I-6 (signature replay),
-not I-1 + I-2 (deposit shape).
+The 8 bridges with non-`none` `auth_witness` recipes (nomad / ronin /
+harmony / orbit / wormhole / multichain / polynetwork / pgala) all
+return `AcceptableRoot` from `derive_auth_witness` because there are
+no SSTOREs landing on the configured `contract_address` during the
+short scenarios. Real on-chain attacks DO produce SSTOREs — Nomad's
+incident sets `acceptableRoot[bytes32(0)] = 1` during `initialize()`,
+Ronin's writes the forged signer set, etc. — but those storage writes
+require executing **the actual incident transaction**, which the
+LLM-generated scenarios don't reliably reproduce.
 
-This is not a bug in the predicate logic; it's the same auth-witness
-issue from §3.2 plus the field-offset issue.
+**Fix path A**: Curated exploit-trace scenarios. Take each benchmark's
+`exploit_trace.json` (we already have these — see
+`benchmarks/<bridge>/exploit_trace.json`) and replay the exact tx
+sequence in XScope mode rather than running the abstract LLM
+scenarios. Effort: ~½ day per bridge to build a replay loader, then
+~1-2 days to wire `--mode xscope-replay`.
+
+**Fix path B**: Slot-aware auth-witness check. Instead of "any SSTORE
+on contract X fires", parse the contract's Solidity source to find
+the actual auth-control mapping slot, then check `latest_value(addr,
+slot)` against the documented attack value. Effort: same as path A
+plus the per-bridge Solidity reading.
+
+Both paths are scenario-quality work, not detector-quality work.
+Recommend path A — `exploit_trace.json` already exists for all 12
+bridges and is the faithful incident reproduction the spec §4
+predictions implicitly assume.
 
 ---
 
 ## 4. What's needed to lift X4 to ≥ 11/12
 
-Two work items, both inside the **X3 polish** scope (deferred when X3
-shipped, called out explicitly in `REIMPL_XSCOPE_SPEC.md` §3):
+Ordered by impact-per-effort:
 
-### 4.1 Storage-write Inspector for I-6 auth-witness reconstruction
+1. **Replay-mode XScope** (~3-4 days) — Add `--baseline-mode xscope-replay`
+   that reads `exploit_trace.json` and dispatches the exact transactions
+   instead of the LLM scenarios. Each replay tx hits the real auth
+   storage path → SSTOREs land → `derive_auth_witness` produces real
+   classifications → I-6 fires correctly on the 8 auth-bridge incidents.
+   Probably hits 8-10/12 alone.
+2. **Per-bridge event ABI** (~1 day if focused on the offset table only) —
+   eliminates I-2 false positives + lets I-1 and I-5 evaluate proper
+   amount/recipient/hash fields. Targets the 4 already-firing bridges
+   plus the 5 with execution but no fires (nomad / orbit /
+   polynetwork / pgala / socket).
+3. **Address-alias retry on bb=0 bridges** (~½ day) — fegtoken /
+   gempad / qubit / harmony still have bb_src=0 because their alias
+   maps don't cover every action.contract value the LLM scenarios
+   emit. Spot-check + extend the alias dict in
+   `scripts/_apply_x3polish_metadata.py`.
 
-Spec §3 line: *"state_diff.storage_delta — New: a thin
-StorageWriteTracker Inspector merged into the existing CoverageTracker
-rebuild. **Required for I-6** (`acceptableRoot[root] == true` trace,
-multisig threshold reconstruction)."*
-
-Concrete plan:
-
-1. Extend `coverage_tracker.rs` (or add `storage_tracker.rs`) with
-   `Inspector::step` matching `SSTORE` → record `(addr, slot, value)`
-   tuples per iteration.
-2. Per-bridge "auth-witness recipe" loaded from `metadata.json`:
-   - Nomad: `(replica, slot=keccak256(0)) == 1` ⇒ ZeroRoot
-   - Ronin: count matching slots `signers[i].admin == true`,
-     compare to threshold ⇒ Multisig{signatures, threshold}
-   - Wormhole: `guardian_set_index` storage value ⇒ Mpc{matches_canonical}
-   - …
-3. Replace `derive_auth_witness(&relay)` in `fuzz_loop.rs` with the
-   storage-trace lookup.
-
-Estimated effort: **~3-4 days** (one Phase-A4-sized piece). This is
-roughly what `REIMPL_XSCOPE_SPEC.md §3` priced in already.
-
-### 4.2 Per-bridge event signature table in metadata.json
-
-Spec §6.1 already defines an optional `contracts.<key>.events.{lock_topic,
-unlock_topic}` field. Populating it for the 12 bridges (~24 hex topics)
-would replace the unreliable "ATG-edge keccak" fallback for the 5
-bridges in failure mode §3.2.
-
-Estimated effort: **~1 day** (lookup on Etherscan; one row per bridge).
-
-### 4.3 Address overrides for ATG node names not in metadata
-
-For the 6 bridges in failure mode §3.1, populate `metadata.contracts`
-with synthetic entries pointing to deployed mock contracts (or skip
-those bridges with a methodology note for now). This is also a known
-limitation called out in the original `merge_address_overrides` design
-(spec §3 of REIMPL_XSCOPE_SPEC.md).
-
-Estimated effort: **~0.5 day per bridge** ⇒ ~3 days total for 6.
-
-**Total to reach 11/12**: ~7-8 days of X3-polish work. The X3 budget
-was 1 day so this slipped into X4; the reasonable path is to recognise
-this slip, log it as a known limitation now, and decide whether to
-invest the polish before the SmartAxe / VulSEye / SmartShot impl phases.
+Total to reach ≥ 11/12: ~4-6 days. Strictly less than the 7-8 days
+estimated in the original X4 outcome (commit 05e9ae7) because C1+C2+C3
+already paid down the storage-tracker debt.
 
 ---
 
-## 5. Decision needed (advisor escalation)
+## 5. Decision needed
 
-Three options, each with paper-§5.3 RQ1 implications:
+The right next move depends on the paper §5.3 RQ1 deadline:
 
-| # | Option | Effort | RQ1 column for XScope |
+| # | Option | Effort | Outcome |
 |---|---|---|---|
-| **A** | Invest 7-8 days X3 polish to reach ≥ 11/12 | ~1.5 weeks | Self-run, per-bridge truth |
-| **B** | Ship XScope as 1/12 cited (Wormhole I-1/I-2 honest result) + cite-published for the rest | 0 days | Mixed self-run / cite |
-| **C** | Drop XScope from RQ1 self-run, fall back to cite-published only (current `baselines/_cited_results/xscope.json`) | 0 days | Pure cite |
+| **A** | Push C4: replay-mode + ABI + extra aliases | ~4-6 days | 11/12 self-run, full RQ1 column |
+| **B** | Ship XScope as **mixed**: wormhole/multichain/ronin/orbit self-run (I-2 false positives noted in methodology) + cite-published for the rest | 0 days | 4/12 self-run + 1/12 cited (Qubit) |
+| **C** | Drop self-run for XScope, keep cite-published only | 0 days | 1/12 cited |
 
-**Recommend A** — it's the smallest investment that lets us claim
-"self-run on 12 bridges" for XScope, and the same storage-write
-inspector serves the **VulSEye** (state targets) and **SmartShot**
-(taint) re-impls coming up — i.e. the work amortises across three of
-the four re-impl tracks.
-
-Option A's first sub-task would be a new `X3.1 Storage-write Inspector`
-spec entry in PLAN_REIMPL_BASELINES.md and a corresponding 3-4 day
-implementation block before X4 is re-attempted.
+Recommend **A** — same logic as the previous outcome (replay-mode
+amortises into VulSEye's scenario harness too: same `exploit_trace.json`
+replay seeds VulSEye's directed fuzzing).
 
 ---
 
 ## 6. Acceptance status
 
 ```
-X4 ACCEPTANCE: FAIL  (0/12, bar 11/12)
+X4 ACCEPTANCE: FAIL  (0/12 predicted; bar 11/12)
+X4 PROGRESS:    +3 bridges executing, +3 bridges firing violations
+                vs before C1+C2+C3.
 ```
 
-This file + the JSON artifacts in
-[`docs/baseline_x4_artifacts/`](baseline_x4_artifacts/) constitute the
-honest record. The verifier
-[`scripts/verify_xscope_acceptance.py`](../scripts/verify_xscope_acceptance.py)
-re-runs the same check and writes the same summary; future X3-polish
-work re-runs it to track the pass rate climbing from 0/12 toward
-11/12.
+The verifier script + the JSON artifacts in
+[`docs/baseline_x4_artifacts/`](baseline_x4_artifacts/) make
+incremental progress trackable. C4 (replay mode) re-runs the same
+verifier against new sweep results.

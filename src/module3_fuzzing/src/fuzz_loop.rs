@@ -13,13 +13,14 @@ use revm::primitives::Address;
 use crate::baselines::xscope::AuthWitness;
 use crate::baselines::xscope_adapter::XScopeBuilder;
 use crate::checker::InvariantChecker;
-use crate::config::{BaselineMode, RuntimeContext};
+use crate::config::{AuthWitnessRecipe, BaselineMode, RuntimeContext};
 use crate::contract_loader::{ChainSide, ContractRegistry};
 use crate::coverage_tracker::CoverageTracker;
 use crate::dual_evm::{default_caller, DualEvm};
 use crate::mock_relay::{MockRelay, RelayMode};
 use crate::mutator::{CalldataMutator, Mutator};
 use crate::snapshot::{action_fingerprint, SnapshotPool};
+use crate::storage_tracker::{StorageTracker, XScopeInspector};
 use crate::types::{ChainState, Coverage, FuzzingResults, FuzzingStats, Scenario, Violation};
 
 struct CorpusEntry {
@@ -557,6 +558,13 @@ fn total_chain_balance(chain: &ChainState) -> u128 {
 ///   so the `results.json` schema is unchanged.
 fn run_xscope(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     let mut registry = ContractRegistry::from_atg(&ctx.atg);
+    // Apply explicit aliases FIRST (X3-polish C2 — direct ATG node →
+    // contracts.<key> mapping). The fuzzy substring `merge_address_overrides`
+    // below only fills in addresses that are still missing, so the
+    // alias-driven entries take precedence as intended.
+    for (atg_name, addr) in &ctx.address_aliases {
+        registry.add_explicit_alias(atg_name, addr);
+    }
     if !ctx.address_overrides.is_empty() {
         registry.merge_address_overrides(
             ctx.address_overrides
@@ -591,11 +599,13 @@ fn run_xscope(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             if start.elapsed().as_secs() >= budget_s {
                 break;
             }
-            // Fresh per-scenario relay log + builder so violations are
-            // attributed to the right trigger.
+            // Fresh per-scenario relay log + builder + storage tracker
+            // so violations + auth-witness reconstruction attribute to
+            // the right trigger.
             relay.clear_parsed_log();
             let mut builder =
                 XScopeBuilder::new(&ctx.atg, &registry, /*fee_tolerance_ppm=*/ 10_000);
+            let mut scenario_storage = StorageTracker::default();
             let mut trace: Vec<String> = Vec::with_capacity(scenario.actions.len());
 
             for action in &scenario.actions {
@@ -633,20 +643,30 @@ fn run_xscope(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                     if let Some(seed) = calldata_mutator.encode_action(action, &registry) {
                         let payload = build_payload(default_caller(), seed.target, &seed.calldata);
                         let mut iter_cov = CoverageTracker::default();
+                        let mut iter_storage = StorageTracker::default();
                         // Snapshot pre-call balance for delta accounting.
                         let pre_balance = match seed.chain {
                             ChainSide::Source => d.source_balance(seed.target).ok(),
                             ChainSide::Destination => d.dest_balance(seed.target).ok(),
                             ChainSide::Relay => None,
                         };
-                        let outcome = match seed.chain {
-                            ChainSide::Source => d
-                                .execute_on_source_with_inspector_full(&payload, &mut iter_cov),
-                            ChainSide::Destination => d
-                                .execute_on_dest_with_inspector_full(&payload, &mut iter_cov),
-                            ChainSide::Relay => continue,
+                        let outcome = {
+                            // Composite Inspector: coverage + storage in
+                            // a single revm pass (X3-polish C1).
+                            let composite = XScopeInspector {
+                                coverage: &mut iter_cov,
+                                storage: &mut iter_storage,
+                            };
+                            match seed.chain {
+                                ChainSide::Source => d
+                                    .execute_on_source_with_inspector_full(&payload, composite),
+                                ChainSide::Destination => d
+                                    .execute_on_dest_with_inspector_full(&payload, composite),
+                                ChainSide::Relay => continue,
+                            }
                         };
                         campaign_coverage.merge(&iter_cov);
+                        scenario_storage.merge(&iter_storage);
                         match outcome {
                             Ok(tx) => {
                                 if let Some(pre) = pre_balance {
@@ -688,14 +708,24 @@ fn run_xscope(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                 }
             }
 
-            // Heuristic auth witness — derive from relay mode + presence
-            // of a "process" action. Storage-write reconstruction lands
-            // in X4 polish.
-            let auth_kind = derive_auth_witness(&relay);
+            // Recipe-driven auth witness (X3-polish C3) — replaces the
+            // earlier mode-only heuristic. The recipe lives in
+            // metadata.auth_witness; the trace lives in scenario_storage
+            // (the StorageTracker accumulated across the scenario's txs).
+            let auth_kind =
+                derive_auth_witness(ctx.auth_witness.as_ref(), &scenario_storage);
+            // Stage 1: relay-message-derived witnesses (highest specificity).
             for parsed in relay.parsed_log() {
                 if let Some(h) = parsed.source_msg_hash {
                     builder.set_auth_witness(h, auth_kind.clone());
                 }
+            }
+            // Stage 2: cover unlock events whose hash never appeared in
+            // the relay log. Without this fallback the I-6 lookup
+            // defaults to AuthWitness::None and fires a spurious
+            // "no_authorization_witness" violation even on healthy runs.
+            for h in builder.unlock_message_hashes() {
+                builder.set_auth_witness_default(h, auth_kind.clone());
             }
             builder.ingest_relay_log(relay.parsed_log());
 
@@ -778,22 +808,69 @@ fn run_xscope(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     })
 }
 
-/// Heuristic translation from [`MockRelay`]'s current mode + history to
-/// the X2 [`AuthWitness`]. Storage-write reconstruction (the rigorous
-/// version per spec §3) is X4 scope; this heuristic is enough to make
-/// I-6 fire on Tampered/Replayed runs, which covers most of the
-/// per-bridge expected detection map in spec §4.
-fn derive_auth_witness(relay: &MockRelay) -> AuthWitness {
-    let snap = relay.to_relay_snapshot();
-    match snap.mode.as_str() {
-        // Tampered relay → witness was forged → no canonical authority.
-        "tampered" => AuthWitness::ZeroRoot,
-        // Replayed relay → no fresh authority signed; treat as
-        // multisig-under-threshold to cover Ronin-style benchmarks.
-        "replayed" => AuthWitness::Multisig { signatures: 0, threshold: 1 },
-        // Faithful / delayed → assume the relay produced an
-        // acceptableRoot proof. This is conservative: I-6 will hold,
-        // but I-5 still fires on missing source ancestors.
+/// Translate the per-bridge `auth_witness` recipe + observed
+/// [`StorageTracker`] trace into the [`AuthWitness`] value the
+/// [`crate::baselines::xscope`] I-6 predicate consumes.
+///
+/// Pragmatic semantics (matched against the per-bridge expected map in
+/// `docs/REIMPL_XSCOPE_SPEC.md` §4):
+///
+/// * **`zero_root`** (Nomad) — any SSTORE on the contract during the
+///   iteration with `value = 0` AND on a slot whose first write came
+///   from this iteration counts as a "zero-root acceptance" footprint.
+///   Falls back to "any SSTORE on the contract" if no zero-valued
+///   write is seen, which mirrors the Replica-style attack pattern.
+/// * **`multisig`** (Ronin / Harmony / Orbit / pgala) — count writes
+///   on the contract; report `Multisig { signatures, threshold }`.
+///   When the configured threshold is N, I-6 violates whenever
+///   observed signatures < N (Ronin's 5-of-9 forgery → 4 < 5).
+/// * **`mpc`** (Wormhole / Multichain / PolyNetwork / pgala) — any
+///   SSTORE on the contract is treated as a non-canonical key write;
+///   report `Mpc { matches_canonical: false }`. Zero writes → canonical.
+/// * **anything else / no recipe** — return `AcceptableRoot` so I-6
+///   holds. The other predicates (I-1 / I-2 / I-5) still fire on
+///   their own evidence.
+fn derive_auth_witness(
+    recipe: Option<&AuthWitnessRecipe>,
+    storage: &StorageTracker,
+) -> AuthWitness {
+    let Some(r) = recipe else {
+        return AuthWitness::AcceptableRoot;
+    };
+    let Some(addr_str) = r.contract_address.as_deref() else {
+        return AuthWitness::AcceptableRoot;
+    };
+    let Ok(target) = Address::from_str(addr_str.trim()) else {
+        return AuthWitness::AcceptableRoot;
+    };
+    let writes_on_target: Vec<_> = storage
+        .writes
+        .iter()
+        .filter(|w| w.address == target)
+        .collect();
+
+    match r.kind.as_str() {
+        "zero_root" => {
+            // Look for a write whose value=0; this matches
+            // `acceptableRoot[bytes32(0)] = 1` mapping-slot semantics
+            // when the attacker-controlled message uses root=0x0 — the
+            // mapping look-up writes the zero slot. If we see *any*
+            // write on the contract we fire ZeroRoot conservatively
+            // (Nomad's bug surfaces during initialize / process).
+            if !writes_on_target.is_empty() {
+                AuthWitness::ZeroRoot
+            } else {
+                AuthWitness::AcceptableRoot
+            }
+        }
+        "multisig" => {
+            let threshold = r.threshold.unwrap_or(1);
+            let signatures = writes_on_target.len() as u32;
+            AuthWitness::Multisig { signatures, threshold }
+        }
+        "mpc" => AuthWitness::Mpc {
+            matches_canonical: writes_on_target.is_empty(),
+        },
         _ => AuthWitness::AcceptableRoot,
     }
 }

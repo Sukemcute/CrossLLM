@@ -146,11 +146,27 @@ impl<'a> XScopeBuilder<'a> {
         }
     }
 
-    /// Record an auth witness for one cross-chain message. X3 supplies a
-    /// heuristic version; X4 polish may replace this with a storage-write
-    /// inspector that reconstructs the witness from on-chain state.
+    /// Record an auth witness for one cross-chain message. Overwrites
+    /// any previous setting for the same message hash.
     pub fn set_auth_witness(&mut self, msg_hash: B256, witness: AuthWitness) {
         self.auth_witnesses.insert(msg_hash, witness);
+    }
+
+    /// First-write-wins variant of [`Self::set_auth_witness`]. Used by
+    /// the X3-polish C3 wiring to attach a per-bridge auth-witness
+    /// recipe value to **every** unlock event captured during the
+    /// scenario, while leaving relay-message-derived witnesses (set
+    /// earlier via [`Self::set_auth_witness`]) intact.
+    pub fn set_auth_witness_default(&mut self, msg_hash: B256, witness: AuthWitness) {
+        self.auth_witnesses.entry(msg_hash).or_insert(witness);
+    }
+
+    /// Read-only access to the message hashes carried on every captured
+    /// unlock-side event. The X3-polish C3 wiring iterates over these
+    /// to populate fallback auth witnesses for unlock events whose
+    /// hash never appeared in the relay log.
+    pub fn unlock_message_hashes(&self) -> Vec<B256> {
+        self.unlock_events.iter().map(|e| e.message_hash).collect()
     }
 
     /// Run the six predicates over the accumulated view.
