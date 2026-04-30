@@ -211,6 +211,12 @@ pub struct RuntimeContext {
     /// the `--metadata` flag's parent dir + `exploit_replay/cache/`.
     /// `None` when `--metadata` was not supplied.
     pub replay_cache_dir: Option<std::path::PathBuf>,
+    /// Optional EVM hard-fork override read from `metadata.fork.spec_id`.
+    /// Lower-case spec name ("london", "shanghai", "cancun", "paris",
+    /// "merge", "berlin"). When `None`, `DualEvm::new` defaults to
+    /// `SpecId::LONDON`. Required for replays of post-Cancun blocks
+    /// (e.g. Gempad fork 44946195 uses MCOPY which is a Cancun opcode).
+    pub fork_spec_id: Option<String>,
     /// Which detection algorithm to run. Resolved from `--baseline-mode`.
     pub baseline_mode: BaselineMode,
 }
@@ -258,7 +264,7 @@ pub fn build_context_from_args(cli: CliArgs) -> Result<RuntimeContext> {
     validate_context(&config, &atg, &hypotheses)?;
 
     // Step 6: Optional metadata.json overrides for ATG node addresses.
-    let (address_overrides, address_aliases, auth_witness, replay_cache_dir) =
+    let (address_overrides, address_aliases, auth_witness, replay_cache_dir, fork_spec_id) =
         if let Some(meta_path) = cli.metadata.as_ref() {
             let raw = std::fs::read_to_string(meta_path)
                 .wrap_err_with(|| format!("Failed to read metadata: {}", meta_path.display()))?;
@@ -269,14 +275,20 @@ pub fn build_context_from_args(cli: CliArgs) -> Result<RuntimeContext> {
             let cache = meta_path
                 .parent()
                 .map(|p| p.join("exploit_replay").join("cache"));
+            let spec = v
+                .get("fork")
+                .and_then(|f| f.get("spec_id"))
+                .and_then(|s| s.as_str())
+                .map(|s| s.to_lowercase());
             (
                 load_address_overrides_from_value(&v),
                 load_address_aliases_from_value(&v),
                 load_auth_witness_from_value(&v),
                 cache,
+                spec,
             )
         } else {
-            (Vec::new(), Vec::new(), None, None)
+            (Vec::new(), Vec::new(), None, None, None)
         };
 
     Ok(RuntimeContext {
@@ -288,6 +300,7 @@ pub fn build_context_from_args(cli: CliArgs) -> Result<RuntimeContext> {
         address_aliases,
         auth_witness,
         replay_cache_dir,
+        fork_spec_id,
         baseline_mode: cli.baseline_mode,
     })
 }

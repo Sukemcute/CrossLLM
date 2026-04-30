@@ -8,6 +8,7 @@ use std::time::Instant;
 use eyre::{eyre, Result};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+use revm::primitives::specification::SpecId;
 use revm::primitives::Address;
 
 use crate::baselines::xscope::AuthWitness;
@@ -17,6 +18,22 @@ use crate::config::{AuthWitnessRecipe, BaselineMode, RuntimeContext};
 use crate::contract_loader::{ChainSide, ContractRegistry};
 use crate::coverage_tracker::CoverageTracker;
 use crate::dual_evm::{default_caller, DualEvm};
+
+fn parse_spec_id(s: &str) -> Option<SpecId> {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "frontier" => Some(SpecId::FRONTIER),
+        "homestead" => Some(SpecId::HOMESTEAD),
+        "byzantium" => Some(SpecId::BYZANTIUM),
+        "petersburg" | "constantinople" => Some(SpecId::PETERSBURG),
+        "istanbul" => Some(SpecId::ISTANBUL),
+        "berlin" => Some(SpecId::BERLIN),
+        "london" => Some(SpecId::LONDON),
+        "paris" | "merge" => Some(SpecId::MERGE),
+        "shanghai" => Some(SpecId::SHANGHAI),
+        "cancun" => Some(SpecId::CANCUN),
+        _ => None,
+    }
+}
 use crate::mock_relay::{MockRelay, RelayMode};
 use crate::mutator::{CalldataMutator, Mutator};
 use crate::snapshot::{action_fingerprint, SnapshotPool};
@@ -62,12 +79,41 @@ pub fn init_dual_evm(ctx: &RuntimeContext) -> Option<DualEvm> {
         return None;
     }
 
-    let mut dual = match DualEvm::new(
-        &ctx.config.source_rpc,
-        &ctx.config.dest_rpc,
-        ctx.config.source_block,
-        ctx.config.dest_block,
-    ) {
+    // Pick the EVM spec: metadata.fork.spec_id wins (needed for replays
+    // of post-Cancun blocks like Gempad 44946195 which uses MCOPY); else
+    // default LONDON, which covers the original 6 PASS bridges' fork
+    // blocks (12.9M ETH … 19.0M ETH, all pre-Cancun).
+    let dual_result = if let Some(spec_str) = ctx.fork_spec_id.as_deref() {
+        match parse_spec_id(spec_str) {
+            Some(spec) => DualEvm::new_with_spec(
+                &ctx.config.source_rpc,
+                &ctx.config.dest_rpc,
+                ctx.config.source_block,
+                ctx.config.dest_block,
+                spec,
+            ),
+            None => {
+                eprintln!(
+                    "WARNING: unknown fork.spec_id={:?}, falling back to LONDON",
+                    spec_str
+                );
+                DualEvm::new(
+                    &ctx.config.source_rpc,
+                    &ctx.config.dest_rpc,
+                    ctx.config.source_block,
+                    ctx.config.dest_block,
+                )
+            }
+        }
+    } else {
+        DualEvm::new(
+            &ctx.config.source_rpc,
+            &ctx.config.dest_rpc,
+            ctx.config.source_block,
+            ctx.config.dest_block,
+        )
+    };
+    let mut dual = match dual_result {
         Ok(d) => d,
         Err(err) => {
             eprintln!("WARNING: Dual-EVM init failed, fallback to synthetic state: {err}");

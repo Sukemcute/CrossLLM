@@ -22,7 +22,8 @@
   "fork": {
     "block_number": 44946195,
     "first_exploit_block": 44500001,
-    "repro_rpc_port": 8545
+    "repro_rpc_port": 8545,
+    "spec_id": "shanghai"
   },
   "contracts": {
     "gempad_locker": {

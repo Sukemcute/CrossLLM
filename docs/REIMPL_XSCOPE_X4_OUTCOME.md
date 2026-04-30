@@ -1,7 +1,8 @@
 # X4 outcome — XScope re-impl per-bridge validation
 
 > **Latest run (after C1+C2+C3+C4 + A1+A2+A3 + Orbit/Socket/Harmony
-> research, 2026-04-30)**: ✅ **6/12 bridges PASS predicted predicate**
+> research + BSC archival RPC + Qubit/Gempad replay, 2026-04-30)**:
+> ✅ **6/12 bridges PASS predicted predicate**
 > via replay mode (acceptance bar: 11/12 per
 > [REIMPL_XSCOPE_SPEC.md](REIMPL_XSCOPE_SPEC.md) §4).
 > Socket also replays cleanly but its bug class
@@ -17,7 +18,8 @@
 > | After C4-aliases + A2 (BSC RPC routing) | 0/12 |
 > | After A3 replay-mode + 4 verified tx hashes | 4/12 ✅ |
 > | After Orbit research + Socket replay | 5/12 ✅ |
-> | **After Harmony forensics + gas-cap + synthetic-unlock fix** | **6/12** ✅ |
+> | After Harmony forensics + gas-cap + synthetic-unlock fix | 6/12 ✅ |
+> | **After BSC archival RPC + Qubit/Gempad replay (predicates didn't match)** | **6/12** ⏸ |
 >
 > Architecture is complete; the 6 PASSing bridges prove the replay
 > pipeline works end-to-end across three distinct exploit shapes
@@ -39,20 +41,21 @@ multichain      1     1  I-5         I-5           PASS
 polynetwork     1     1  I-5         I-5,I-6       PASS  (matched I-5)
 orbit           1     2  I-5,I-6     I-6           PASS  (predicted match + bonus I-5)
 harmony         1     2  I-5,I-6     I-6           PASS  (predicted match + bonus I-5; synthetic-unlock path)
-qubit           —     —   —           I-2          SKIP  (no tx_hashes — needs BSC replay)
-wormhole        —     —   —           I-5,I-6      SKIP  (Solana — out-of-scope for ETH replay)
-pgala           —     —   —           I-3,I-4,I-6  SKIP  (BSC archival RPC missing)
+qubit           1     1  I-5         I-2          FAIL  (replays cleanly under BSC archival; I-2 unreachable from single-side replay — needs cross-chain lock observation)
+gempad          2     0  —           I-5          FAIL  (replays cleanly under SHANGHAI; drain target deployed in missing intermediate tx)
 socket          1     0   —           I-1,I-5      FAIL  (replays cleanly but bug class outside XScope predicate set — see §3.5)
-fegtoken        —     —   —           I-1,I-5      SKIP  (BSC archival RPC missing)
-gempad          —     —   —           I-5          SKIP  (BSC archival RPC missing)
+wormhole        —     —   —           I-5,I-6      SKIP  (Solana — out-of-scope for ETH replay)
+pgala           —     —   —           I-3,I-4,I-6  SKIP  (no verified tx hash in any post-mortem)
+fegtoken        —     —   —           I-1,I-5      SKIP  (original benchmark spec doesn't match any documented FEG exploit)
               ───
-Bridges PASS:  6/12   (verified replay)
-Bridges SKIP:  5/12   (BSC archival RPC + Solana + Qubit BSC tx)
-Bridges FAIL:  1/12   (Socket — different bug class, not a wiring deficit)
+Bridges PASS:  6/12   (predicted predicate matched via replay)
+Bridges FAIL:  3/12   (Socket: bug-class mismatch / Qubit: cross-chain limit / Gempad: intermediate-tx data gap)
+Bridges SKIP:  3/12   (Wormhole: Solana / pGala: no verified tx / FEGtoken: spec-incident mismatch)
 ```
 
 Source data:
-- [`docs/baseline_x4_artifacts/xscope_x4_post_harmony_pass_verification.json`](baseline_x4_artifacts/xscope_x4_post_harmony_pass_verification.json) (latest, 6/12)
+- [`docs/baseline_x4_artifacts/xscope_x4_post_bsc_verification.json`](baseline_x4_artifacts/xscope_x4_post_bsc_verification.json) (latest, 9 bridges replay, 6/12 predicate match)
+- [`docs/baseline_x4_artifacts/xscope_x4_post_harmony_pass_verification.json`](baseline_x4_artifacts/xscope_x4_post_harmony_pass_verification.json) (pre-BSC, 6/12)
 - [`docs/baseline_x4_artifacts/xscope_x4_post_replay_verification.json`](baseline_x4_artifacts/xscope_x4_post_replay_verification.json) (4/12 baseline)
 
 ---
@@ -122,6 +125,54 @@ scenarios. Pieces:
   wallet was unfunded at fork-block - 1 (PolyNetwork was the
   observed case; the polynetwork replay went from 0 violations →
   1 violation match after this fix).
+
+### A3-BSC — archival RPC + Qubit/Gempad replay (next commit)
+
+After commit `e56d18c` populated `_apply_replay_hashes.py` with the
+two BSCscan-verified hashes (Qubit `0x33628dcc…` and Gempad
+`0x1a502115…` + `0x409a5313…`), provisioning archival BSC RPC
+(`BSC_ARCHIVE_RPC_URL` via Alchemy free tier) unblocked their
+replay. Three pieces:
+
+- **Sweep script env override** (commit `1a121dd`):
+  `metadata.exploit_replay.rpc_env` wins over `source_chain.rpc_env`
+  so Qubit (declared ETH→BSC at the protocol layer but exploited
+  BSC-side) routes to the BSC archival endpoint without rewriting
+  chain semantics. Skips cleanly with the exact env-var name when
+  unset — no silent fallback to ETH_RPC_URL.
+- **Per-bridge `fork.spec_id` override** (this commit):
+  `RuntimeContext.fork_spec_id` reads `metadata.fork.spec_id` and
+  routes through `DualEvm::new_with_spec`. Gempad fork block
+  44946195 (Dec 2024 BSC) needs at least Shanghai for PUSH0; under
+  the original LONDON default revm halted at PC 9 with
+  `NotActivated`. Cancun is rejected because BSC headers don't
+  carry `excessBlobGas`, so Shanghai is the right choice for
+  post-Shanghai non-Cancun BSC blocks.
+- **Setup guide** (commit `1a121dd`):
+  [docs/BSC_ARCHIVAL_RPC_SETUP.md](BSC_ARCHIVAL_RPC_SETUP.md) walks
+  the user through provisioning + archival verification + the
+  three-script chain (apply_hashes → fetch_txs → sweep).
+
+Result:
+- **Qubit** replays cleanly (12279 PCs, 35 SSTOREs, 10 logs, 1
+  violation). I-5 fires via the synthetic-unlock-attempt path
+  because the QBridge is the auth-witness contract; **but the
+  spec-predicted predicate is I-2** (Inconsistent Event Parsing),
+  which compares a lock event's encoded payload to its decoded
+  fields. Single-side BSC replay never observes the lock event
+  (which never existed — that's the whole bug), so I-2 is unreachable
+  without simultaneous Ethereum-side observation. **Verdict: FAIL,
+  but for a principled paper-coverage reason, not a bug.**
+- **Gempad** replays cleanly under SHANGHAI (114 PCs on tx 1, 0 PCs
+  on tx 2). Tx 1 is the +9.999 BNB funding to attack contract
+  `0x8e18Fb32…`; tx 2 targets a *second* attack contract
+  `0xbfcf56d4fc…` that wasn't yet deployed at fork block 44946195
+  (its CREATE happened in an intermediate tx between funding and
+  drain). Synthetic-unlock-attempt doesn't fire because neither tx
+  targets `gempad_locker` directly — the drain reaches the locker
+  via internal call from the second attack contract. Detecting
+  this needs internal-call awareness in the synthetic path.
+  **Verdict: FAIL, data-incomplete (missing intermediate deploy).**
 
 ### A3-Harmony — gas-cap + synthetic-unlock (this commit)
 
