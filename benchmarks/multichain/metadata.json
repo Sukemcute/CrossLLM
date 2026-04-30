@@ -21,7 +21,7 @@
     "rpc_env": "FANTOM_RPC_URL"
   },
   "fork": {
-    "block_number": 17529623,
+    "block_number": 17664130,
     "first_exploit_block": 17529624,
     "repro_rpc_port": 8545
   },
@@ -153,5 +153,11 @@
   "auth_witness": {
     "kind": "mpc",
     "contract_key": "multichain_router_eth"
+  },
+  "exploit_replay": {
+    "rpc_env": "ETH_RPC_URL",
+    "tx_hashes": [
+      "0x53ede4462d90978b992b0a88727de19afe4e96f0374aa1a221b8ff65fda5a6fe"
+    ]
   }
 }

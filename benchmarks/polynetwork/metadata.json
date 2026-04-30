@@ -105,5 +105,11 @@
   "auth_witness": {
     "kind": "mpc",
     "contract_key": "eth_cross_chain_manager"
+  },
+  "exploit_replay": {
+    "rpc_env": "ETH_RPC_URL",
+    "tx_hashes": [
+      "0xb1f70464bd95b774c6ce60fc706eb5f9e35cb5f06e6cfe7c17dcda46ffd59581"
+    ]
   }
 }

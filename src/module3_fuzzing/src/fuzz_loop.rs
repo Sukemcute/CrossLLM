@@ -896,6 +896,14 @@ fn run_xscope_replay(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         payload.extend_from_slice(to.as_slice());
         payload.extend_from_slice(&input);
 
+        // Fund the attacker so the replay can pay for gas regardless
+        // of what their on-chain balance was at the fork block. Some
+        // exploiters drain their gas wallet right after the exploit
+        // and re-funded later; replaying at fork_block - 1 may catch
+        // them with 0 ETH and trigger Halt::OutOfFund (no opcodes
+        // execute → bb=0). Fund unconditionally to MAX/2 wei.
+        dual.fund_source(caller, revm::primitives::U256::MAX / revm::primitives::U256::from(2u8));
+
         let mut iter_cov = CoverageTracker::default();
         let mut iter_storage = StorageTracker::default();
         let outcome = {

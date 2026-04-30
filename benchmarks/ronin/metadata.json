@@ -20,7 +20,7 @@
     "rpc_env": "RONIN_RPC_URL"
   },
   "fork": {
-    "block_number": 14442835,
+    "block_number": 14442834,
     "first_exploit_block": 14442836,
     "repro_rpc_port": 8545
   },
@@ -107,5 +107,11 @@
     "kind": "multisig",
     "contract_key": "ronin_bridge_v2_proxy",
     "threshold": 5
+  },
+  "exploit_replay": {
+    "rpc_env": "ETH_RPC_URL",
+    "tx_hashes": [
+      "0xc28fad5e8d5e0ce6a2eaf67b6687be5d58113e16be590824d6cfa1a94467d0b7"
+    ]
   }
 }

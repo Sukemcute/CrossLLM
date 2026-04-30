@@ -424,6 +424,19 @@ impl DualEvm {
         self.source.balance_of(who)
     }
 
+    /// Fund `who` on the source fork up to `balance` wei. Used by the
+    /// XScope replay-mode loader to ensure cached exploit-tx senders
+    /// can pay for gas regardless of what their on-chain balance was
+    /// at the historical fork block. Wraps the existing `ChainVm::fund`.
+    pub fn fund_source(&mut self, who: Address, balance: U256) {
+        self.source.fund(who, balance);
+    }
+
+    /// Destination-side counterpart of [`Self::fund_source`].
+    pub fn fund_dest(&mut self, who: Address, balance: U256) {
+        self.dest.fund(who, balance);
+    }
+
     /// Read ETH balance of an address on the destination fork.
     pub fn dest_balance(&mut self, who: Address) -> Result<U256, String> {
         self.dest.balance_of(who)

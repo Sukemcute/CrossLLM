@@ -1,0 +1,40 @@
+[
+  {
+    "bridge": "multichain",
+    "iters": 1,
+    "bb_src": 0,
+    "viol": 1,
+    "fired": [
+      "I-5"
+    ]
+  },
+  {
+    "bridge": "nomad",
+    "iters": 1,
+    "bb_src": 3033,
+    "viol": 2,
+    "fired": [
+      "I-5",
+      "I-6"
+    ]
+  },
+  {
+    "bridge": "polynetwork",
+    "iters": 1,
+    "bb_src": 776,
+    "viol": 1,
+    "fired": [
+      "I-5"
+    ]
+  },
+  {
+    "bridge": "ronin",
+    "iters": 1,
+    "bb_src": 180,
+    "viol": 2,
+    "fired": [
+      "I-5",
+      "I-6"
+    ]
+  }
+]
