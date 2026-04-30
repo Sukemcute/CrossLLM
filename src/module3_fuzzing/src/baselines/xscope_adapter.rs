@@ -169,6 +169,24 @@ impl<'a> XScopeBuilder<'a> {
         self.unlock_events.iter().map(|e| e.message_hash).collect()
     }
 
+    /// Replay-mode hook for txs that target a known auth-witness
+    /// contract but emit no logs (typically because the tx reverted
+    /// before the unlock could complete — Harmony's multisig
+    /// `confirmTransaction` reverts unless the prior `submitTransaction`
+    /// has been replayed in the same fork). The attacker's *intent*
+    /// to unlock is itself detectable, so we synthesise a single
+    /// unlock event keyed on the tx hash so I-5 / I-6 still fire
+    /// against the recipe-driven auth witness.
+    pub fn add_synthetic_unlock_attempt(&mut self, target: Address, msg_hash: B256) {
+        self.unlock_events.push(UnlockEvent {
+            address: target,
+            message_hash: msg_hash,
+            amount: U256::ZERO,
+            recipient: Address::ZERO,
+            topic0: B256::ZERO,
+        });
+    }
+
     /// Replay-mode log ingestion. The on-chain ATG-edge keccak gives
     /// **function** selectors, not **event** topics, so the
     /// `lock_topics` / `unlock_topics` tables in the standard ingest

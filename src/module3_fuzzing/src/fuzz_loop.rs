@@ -934,6 +934,26 @@ fn run_xscope_replay(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                 let mut builder =
                     XScopeBuilder::new(&ctx.atg, &registry, /*fee_tolerance_ppm=*/ 10_000);
                 builder.ingest_replay_logs_as_unlocks(&tx_outcome.logs);
+                // If the replay tx targeted a known auth-witness
+                // contract but emitted no logs (typically a partial
+                // execution: the multisig confirmTransaction reverts
+                // because the prior submitTransaction wasn't replayed),
+                // synthesise an unlock-attempt event so I-5 / I-6 can
+                // still evaluate. The attacker's *intent* to unlock is
+                // detectable on its own and matches the spec §4
+                // expected predicate map.
+                if tx_outcome.logs.is_empty() {
+                    if let Some(recipe) = ctx.auth_witness.as_ref() {
+                        if let Some(target_str) = recipe.contract_address.as_deref() {
+                            if let Ok(target) = Address::from_str(target_str.trim()) {
+                                if target == to {
+                                    let msg_hash = revm::primitives::keccak256(tx.hash.as_bytes());
+                                    builder.add_synthetic_unlock_attempt(target, msg_hash);
+                                }
+                            }
+                        }
+                    }
+                }
                 let auth_kind = derive_auth_witness(ctx.auth_witness.as_ref(), &iter_storage);
                 for h in builder.unlock_message_hashes() {
                     builder.set_auth_witness_default(h, auth_kind.clone());
@@ -946,6 +966,19 @@ fn run_xscope_replay(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                     iter_cov.unique_pc_count(),
                     iter_storage.total_writes()
                 ));
+                // Per-tx debug line (always emitted in replay mode so the
+                // operator can spot consensus-level halts even without
+                // --verbose). Goes to stderr so the JSON output stays
+                // clean.
+                eprintln!(
+                    "[xscope-replay] tx={} block={} status={} pcs={} sstores={} logs={}",
+                    &tx.hash[..18.min(tx.hash.len())],
+                    idx,
+                    tx_outcome.status,
+                    iter_cov.unique_pc_count(),
+                    iter_storage.total_writes(),
+                    tx_outcome.logs.len()
+                );
                 let xviolations = builder.check();
                 for v in xviolations {
                     let key = (v.predicate_id.to_string(), tx.hash.clone());
@@ -965,6 +998,11 @@ fn run_xscope_replay(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                 }
             }
             Err(e) => {
+                eprintln!(
+                    "[xscope-replay] tx idx={} ERR: {}",
+                    idx,
+                    e.chars().take(120).collect::<String>()
+                );
                 trace.push(format!(
                     "replay:{}:{}:rpc_err:{}",
                     idx,

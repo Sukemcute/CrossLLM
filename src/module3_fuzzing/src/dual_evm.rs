@@ -180,9 +180,19 @@ impl ChainVm {
 
     fn build_call_tx(&mut self, caller: Address, to: Address, data: Bytes) -> TxEnv {
         let basefee = self.fork_block.basefee;
+        // Use 95 % of the fork block's gas limit so the tx never trips
+        // revm's `CallerGasLimitMoreThanBlock` check on slightly-smaller
+        // blocks (block 15012700 was ~28.7M and 30M_000_000 was over the
+        // cap, which surfaced during the Harmony replay debug). Cap at
+        // 30M so post-London blocks behave the same as before.
+        let block_cap = as_u64_saturating(self.fork_block.gas_limit);
+        let tx_gas_limit = block_cap
+            .saturating_mul(95)
+            .saturating_div(100)
+            .min(30_000_000);
         TxEnv {
             caller,
-            gas_limit: 30_000_000,
+            gas_limit: tx_gas_limit.max(1_000_000),
             gas_price: basefee.saturating_add(U256::from(1u8)),
             gas_priority_fee: None,
             transact_to: TransactTo::Call(to),
