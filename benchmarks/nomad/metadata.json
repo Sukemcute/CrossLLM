@@ -27,7 +27,7 @@
   },
   "contracts": {
     "replica_ethereum": {
-      "address": "0xB92336759618F55bd0F8313bd843604592E27bd8",
+      "address": "0x5D94309E5a0090b165FA4181519701637B6DAEBA",
       "role": "vulnerable message authentication in process() via acceptableRoot()"
     },
     "erc20_bridge_ethereum": {
@@ -93,5 +93,11 @@
   "auth_witness": {
     "kind": "zero_root",
     "contract_key": "replica_ethereum"
+  },
+  "exploit_replay": {
+    "rpc_env": "ETH_RPC_URL",
+    "tx_hashes": [
+      "0xa5fe9d044e4f3e5aa5bc4c0709333cd2190cba0f4e7f16bcf73f49f83e4a5460"
+    ]
   }
 }

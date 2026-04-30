@@ -89,8 +89,10 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     // Re-implementation baseline modes bypass BridgeSentry's invariant
     // checker and run their own detector against the scenario-driven
     // execution. See `docs/REIMPL_<TOOL>_SPEC.md` for each mode.
-    if let BaselineMode::Xscope = ctx.baseline_mode {
-        return run_xscope(ctx);
+    match ctx.baseline_mode {
+        BaselineMode::Xscope => return run_xscope(ctx),
+        BaselineMode::XscopeReplay => return run_xscope_replay(ctx),
+        BaselineMode::Bridgesentry => {}
     }
     let mutator = Mutator::with_atg(&ctx.atg);
     let mut registry = ContractRegistry::from_atg(&ctx.atg);
@@ -806,6 +808,250 @@ fn run_xscope(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             snapshot_pool_peak: 0,
         },
     })
+}
+
+// ============================================================================
+// XScope-replay mode (X3-polish A3) — replays cached on-chain exploit txs.
+// ============================================================================
+
+/// Replay-mode XScope detector. Reads cached exploit transactions from
+/// `<metadata_dir>/exploit_replay/cache/*.json`, dispatches each one
+/// through `dual.execute_on_source_with_inspector_full`, captures logs
+/// + storage writes, and runs all six XScope predicates against the
+/// resulting view. The intent is faithful incident reproduction —
+/// this is what the original XScope paper does (transaction-stream
+/// detection on real on-chain history) and the only path that
+/// reliably fires I-5 / I-6 on storage / log patterns the
+/// LLM-generated abstract scenarios cannot reproduce.
+fn run_xscope_replay(ctx: &RuntimeContext) -> Result<FuzzingResults> {
+    let mut registry = ContractRegistry::from_atg(&ctx.atg);
+    for (atg_name, addr) in &ctx.address_aliases {
+        registry.add_explicit_alias(atg_name, addr);
+    }
+    if !ctx.address_overrides.is_empty() {
+        registry.merge_address_overrides(
+            ctx.address_overrides
+                .iter()
+                .map(|(k, v)| (k.as_str(), v.as_str())),
+        );
+    }
+
+    let mut dual = init_dual_evm(ctx)
+        .ok_or_else(|| eyre!("xscope-replay requires --source-rpc and --dest-rpc"))?;
+    let _ = registry.warmup_bytecode(&mut dual);
+    let tracked = registry.all_addresses();
+    if !tracked.is_empty() {
+        dual.set_tracked_addresses(tracked);
+    }
+
+    let cache_dir = ctx
+        .replay_cache_dir
+        .as_ref()
+        .ok_or_else(|| eyre!("xscope-replay requires --metadata so the cache path is known"))?;
+    let txs = load_replay_txs(cache_dir)?;
+    if txs.is_empty() {
+        return Err(eyre!(
+            "xscope-replay: no cached txs at {} — run scripts/fetch_exploit_txs.py first",
+            cache_dir.display()
+        ));
+    }
+
+    // Per-replay budget guard: each tx is one iteration.
+    let start = Instant::now();
+    let mut violations = Vec::new();
+    let mut violation_keys: HashSet<(String, String)> = HashSet::new();
+    let mut campaign_coverage = CoverageTracker::default();
+    let mut campaign_storage = StorageTracker::default();
+    let mut total_iterations = 0_u64;
+    let mut trace: Vec<String> = Vec::with_capacity(txs.len());
+
+    for (idx, tx) in txs.iter().enumerate() {
+        // Build payload [caller(20) || to(20) || calldata]. Replay
+        // mode preserves the actual `from` address (the attacker)
+        // rather than substituting `default_caller()` so balance /
+        // permission semantics match the on-chain incident.
+        let caller = match Address::from_str(&tx.from) {
+            Ok(a) => a,
+            Err(e) => {
+                trace.push(format!("replay:{}:bad_from:{}", idx, e));
+                continue;
+            }
+        };
+        let to = match Address::from_str(&tx.to) {
+            Ok(a) => a,
+            Err(e) => {
+                trace.push(format!("replay:{}:bad_to:{}", idx, e));
+                continue;
+            }
+        };
+        let input = match decode_hex(&tx.input) {
+            Ok(b) => b,
+            Err(e) => {
+                trace.push(format!("replay:{}:bad_input:{}", idx, e));
+                continue;
+            }
+        };
+        let mut payload = Vec::with_capacity(40 + input.len());
+        payload.extend_from_slice(caller.as_slice());
+        payload.extend_from_slice(to.as_slice());
+        payload.extend_from_slice(&input);
+
+        let mut iter_cov = CoverageTracker::default();
+        let mut iter_storage = StorageTracker::default();
+        let outcome = {
+            let composite = XScopeInspector {
+                coverage: &mut iter_cov,
+                storage: &mut iter_storage,
+            };
+            // Replay always runs on the source fork — that is where
+            // the incident transactions were originally mined. If a
+            // bridge has dest-side incidents we'd add a parallel dest
+            // pass; none of our 12 benchmarks need that today.
+            dual.execute_on_source_with_inspector_full(&payload, composite)
+        };
+        match outcome {
+            Ok(tx_outcome) => {
+                campaign_coverage.merge(&iter_cov);
+                campaign_storage.merge(&iter_storage);
+
+                // Run predicates once per tx — short scenarios so
+                // per-tx attribution is informative. Replay mode uses
+                // the dedicated `ingest_replay_logs_as_unlocks` path:
+                // every emitted log is recorded as an unlock-side
+                // observation, lock_events stays empty by design (the
+                // exploit tx is itself the unauth-unlock — there is no
+                // matching legitimate source-side lock to capture).
+                // I-5 fires for the missing ancestor, I-6 evaluates
+                // against the recipe-driven auth witness.
+                let mut builder =
+                    XScopeBuilder::new(&ctx.atg, &registry, /*fee_tolerance_ppm=*/ 10_000);
+                builder.ingest_replay_logs_as_unlocks(&tx_outcome.logs);
+                let auth_kind = derive_auth_witness(ctx.auth_witness.as_ref(), &iter_storage);
+                for h in builder.unlock_message_hashes() {
+                    builder.set_auth_witness_default(h, auth_kind.clone());
+                }
+                trace.push(format!(
+                    "replay:{}:{}:{}:cov={}:sstores={}",
+                    idx,
+                    &tx.hash[..10.min(tx.hash.len())],
+                    if tx_outcome.success { "ok" } else { "err" },
+                    iter_cov.unique_pc_count(),
+                    iter_storage.total_writes()
+                ));
+                let xviolations = builder.check();
+                for v in xviolations {
+                    let key = (v.predicate_id.to_string(), tx.hash.clone());
+                    if !violation_keys.insert(key) {
+                        continue;
+                    }
+                    violations.push(Violation {
+                        invariant_id: format!("{}/{}", v.predicate_id, v.class),
+                        detected_at_s: start.elapsed().as_secs_f64(),
+                        trigger_scenario: format!("replay_tx_{}", &tx.hash[..10.min(tx.hash.len())]),
+                        trigger_trace: trace.clone(),
+                        state_diff: HashMap::from([(
+                            "evidence".to_string(),
+                            v.evidence.chars().take(200).collect::<String>(),
+                        )]),
+                    });
+                }
+            }
+            Err(e) => {
+                trace.push(format!(
+                    "replay:{}:{}:rpc_err:{}",
+                    idx,
+                    &tx.hash[..10.min(tx.hash.len())],
+                    e.chars().take(60).collect::<String>()
+                ));
+            }
+        }
+        total_iterations = total_iterations.saturating_add(1);
+    }
+
+    let source_addrs: HashSet<Address> = registry
+        .addresses_on(ChainSide::Source)
+        .into_iter()
+        .collect();
+    let dest_addrs: HashSet<Address> = registry
+        .addresses_on(ChainSide::Destination)
+        .into_iter()
+        .collect();
+    let basic_blocks_source = campaign_coverage
+        .touched
+        .iter()
+        .filter(|(a, _)| source_addrs.contains(a))
+        .count() as u64;
+    let basic_blocks_dest = campaign_coverage
+        .touched
+        .iter()
+        .filter(|(a, _)| dest_addrs.contains(a))
+        .count() as u64;
+
+    Ok(FuzzingResults {
+        bridge_name: ctx.atg.bridge_name.clone(),
+        run_id: 0,
+        time_budget_s: ctx.config.time_budget_s,
+        violations,
+        coverage: Coverage {
+            xcc_atg: 0.0,
+            basic_blocks_source,
+            basic_blocks_dest,
+        },
+        stats: FuzzingStats {
+            total_iterations,
+            snapshots_captured: 0,
+            mutations_applied: 0,
+            corpus_size: txs.len() as u64,
+            snapshot_pool_peak: 0,
+        },
+    })
+}
+
+/// Cached exploit transaction. Mirrors the schema written by
+/// `scripts/fetch_exploit_txs.py`.
+#[derive(Clone, Debug)]
+struct ReplayTx {
+    hash: String,
+    from: String,
+    to: String,
+    input: String,
+}
+
+fn load_replay_txs(dir: &std::path::Path) -> Result<Vec<ReplayTx>> {
+    if !dir.is_dir() {
+        return Ok(Vec::new());
+    }
+    let mut entries: Vec<_> = std::fs::read_dir(dir)?
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            e.path()
+                .extension()
+                .and_then(|x| x.to_str())
+                .map_or(false, |s| s.eq_ignore_ascii_case("json"))
+        })
+        .collect();
+    entries.sort_by_key(|e| e.path());
+
+    let mut out = Vec::with_capacity(entries.len());
+    for e in entries {
+        let raw = std::fs::read_to_string(e.path())?;
+        let v: serde_json::Value = serde_json::from_str(&raw)?;
+        let hash = v.get("hash").and_then(|x| x.as_str()).unwrap_or("").to_string();
+        let from = v.get("from").and_then(|x| x.as_str()).unwrap_or("").to_string();
+        let to = v.get("to").and_then(|x| x.as_str()).unwrap_or("").to_string();
+        let input = v
+            .get("input")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_string();
+        out.push(ReplayTx { hash, from, to, input });
+    }
+    Ok(out)
+}
+
+fn decode_hex(s: &str) -> std::result::Result<Vec<u8>, String> {
+    let trimmed = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")).unwrap_or(s);
+    hex::decode(trimmed).map_err(|e| format!("hex decode failed: {e}"))
 }
 
 /// Translate the per-bridge `auth_witness` recipe + observed

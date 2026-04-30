@@ -40,6 +40,12 @@ pub enum BaselineMode {
     /// XScope re-implementation: rule-based detector, no calldata mutation.
     /// See `docs/REIMPL_XSCOPE_SPEC.md`.
     Xscope,
+    /// XScope re-implementation in *replay* mode (X3-polish A3): instead
+    /// of running LLM-generated scenarios, dispatches the actual exploit
+    /// transactions cached at `benchmarks/<bridge>/exploit_replay/cache/`.
+    /// Faithfully reproduces incident behaviour so the I-5 / I-6
+    /// predicates fire on real on-chain SSTORE / log patterns.
+    XscopeReplay,
 }
 
 impl Default for BaselineMode {
@@ -200,6 +206,11 @@ pub struct RuntimeContext {
     /// Per-bridge auth-witness recipe (kind + resolved contract address +
     /// optional threshold). Empty `kind` ("none") when not required.
     pub auth_witness: Option<AuthWitnessRecipe>,
+    /// Cache directory containing fetched exploit transactions used by
+    /// the `xscope-replay` baseline mode (X3-polish A3). Resolved from
+    /// the `--metadata` flag's parent dir + `exploit_replay/cache/`.
+    /// `None` when `--metadata` was not supplied.
+    pub replay_cache_dir: Option<std::path::PathBuf>,
     /// Which detection algorithm to run. Resolved from `--baseline-mode`.
     pub baseline_mode: BaselineMode,
 }
@@ -247,19 +258,25 @@ pub fn build_context_from_args(cli: CliArgs) -> Result<RuntimeContext> {
     validate_context(&config, &atg, &hypotheses)?;
 
     // Step 6: Optional metadata.json overrides for ATG node addresses.
-    let (address_overrides, address_aliases, auth_witness) =
+    let (address_overrides, address_aliases, auth_witness, replay_cache_dir) =
         if let Some(meta_path) = cli.metadata.as_ref() {
             let raw = std::fs::read_to_string(meta_path)
                 .wrap_err_with(|| format!("Failed to read metadata: {}", meta_path.display()))?;
             let v: serde_json::Value = serde_json::from_str(&raw)
                 .wrap_err_with(|| format!("Failed to parse metadata: {}", meta_path.display()))?;
+            // The replay cache lives next to metadata.json: bridge dir
+            // is `meta_path.parent()`.
+            let cache = meta_path
+                .parent()
+                .map(|p| p.join("exploit_replay").join("cache"));
             (
                 load_address_overrides_from_value(&v),
                 load_address_aliases_from_value(&v),
                 load_auth_witness_from_value(&v),
+                cache,
             )
         } else {
-            (Vec::new(), Vec::new(), None)
+            (Vec::new(), Vec::new(), None, None)
         };
 
     Ok(RuntimeContext {
@@ -270,6 +287,7 @@ pub fn build_context_from_args(cli: CliArgs) -> Result<RuntimeContext> {
         address_overrides,
         address_aliases,
         auth_witness,
+        replay_cache_dir,
         baseline_mode: cli.baseline_mode,
     })
 }

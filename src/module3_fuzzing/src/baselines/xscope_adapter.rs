@@ -169,6 +169,23 @@ impl<'a> XScopeBuilder<'a> {
         self.unlock_events.iter().map(|e| e.message_hash).collect()
     }
 
+    /// Replay-mode log ingestion. The on-chain ATG-edge keccak gives
+    /// **function** selectors, not **event** topics, so the
+    /// `lock_topics` / `unlock_topics` tables in the standard ingest
+    /// path miss real bridge events. In replay mode we instead treat
+    /// every emitted log from the cached exploit tx as an unlock-side
+    /// observation: I-5 then fires for any log that has no matching
+    /// source ancestor (replay lock_events stays empty by design — the
+    /// attacker's tx is the unauth-unlock; the legitimate source-side
+    /// lock that would have produced a matching `message_hash` never
+    /// happened). I-6 evaluates each unlock against the per-bridge
+    /// `auth_witness` recipe.
+    pub fn ingest_replay_logs_as_unlocks(&mut self, logs: &[Log]) {
+        for log in logs {
+            self.unlock_events.push(decode_unlock_log(log));
+        }
+    }
+
     /// Run the six predicates over the accumulated view.
     pub fn check(&self) -> Vec<XScopeViolation> {
         let view = XScopeView {
