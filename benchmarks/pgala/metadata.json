@@ -5,7 +5,10 @@
   "incident_date_utc": "2022-11-03",
   "loss_usd_estimate": 10000000,
   "attack_type": "key_compromise",
-  "vulnerability_classes": ["V1", "V4"],
+  "vulnerability_classes": [
+    "V1",
+    "V4"
+  ],
   "attack_stage": "off_chain",
   "source_chain": {
     "name": "ethereum",
@@ -52,11 +55,11 @@
   },
   "references": [
     {
-      "title": "pNetwork — pGALA on BSC Token Incident (2022-11-03)",
+      "title": "pNetwork \u2014 pGALA on BSC Token Incident (2022-11-03)",
       "url": "https://medium.com/pnetwork/pgala-on-bsc-token-incident-2022-11-03-a09ac6cf68f3"
     },
     {
-      "title": "Rekt News — pGALA Rekt",
+      "title": "Rekt News \u2014 pGALA Rekt",
       "url": "https://rekt.news/pgala-rekt/"
     }
   ],
@@ -69,5 +72,13 @@
   "reporting": {
     "table_row": 11,
     "loss_usd_confidence": "estimate"
+  },
+  "address_aliases": {
+    "LegacyCustodian": "pgala_token_legacy",
+    "pGALAToken": "pgala_token_relaunch"
+  },
+  "auth_witness": {
+    "kind": "mpc",
+    "contract_key": "pgala_token_relaunch"
   }
 }

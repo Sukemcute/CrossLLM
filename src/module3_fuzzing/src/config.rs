@@ -160,6 +160,24 @@ pub struct CliArgs {
 // Runtime Context — Everything the fuzzer needs to run
 // ============================================================================
 
+/// Per-bridge auth-witness recipe loaded from `metadata.auth_witness`.
+/// Used by C3 wiring to translate the [`crate::storage_tracker::StorageTracker`]
+/// trace into an XScope `AuthWitness` value for predicate I-6.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AuthWitnessRecipe {
+    /// `"zero_root" | "multisig" | "mpc" | "none"` — selects the
+    /// `AuthWitness` variant C3 will construct. `"none"` means the
+    /// bridge's predicted predicate doesn't need I-6.
+    pub kind: String,
+    /// Hex-form address of the contract whose storage trace is the
+    /// witness source. Resolved from `auth_witness.contract_key` →
+    /// `contracts.<key>.address`. None if the recipe is `"none"` or
+    /// the metadata referenced a missing key.
+    pub contract_address: Option<String>,
+    /// Multisig quorum (only meaningful when kind == "multisig").
+    pub threshold: Option<u32>,
+}
+
 /// Fully resolved runtime context with all data loaded and validated.
 /// This is the single struct passed to the fuzzer loop — no more file I/O needed.
 pub struct RuntimeContext {
@@ -175,6 +193,13 @@ pub struct RuntimeContext {
     /// `metadata.json`. Used by [`crate::contract_loader::ContractRegistry`]
     /// to resolve LLM-produced ATG nodes that lack on-chain addresses.
     pub address_overrides: Vec<(String, String)>,
+    /// Direct ATG-node → contract-key alias map from
+    /// `metadata.address_aliases`. Wins over the fuzzy substring match
+    /// in `merge_address_overrides` when both are present.
+    pub address_aliases: Vec<(String, String)>,
+    /// Per-bridge auth-witness recipe (kind + resolved contract address +
+    /// optional threshold). Empty `kind` ("none") when not required.
+    pub auth_witness: Option<AuthWitnessRecipe>,
     /// Which detection algorithm to run. Resolved from `--baseline-mode`.
     pub baseline_mode: BaselineMode,
 }
@@ -222,11 +247,20 @@ pub fn build_context_from_args(cli: CliArgs) -> Result<RuntimeContext> {
     validate_context(&config, &atg, &hypotheses)?;
 
     // Step 6: Optional metadata.json overrides for ATG node addresses.
-    let address_overrides = if let Some(meta_path) = cli.metadata.as_ref() {
-        load_address_overrides(meta_path)?
-    } else {
-        Vec::new()
-    };
+    let (address_overrides, address_aliases, auth_witness) =
+        if let Some(meta_path) = cli.metadata.as_ref() {
+            let raw = std::fs::read_to_string(meta_path)
+                .wrap_err_with(|| format!("Failed to read metadata: {}", meta_path.display()))?;
+            let v: serde_json::Value = serde_json::from_str(&raw)
+                .wrap_err_with(|| format!("Failed to parse metadata: {}", meta_path.display()))?;
+            (
+                load_address_overrides_from_value(&v),
+                load_address_aliases_from_value(&v),
+                load_auth_witness_from_value(&v),
+            )
+        } else {
+            (Vec::new(), Vec::new(), None)
+        };
 
     Ok(RuntimeContext {
         config,
@@ -234,17 +268,15 @@ pub fn build_context_from_args(cli: CliArgs) -> Result<RuntimeContext> {
         hypotheses,
         verbose: cli.verbose,
         address_overrides,
+        address_aliases,
+        auth_witness,
         baseline_mode: cli.baseline_mode,
     })
 }
 
-/// Read `contracts.<key>.address` pairs from a benchmark `metadata.json`.
-/// Returns an empty list if the file has no `contracts` table.
-fn load_address_overrides(path: &Path) -> Result<Vec<(String, String)>> {
-    let raw = std::fs::read_to_string(path)
-        .wrap_err_with(|| format!("Failed to read metadata: {}", path.display()))?;
-    let v: serde_json::Value = serde_json::from_str(&raw)
-        .wrap_err_with(|| format!("Failed to parse metadata: {}", path.display()))?;
+/// Read `contracts.<key>.address` pairs from a parsed metadata Value.
+/// Returns an empty list when the `contracts` table is missing.
+fn load_address_overrides_from_value(v: &serde_json::Value) -> Vec<(String, String)> {
     let mut out = Vec::new();
     if let Some(map) = v.get("contracts").and_then(|c| c.as_object()) {
         for (key, val) in map {
@@ -253,7 +285,77 @@ fn load_address_overrides(path: &Path) -> Result<Vec<(String, String)>> {
             }
         }
     }
-    Ok(out)
+    out
+}
+
+/// Read `address_aliases` pairs from `metadata.json` (the C2 of X3-polish
+/// addition — see `docs/REIMPL_XSCOPE_X4_OUTCOME.md` §4.3). Returns an
+/// empty list if the block is absent. Each entry maps an ATG-node name
+/// (key of the JSON object) to a `contracts.<value>` key — the loader
+/// resolves the latter to a hex address and feeds the pair into
+/// [`crate::contract_loader::ContractRegistry::merge_address_overrides`]
+/// alongside the standard contracts.<key>.address pairs.
+fn load_address_aliases_from_value(v: &serde_json::Value) -> Vec<(String, String)> {
+    let Some(aliases) = v.get("address_aliases").and_then(|c| c.as_object()) else {
+        return Vec::new();
+    };
+    let contracts = v
+        .get("contracts")
+        .and_then(|c| c.as_object())
+        .cloned()
+        .unwrap_or_default();
+    let mut out = Vec::new();
+    for (atg_name, target) in aliases {
+        let target_key = match target.as_str() {
+            Some(s) => s,
+            None => continue,
+        };
+        let Some(addr) = contracts
+            .get(target_key)
+            .and_then(|v| v.get("address"))
+            .and_then(|a| a.as_str())
+        else {
+            // Silently skip aliases pointing at missing contract keys —
+            // matches the "warn-only" stance of the rest of the loader
+            // so a bad metadata file degrades to no-op rather than
+            // refusing to start.
+            continue;
+        };
+        out.push((atg_name.clone(), addr.to_string()));
+    }
+    out
+}
+
+/// Read the `auth_witness` block from `metadata.json` and resolve its
+/// `contract_key` reference to a concrete address pulled from the
+/// `contracts` table. Returns `None` when the block is absent or when
+/// `kind == "none"` — both signal "this bridge does not need an
+/// auth-witness witness for its predicted predicate".
+fn load_auth_witness_from_value(v: &serde_json::Value) -> Option<AuthWitnessRecipe> {
+    let block = v.get("auth_witness")?.as_object()?;
+    let kind = block.get("kind").and_then(|x| x.as_str()).unwrap_or("none");
+    if kind == "none" {
+        return None;
+    }
+    let contract_key = block
+        .get("contract_key")
+        .and_then(|x| x.as_str())
+        .unwrap_or("");
+    let contract_address = v
+        .get("contracts")
+        .and_then(|c| c.get(contract_key))
+        .and_then(|c| c.get("address"))
+        .and_then(|a| a.as_str())
+        .map(|s| s.to_string());
+    let threshold = block
+        .get("threshold")
+        .and_then(|t| t.as_u64())
+        .map(|t| t as u32);
+    Some(AuthWitnessRecipe {
+        kind: kind.to_string(),
+        contract_address,
+        threshold,
+    })
 }
 
 /// Merge CLI arguments with optional base config from JSON file.
@@ -732,5 +834,110 @@ mod tests {
         let ctx = build_context_from_args(cli).unwrap();
         // This should not panic
         ctx.print_summary();
+    }
+
+    // ========================================================================
+    // C2 (X3-polish) — auth_witness + address_aliases loader tests
+    // ========================================================================
+
+    fn meta_with_auth_witness() -> serde_json::Value {
+        serde_json::json!({
+            "contracts": {
+                "replica_ethereum": {
+                    "address": "0xB923336759618F55bd0F8313bd843604592E27bd8",
+                    "role": "..."
+                },
+                "router": {
+                    "address": "0x88A69B4E698A4B090DF6CF5BD7B2D47325AD30A3",
+                    "role": "..."
+                }
+            },
+            "address_aliases": {
+                "Replica": "replica_ethereum",
+                "BridgeRouter": "router"
+            },
+            "auth_witness": {
+                "kind": "zero_root",
+                "contract_key": "replica_ethereum"
+            }
+        })
+    }
+
+    #[test]
+    fn load_address_aliases_resolves_atg_node_to_contract_address() {
+        let v = meta_with_auth_witness();
+        let aliases = load_address_aliases_from_value(&v);
+        // Order in HashMap is non-deterministic; sort for stable assert.
+        let mut sorted = aliases.clone();
+        sorted.sort_by(|a, b| a.0.cmp(&b.0));
+        assert_eq!(
+            sorted,
+            vec![
+                ("BridgeRouter".to_string(), "0x88A69B4E698A4B090DF6CF5BD7B2D47325AD30A3".to_string()),
+                ("Replica".to_string(), "0xB923336759618F55bd0F8313bd843604592E27bd8".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn load_address_aliases_skips_targets_missing_from_contracts() {
+        let mut v = meta_with_auth_witness();
+        // Point an alias at a contract key that does not exist.
+        v["address_aliases"]["GhostNode"] =
+            serde_json::Value::String("nope_not_in_contracts".to_string());
+        let aliases = load_address_aliases_from_value(&v);
+        assert!(
+            !aliases.iter().any(|(k, _)| k == "GhostNode"),
+            "GhostNode should be skipped, got {:?}",
+            aliases
+        );
+        // The two valid ones survive.
+        assert_eq!(aliases.len(), 2);
+    }
+
+    #[test]
+    fn load_auth_witness_resolves_contract_key_to_address() {
+        let v = meta_with_auth_witness();
+        let aw = load_auth_witness_from_value(&v).expect("recipe present");
+        assert_eq!(aw.kind, "zero_root");
+        assert_eq!(
+            aw.contract_address.as_deref(),
+            Some("0xB923336759618F55bd0F8313bd843604592E27bd8")
+        );
+        assert!(aw.threshold.is_none());
+    }
+
+    #[test]
+    fn load_auth_witness_carries_threshold_for_multisig() {
+        let v = serde_json::json!({
+            "contracts": {
+                "manager": {"address": "0xAA00000000000000000000000000000000000000"}
+            },
+            "auth_witness": {
+                "kind": "multisig",
+                "contract_key": "manager",
+                "threshold": 5
+            }
+        });
+        let aw = load_auth_witness_from_value(&v).expect("recipe present");
+        assert_eq!(aw.kind, "multisig");
+        assert_eq!(aw.threshold, Some(5));
+    }
+
+    #[test]
+    fn load_auth_witness_returns_none_for_kind_none() {
+        let v = serde_json::json!({
+            "contracts": {"x": {"address": "0xAA00000000000000000000000000000000000000"}},
+            "auth_witness": {"kind": "none", "contract_key": "x"}
+        });
+        assert!(load_auth_witness_from_value(&v).is_none());
+    }
+
+    #[test]
+    fn load_auth_witness_returns_none_when_block_absent() {
+        let v = serde_json::json!({
+            "contracts": {"x": {"address": "0xAA00000000000000000000000000000000000000"}}
+        });
+        assert!(load_auth_witness_from_value(&v).is_none());
     }
 }

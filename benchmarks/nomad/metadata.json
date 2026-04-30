@@ -83,5 +83,15 @@
   "reporting": {
     "table_row": 4,
     "loss_usd_confidence": "estimate"
+  },
+  "address_aliases": {
+    "BridgeRouter": "erc20_bridge_ethereum",
+    "Replica": "replica_ethereum",
+    "MockToken": "erc20_bridge_ethereum",
+    "NomadMessage": "replica_ethereum"
+  },
+  "auth_witness": {
+    "kind": "zero_root",
+    "contract_key": "replica_ethereum"
   }
 }

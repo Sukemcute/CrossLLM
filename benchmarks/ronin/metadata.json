@@ -5,7 +5,9 @@
   "incident_date_utc": "2022-03-23",
   "loss_usd_estimate": 624000000,
   "attack_type": "key_compromise",
-  "vulnerability_classes": ["V4"],
+  "vulnerability_classes": [
+    "V4"
+  ],
   "attack_stage": "off_chain",
   "source_chain": {
     "name": "ethereum",
@@ -34,7 +36,7 @@
       "address": "0x1A2a1c938CE3eC39b6D47113c7955bAa9DD454F2",
       "chain": "source",
       "etherscan_url": "https://etherscan.io/address/0x1A2a1c938CE3eC39b6D47113c7955bAa9DD454F2",
-      "role": "Ronin Bridge V2 proxy on Ethereum — held the WETH/USDC custody balance the attacker drained. The withdraw entry point processes signed withdrawal receipts."
+      "role": "Ronin Bridge V2 proxy on Ethereum \u2014 held the WETH/USDC custody balance the attacker drained. The withdraw entry point processes signed withdrawal receipts."
     },
     "weth_ethereum": {
       "address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
@@ -76,11 +78,11 @@
   },
   "references": [
     {
-      "title": "Sky Mavis — Community Alert: Ronin Validators Compromised",
+      "title": "Sky Mavis \u2014 Community Alert: Ronin Validators Compromised",
       "url": "https://roninblockchain.substack.com/p/community-alert-ronin-validators"
     },
     {
-      "title": "Halborn — Explained: The Ronin Hack (March 2022)",
+      "title": "Halborn \u2014 Explained: The Ronin Hack (March 2022)",
       "url": "https://www.halborn.com/blog/post/explained-the-ronin-hack-march-2022"
     },
     {
@@ -97,5 +99,13 @@
   "reporting": {
     "table_row": 3,
     "loss_usd_confidence": "estimate"
+  },
+  "address_aliases": {
+    "WrappedToken": "weth_ethereum"
+  },
+  "auth_witness": {
+    "kind": "multisig",
+    "contract_key": "ronin_bridge_v2_proxy",
+    "threshold": 5
   }
 }
