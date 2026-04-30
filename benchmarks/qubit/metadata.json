@@ -20,7 +20,7 @@
     "rpc_env": "BSC_RPC_URL"
   },
   "fork": {
-    "block_number": 14180000,
+    "block_number": 14742532,
     "first_exploit_block": 14180001,
     "repro_rpc_port": 8545
   },
@@ -86,5 +86,11 @@
   "auth_witness": {
     "kind": "none",
     "contract_key": "exploit_minted_token"
+  },
+  "exploit_replay": {
+    "rpc_env": "BSC_ARCHIVE_RPC_URL",
+    "tx_hashes": [
+      "0x33628dcc2ca6cd89a96d241bdf17cdc8785cf4322dcaf2c79766c990579aea02"
+    ]
   }
 }

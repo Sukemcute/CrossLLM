@@ -20,7 +20,7 @@
     "rpc_env": "BSC_RPC_URL"
   },
   "fork": {
-    "block_number": 44500000,
+    "block_number": 44946195,
     "first_exploit_block": 44500001,
     "repro_rpc_port": 8545
   },
@@ -99,5 +99,12 @@
   "auth_witness": {
     "kind": "none",
     "contract_key": "gempad_locker"
+  },
+  "exploit_replay": {
+    "rpc_env": "BSC_ARCHIVE_RPC_URL",
+    "tx_hashes": [
+      "0x1a50211502a413c0d6d35f3ba859fc4206c5fb899c0adaa28b74c56b644c2997",
+      "0x409a5313cb47f8e4cfbd3d3f278ff6bdba402e89baf27891e60d1f648aebda43"
+    ]
   }
 }

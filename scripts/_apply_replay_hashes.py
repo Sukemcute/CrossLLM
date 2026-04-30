@@ -129,6 +129,51 @@ HASHES = {
             ),
         ],
     },
+    # Qubit Finance exploit 2022-01-28: attacker
+    # 0xEB645B4c35cf160e47F0A49c03DB087c421AB545 calls
+    # `voteProposal(originDomainID, depositNonce, resourceID, data)`
+    # on QBridge proxy 0x4d8aE68fCAe98Bf93299548545933c0D273BA23a,
+    # replaying a forged ETH-side deposit to mint xETH on BSC
+    # without any ETH lock on the source chain. Single representative
+    # tx — that one call is the whole exploit. Source: SlowMist.
+    "qubit": {
+        "rpc_env": "BSC_ARCHIVE_RPC_URL",
+        "txs": [
+            (
+                "0x33628dcc2ca6cd89a96d241bdf17cdc8785cf4322dcaf2c79766c990579aea02",
+                14742533,
+            ),
+        ],
+    },
+    # Gempad reentrancy exploit 2024-12-17: attacker
+    # 0xFDd9b0A7e7e16b5Fd48a3D1e242aF362bC81bCaa funds an attack
+    # contract 0x8e18Fb32...477c43 (tx 1, +9.999 BNB) which then
+    # re-enters `collectFees` of GempadLock via a malicious-token
+    # transfer callback to free-withdraw locked LP (tx 2, drain
+    # 281 BNB). Two-tx pair captures setup + drain. Source:
+    # Halborn / Rekt / pcaversaccio reentrancy registry.
+    "gempad": {
+        "rpc_env": "BSC_ARCHIVE_RPC_URL",
+        "txs": [
+            (
+                "0x1a50211502a413c0d6d35f3ba859fc4206c5fb899c0adaa28b74c56b644c2997",
+                44946196,
+            ),
+            (
+                "0x409a5313cb47f8e4cfbd3d3f278ff6bdba402e89baf27891e60d1f648aebda43",
+                44946280,
+            ),
+        ],
+    },
+    # pgala  — SKIP: no post-mortem cites a specific tx hash.
+    #          Re-investigation needs direct BSCscan filtering of
+    #          mint() events on pGALA token 0xd4306df0...3373416
+    #          around block 22745013 ± 500.
+    # fegtoken — SKIP: user spec (claimMigrator + Apr 30 + block
+    #          17127537 + router 0x4b9be7e9...) doesn't match any
+    #          documented FEG exploit. Real flashloans were May 15-16
+    #          2022 via swapToSwap() on a different LP. Re-spec'ing
+    #          the benchmark to the May 15 incident would land it.
 }
 
 
