@@ -74,7 +74,14 @@
     "QBridgeETH": "exploit_minted_token",
     "QBridgeBSC": "exploit_minted_token",
     "xQubit": "exploit_minted_token",
-    "MockToken": "exploit_minted_token"
+    "MockToken": "exploit_minted_token",
+    "xQUBIT": "exploit_minted_token",
+    "MaliciousLock": "exploit_minted_token",
+    "QBridgeRelay": "exploit_minted_token",
+    "QubitRelay": "exploit_minted_token",
+    "RelayBSC": "exploit_minted_token",
+    "RelayNode": "exploit_minted_token",
+    "RelayOracle": "exploit_minted_token"
   },
   "auth_witness": {
     "kind": "none",

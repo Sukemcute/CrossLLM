@@ -100,7 +100,19 @@
     "FEGSwap": "feg_swap_eth",
     "FEGToken": "feg_token_bsc",
     "MockToken": "feg_token_bsc",
-    "FlashLoanProvider": "flashloan_provider"
+    "FlashLoanProvider": "flashloan_provider",
+    "AuthorizedRelayer": "feg_swap_bsc",
+    "BridgeContract": "feg_swap_bsc",
+    "BridgeFeeManager": "feg_swap_bsc",
+    "BridgeRelay": "feg_swap_bsc",
+    "MessageBridge": "feg_swap_bsc",
+    "Relay": "feg_swap_bsc",
+    "RelayHub": "feg_swap_bsc",
+    "RelayNode_Compromised": "feg_swap_bsc",
+    "RelayX": "feg_swap_bsc",
+    "SocketRelay": "feg_swap_bsc",
+    "AttackerContract": "attacker",
+    "AttackerRelayProxy": "attacker"
   },
   "auth_witness": {
     "kind": "none",

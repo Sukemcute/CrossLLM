@@ -88,7 +88,13 @@
   },
   "address_aliases": {
     "GemPadLocker": "gempad_locker",
-    "MockToken": "victim_lp_token"
+    "MockToken": "victim_lp_token",
+    "BridgeRelayer": "gempad_locker",
+    "GemPadRelayer": "gempad_locker",
+    "Relayer": "gempad_locker",
+    "MaliciousToken": "victim_lp_token",
+    "MaliciousReceiver": "attacker",
+    "AttackerMaliciousToken": "attacker"
   },
   "auth_witness": {
     "kind": "none",

@@ -120,7 +120,12 @@
     "loss_usd_confidence": "estimate"
   },
   "address_aliases": {
-    "WrappedToken": "weth_ethereum"
+    "WrappedToken": "weth_ethereum",
+    "HarmonyRelay": "horizon_eth_manager",
+    "Relay": "horizon_eth_manager",
+    "SignerSet": "horizon_eth_manager",
+    "Token": "weth_ethereum",
+    "MalRecipient": "attacker"
   },
   "auth_witness": {
     "kind": "multisig",
