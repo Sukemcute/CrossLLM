@@ -20,7 +20,7 @@
     "rpc_env": "ETH_RPC_URL"
   },
   "fork": {
-    "block_number": 19062800,
+    "block_number": 19021453,
     "first_exploit_block": 19062857,
     "repro_rpc_port": 8545
   },
@@ -89,5 +89,12 @@
   "auth_witness": {
     "kind": "none",
     "contract_key": "socket_gateway"
+  },
+  "exploit_replay": {
+    "rpc_env": "ETH_RPC_URL",
+    "tx_hashes": [
+      "0xc6c3331fa8c2d30e1ef208424c08c039a89e510df2fb6ae31e5aa40722e28fd6",
+      "0x591d054a9db63f0976e533f447df482bed5f24d7429646570b2108a67e24ce54"
+    ]
   }
 }

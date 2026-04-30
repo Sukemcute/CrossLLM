@@ -56,6 +56,52 @@ HASHES = {
             )
         ],
     },
+    "socket": {
+        "rpc_env": "ETH_RPC_URL",
+        # Socket/Bungee exploiter 0x50DF5a2217588772471B84aDBbe4194A2Ed39066
+        # deployed a malicious contract whose constructor pulled token
+        # approvals from 230 victim wallets (Socket attack 2024-01-16).
+        # Both deployment txs are listed; the drain happens during
+        # constructor execution.
+        "txs": [
+            (
+                "0xc6c3331fa8c2d30e1ef208424c08c039a89e510df2fb6ae31e5aa40722e28fd6",
+                19021454,
+            ),
+            (
+                "0x591d054a9db63f0976e533f447df482bed5f24d7429646570b2108a67e24ce54",
+                19021465,
+            ),
+        ],
+    },
+    "orbit": {
+        "rpc_env": "ETH_RPC_URL",
+        # Five exploit txs from attacker 0x9263e7873613ddc598a701709875634819176aff
+        # to OrbitVault (0x1Bf68A9d…) on Dec-31-2023 / Jan-01-2024, all carrying
+        # function selector 0x2ac5ab1b (Orbit's signed-withdraw entry).
+        "txs": [
+            (
+                "0x8c92301a6840eb2ed97cc5a1c55c82931a2b24ef132d78f3428070b4b13130da",
+                18900175,
+            ),
+            (
+                "0x9b9f5e075b530daf262a5ef569e73f1719d71490b4a732783cbcdd4935840ebc",
+                18900180,
+            ),
+            (
+                "0xeebfc657f47f3cb0bc8cec5cb9e591e6faf366a86f9cbe28e4398fc18060f03c",
+                18900218,
+            ),
+            (
+                "0xaa574f81b17f5635d66204a0e6584a394bdff966854e4e45f6cb79cf4409ba92",
+                18900282,
+            ),
+            (
+                "0x36b7e415d611138f5a1d447494da36bd8309ce578e7059e201832f2e05aec5c1",
+                18900291,
+            ),
+        ],
+    },
 }
 
 

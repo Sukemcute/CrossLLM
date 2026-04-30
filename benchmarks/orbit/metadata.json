@@ -20,7 +20,7 @@
     "rpc_env": "ORBIT_RPC_URL"
   },
   "fork": {
-    "block_number": 18900000,
+    "block_number": 18900174,
     "first_exploit_block": 18900155,
     "repro_rpc_port": 8545
   },
@@ -138,5 +138,15 @@
     "kind": "multisig",
     "contract_key": "orbit_vault",
     "threshold": 7
+  },
+  "exploit_replay": {
+    "rpc_env": "ETH_RPC_URL",
+    "tx_hashes": [
+      "0x8c92301a6840eb2ed97cc5a1c55c82931a2b24ef132d78f3428070b4b13130da",
+      "0x9b9f5e075b530daf262a5ef569e73f1719d71490b4a732783cbcdd4935840ebc",
+      "0xeebfc657f47f3cb0bc8cec5cb9e591e6faf366a86f9cbe28e4398fc18060f03c",
+      "0xaa574f81b17f5635d66204a0e6584a394bdff966854e4e45f6cb79cf4409ba92",
+      "0x36b7e415d611138f5a1d447494da36bd8309ce578e7059e201832f2e05aec5c1"
+    ]
   }
 }

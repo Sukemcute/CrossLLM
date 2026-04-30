@@ -1,8 +1,12 @@
 # X4 outcome — XScope re-impl per-bridge validation
 
-> **Latest run (after C1+C2+C3+C4 + A1+A2+A3 replay-mode, 2026-04-30)**:
-> ✅ **4/12 bridges PASS predicted predicate** via replay mode (acceptance
-> bar: 11/12 per [REIMPL_XSCOPE_SPEC.md](REIMPL_XSCOPE_SPEC.md) §4).
+> **Latest run (after C1+C2+C3+C4 + A1+A2+A3 + Orbit/Socket research,
+> 2026-04-30)**: ✅ **5/12 bridges PASS predicted predicate** via replay
+> mode (acceptance bar: 11/12 per
+> [REIMPL_XSCOPE_SPEC.md](REIMPL_XSCOPE_SPEC.md) §4).
+> Socket also replays cleanly but its bug class
+> (malicious-contract-deployment draining via user approvals) is
+> outside XScope's bridge-protocol predicate set — see §3.5 below.
 >
 > **Trajectory**:
 >
@@ -11,7 +15,8 @@
 > | Original X3 (LLM scenarios only) | 0/12 |
 > | After C1+C2+C3 (storage tracker + recipes + aliases) | 0/12 |
 > | After C4-aliases + A2 (BSC RPC routing) | 0/12 |
-> | **After A3 replay-mode + 4 verified tx hashes** | **4/12** ✅ |
+> | After A3 replay-mode + 4 verified tx hashes | 4/12 ✅ |
+> | **After Orbit research + Socket replay** | **5/12** ✅ |
 >
 > Architecture is complete; the 4 PASSing bridges prove the replay
 > pipeline works end-to-end. Lifting to 11/12 needs **only data
