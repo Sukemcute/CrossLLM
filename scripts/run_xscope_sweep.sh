@@ -31,6 +31,16 @@ if [ -z "${ETH_RPC_URL:-}" ]; then
     exit 1
 fi
 
+# Cross-platform python — Windows MS Store shim sometimes hijacks `python3`.
+PYTHON="${PYTHON:-}"
+if [ -z "$PYTHON" ]; then
+    if python3 -c "import sys" >/dev/null 2>&1; then
+        PYTHON=python3
+    else
+        PYTHON=python
+    fi
+fi
+
 mkdir -p "$OUTDIR"
 echo "=== xscope sweep start $(date -u +%FT%TZ) outdir=$OUTDIR budget=${BUDGET}s runs=$RUNS ==="
 
@@ -41,12 +51,18 @@ for b in $BRIDGES; do
     META="$BENCH/metadata.json"
     [ -f "$META" ] || { echo "skip $b (no metadata.json)"; continue; }
 
-    # On Windows the `python3` shim is the Microsoft Store stub which
-    # prints the install hint instead of running. Prefer python3, fall
-    # back to python.
-    block=$(python3 -c "import json,sys; m=json.load(open(sys.argv[1])); print(m['fork']['block_number'])" "$META" 2>/dev/null \
-        || python -c "import json,sys; m=json.load(open(sys.argv[1])); print(m['fork']['block_number'])" "$META" 2>/dev/null)
+    block=$($PYTHON -c "import json,sys; m=json.load(open(sys.argv[1])); print(m['fork']['block_number'])" "$META" 2>/dev/null)
     [ -n "${block:-}" ] || { echo "skip $b (no fork.block_number)"; continue; }
+
+    # X3-polish A2: route the source / destination RPCs from
+    # `metadata.<chain>.rpc_env`. Falls back to ETH_RPC_URL when the
+    # named env var is unset (e.g. SOLANA_RPC_URL, MOONBEAM_RPC_URL —
+    # we don't have those). This unlocks BSC-resident bridges
+    # (fegtoken / gempad / qubit) when BSC_RPC_URL is in .env.
+    src_env=$($PYTHON -c "import json,sys; m=json.load(open(sys.argv[1])); print(m.get('source_chain',{}).get('rpc_env','ETH_RPC_URL'))" "$META" 2>/dev/null)
+    dst_env=$($PYTHON -c "import json,sys; m=json.load(open(sys.argv[1])); print(m.get('destination_chain',{}).get('rpc_env','ETH_RPC_URL'))" "$META" 2>/dev/null)
+    src_rpc="${!src_env:-$ETH_RPC_URL}"
+    dst_rpc="${!dst_env:-$ETH_RPC_URL}"
 
     BOUT="$OUTDIR/$b"
     mkdir -p "$BOUT"
@@ -63,8 +79,8 @@ for b in $BRIDGES; do
             --baseline-mode xscope \
             --output "$out" \
             --budget "$BUDGET" \
-            --source-rpc "$ETH_RPC_URL" \
-            --dest-rpc "$ETH_RPC_URL" \
+            --source-rpc "$src_rpc" \
+            --dest-rpc "$dst_rpc" \
             --source-block "$block" \
             --dest-block "$block" \
             --runs 1 \
@@ -75,8 +91,8 @@ for b in $BRIDGES; do
             fail=$((fail + 1)); tag="FAIL"
         fi
         elapsed=$(( $(date +%s) - t0 ))
-        printf "[%5ds] %-12s %s  %s   total=%d ok=%d fail=%d\n" \
-            "$elapsed" "$b" "$rstr" "$tag" "$total" "$ok" "$fail"
+        printf "[%5ds] %-12s %s  src=%-6s dst=%-6s   total=%d ok=%d fail=%d\n" \
+            "$elapsed" "$b" "$rstr" "$src_env" "$dst_env" "$total" "$ok" "$fail"
     done
 done
 
