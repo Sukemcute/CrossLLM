@@ -20,7 +20,7 @@
     "rpc_env": "HARMONY_RPC_URL"
   },
   "fork": {
-    "block_number": 15011934,
+    "block_number": 15012700,
     "first_exploit_block": 15011935,
     "repro_rpc_port": 8545
   },
@@ -73,6 +73,12 @@
       "chain": "source",
       "role": "Placeholder for the attacker EOA that received the 11 batched withdrawals. Real attribution: Lazarus Group (DPRK), per Elliptic forensic analysis 2022-06-29.",
       "is_eoa": true
+    },
+    "horizon_multisig": {
+      "address": "0x715CdDa5e9Ad30A0cEd14940F9997EE611496De6",
+      "chain": "source",
+      "role": "Harmony Horizon Bridge multisig (real on-chain) \u2014 2-of-4 ECDSA threshold for signing withdrawals. Compromised admin key 0x812d8622... called confirmTransaction in the June 2022 exploit.",
+      "threshold": "2/4"
     }
   },
   "off_chain_compromise_note": {
@@ -129,7 +135,16 @@
   },
   "auth_witness": {
     "kind": "multisig",
-    "contract_key": "horizon_eth_manager",
+    "contract_key": "horizon_multisig",
     "threshold": 2
+  },
+  "exploit_replay": {
+    "rpc_env": "ETH_RPC_URL",
+    "tx_hashes": [
+      "0x75eeae4776e453d2b43ce130007820d70898bcd4bd6f2216643bc90847a41f9c",
+      "0xc1c554988aab1ea3bc74f8b87fb2c256ffd9e3bcadaade60cf23ab258c53e6f1",
+      "0x698b6a4da3defaed0b7936e0e90d7bc94df6529f5ec8f4cd47d48f7f73729915",
+      "0x4ffe23abc37fcdb32e65af09117b9e44ecae82979d8df93884a5d3b5f698983e"
+    ]
   }
 }

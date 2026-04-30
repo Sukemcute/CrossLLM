@@ -56,6 +56,33 @@ HASHES = {
             )
         ],
     },
+    "harmony": {
+        "rpc_env": "ETH_RPC_URL",
+        # Harmony Horizon Bridge exploit 2022-06-23: compromised admin
+        # 0x812d8622C6F3c45959439e7ede3C580dA06f8f25 calls
+        # `confirmTransaction(txId)` on the multisig
+        # 0x715CdDa5e9Ad30A0cEd14940F9997EE611496De6 — each confirm
+        # unlocks one batch of tokens from the Horizon ERC20 Bridge
+        # (0x2dCCDB49…). 4 representative drain txs cached.
+        "txs": [
+            (
+                "0x75eeae4776e453d2b43ce130007820d70898bcd4bd6f2216643bc90847a41f9c",
+                15012701,
+            ),
+            (
+                "0xc1c554988aab1ea3bc74f8b87fb2c256ffd9e3bcadaade60cf23ab258c53e6f1",
+                15012703,
+            ),
+            (
+                "0x698b6a4da3defaed0b7936e0e90d7bc94df6529f5ec8f4cd47d48f7f73729915",
+                15012706,
+            ),
+            (
+                "0x4ffe23abc37fcdb32e65af09117b9e44ecae82979d8df93884a5d3b5f698983e",
+                15012721,
+            ),
+        ],
+    },
     "socket": {
         "rpc_env": "ETH_RPC_URL",
         # Socket/Bungee exploiter 0x50DF5a2217588772471B84aDBbe4194A2Ed39066

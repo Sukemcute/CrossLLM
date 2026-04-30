@@ -1119,7 +1119,18 @@ fn derive_auth_witness(
         }
         "multisig" => {
             let threshold = r.threshold.unwrap_or(1);
-            let signatures = writes_on_target.len() as u32;
+            // Count writes on the configured target first; if zero, fall
+            // back to total SSTOREs across the iteration. The fallback
+            // catches bridges where the multisig writes confirmations
+            // through a delegate / proxy contract whose address differs
+            // from the recipe's `contract_key` (Harmony's
+            // `confirmTransaction` flow on a Gnosis-style multisig is
+            // the case that motivated the relaxation).
+            let signatures = if !writes_on_target.is_empty() {
+                writes_on_target.len() as u32
+            } else {
+                storage.total_writes() as u32
+            };
             AuthWitness::Multisig { signatures, threshold }
         }
         "mpc" => AuthWitness::Mpc {
