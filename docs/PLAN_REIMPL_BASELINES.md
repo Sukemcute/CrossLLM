@@ -92,20 +92,25 @@ Rules trong paper §3:
 > [`docs/REIMPL_XSCOPE_SPEC.md`](REIMPL_XSCOPE_SPEC.md). Khi `/execute X<n>`,
 > Claude session BẮT BUỘC đọc spec đó trước khi viết code.
 
-| Sub-task | Effort | Output | Bám section nào của spec |
-|---|---|---|---|
-| **X1** Đọc paper §3-4, viết spec 5-7 rules dạng pseudocode | 1 ngày | `docs/REIMPL_XSCOPE_SPEC.md` | n/a (spec là output) |
-| **X2** Tạo `src/module3_fuzzing/src/baselines/xscope.rs` với 6 predicate functions + unit tests | 2 ngày | Rust module + 6 rule fns | **SPEC §2** (pseudocode 6 predicates I-1…I-6), **§3** (data wires bindings), **§6** (schema additions) |
-| **X3** Wire vào fuzz_loop: mode `--baseline-mode xscope` chỉ chạy detector, KHÔNG mutate calldata | 1 ngày | CLI arg + dispatch | **SPEC §3** (BridgeSentry input mapping table), **§6.2** (`MockRelay::parsed_message_log` extension) |
-| **X4** Validate per-bridge: reproduce paper's 4 bridges + match SPEC §4 expected detection map | 2 ngày | Tests pass + commit | **SPEC §4** (per-bridge expected predicate map), **§7** (acceptance commands) |
-| **X5** Run 12 × 20 sweep trên lab | ~2h (XScope nhanh, không phải fuzz) | `results/baselines/xscope/<bridge>/run_NNN.json` | **SPEC §7** (acceptance commands) |
-| **X6** Update `baselines/_cited_results/xscope.json` thành self-run version | 0.5 ngày | JSON updated | giữ schema hiện tại, chỉ replace cells |
+| Sub-task | Effort | Output | Bám section nào của spec | Status |
+|---|---|---|---|---|
+| **X1** Đọc paper §3-4, viết spec 5-7 rules dạng pseudocode | 1 ngày | `docs/REIMPL_XSCOPE_SPEC.md` | n/a (spec là output) | ✅ DONE |
+| **X2** Tạo `src/module3_fuzzing/src/baselines/xscope.rs` với 6 predicate functions + unit tests | 2 ngày | Rust module + 6 rule fns | **SPEC §2** (pseudocode 6 predicates I-1…I-6), **§3** (data wires bindings), **§6** (schema additions) | ✅ DONE |
+| **X3** Wire vào fuzz_loop: mode `--baseline-mode xscope` chỉ chạy detector, KHÔNG mutate calldata | 1 ngày | CLI arg + dispatch | **SPEC §3** (BridgeSentry input mapping table), **§6.2** (`MockRelay::parsed_message_log` extension) | ✅ DONE |
+| **X4** Validate per-bridge: reproduce paper's 4 bridges + match SPEC §4 expected detection map | 2 ngày | Tests pass + commit | **SPEC §4** (per-bridge expected predicate map), **§7** (acceptance commands) | ✅ DONE — 10/12 PASS (commit `cf62229`) |
+| **X5** Run 12 × 20 sweep trên lab | ~2h (XScope nhanh, không phải fuzz) | `results/baselines/xscope/<bridge>/run_NNN.json` | **SPEC §7** (acceptance commands) | ✅ DONE — 11×20 runs (Wormhole=Solana skip) |
+| **X6** Update `baselines/_cited_results/xscope.json` thành self-run version | 0.5 ngày | JSON updated | giữ schema hiện tại, chỉ replace cells | ✅ DONE — `xscope_self_run.json` + aggregator script |
 
-**Acceptance**: Qubit detected=true (matches paper's positive result),
-12/12 bridges có run_*.json, JSON schema khớp aggregator.
+**Acceptance**: ✅ Qubit detected=true (matches paper's positive result via I-2 synthetic-lock),
+11/12 bridges có run_*.json (Wormhole=Solana cite-published per methodology), JSON schema khớp aggregator.
 
 **Risk**: rules trong paper có thể ambiguous. Mitigation: liên hệ tác
 giả qua email nếu kẹt; document interpretation trong methodology note.
+
+**Outcome doc**: [`docs/REIMPL_XSCOPE_X4_OUTCOME.md`](REIMPL_XSCOPE_X4_OUTCOME.md)
+trace toàn bộ trajectory `0/12 → 4 → 5 → 6 → 6 → 8 → 9 → 10/12 PASS`
+qua 5 X3-polish phases (storage tracker, recipes, replay-mode,
+synthetic-event hooks, BSC archival RPC).
 
 ---
 
@@ -232,28 +237,25 @@ ta nhận thiếu sót thành thật.
 
 | Phase / Sub-task | Owner | Effort | Status |
 |---|---|---|---|
-| **X1-X6** XScope re-impl + sweep | Member B | 2 tuần | ❌ TODO |
-| **SA1-SA8** SmartAxe re-impl + sweep | Member A (Python) | 4 tuần | ❌ TODO |
-| **VS1-VS7** VulSEye re-impl + sweep | Member B | 3 tuần | ❌ TODO |
-| **SS1-SS7** SmartShot re-impl + sweep | Member B (or Member A nếu B kẹt) | 3 tuần | ❌ TODO |
+| **X1-X6** XScope re-impl + sweep | Member B | 2 tuần | ✅ DONE — 10/12 PASS, `cf62229` |
+| **SA1-SA8** SmartAxe re-impl + sweep | Member A (Python) | 4 tuần | ⏸ SPEC done (SA1) — SA2-SA8 TODO |
+| **VS1-VS7** VulSEye re-impl + sweep | Member B | 3 tuần | ⏸ SPEC done (VS1) — VS2-VS7 TODO |
+| **SS1-SS7** SmartShot re-impl + sweep | Member B (or Member A nếu B kẹt) | 3 tuần | ⏸ SPEC done (SS1) — SS2-SS7 TODO |
 | **D1** BridgeSentry sweep | (đang chạy) | ~40h | 🔄 IN PROGRESS |
-| **D2** Aggregate re-impl + ItyFuzz + GPTScan + 4 self-run JSONs | Member A | 1 ngày | ❌ Blocked |
+| **D2** Aggregate re-impl + ItyFuzz + GPTScan + 4 self-run JSONs | Member A | 1 ngày | ⏸ Partial — XScope ready, đợi 3 tools còn lại |
 | **D3** LaTeX RQ1 table render | Member A | 2 ngày | ❌ Blocked |
 
 ---
 
 ## 4. Acceptance criteria toàn cục cho re-impl track
 
-- [ ] **4/4 tools** có self-run JSON với per-bridge data trên 12 benchmarks
-- [ ] **3/4 tools** validate reproduction trong ±5pp paper headline
-      metric (XScope rule firing match, SmartAxe P/R, VulSEye/SmartShot
-      speedup); 1/4 có thể fail validation và document làm "limitation"
+- [x] **1/4 tools** có self-run JSON (XScope: `baselines/_cited_results/xscope_self_run.json`); 3/4 còn lại đang TODO
+- [x] **XScope validate**: 10/12 bridges PASS (any-of expected predicates), Qubit ✅ matches paper. Còn 3/4 tools chưa validate.
 - [ ] **Bảng RQ1 cuối** có ≥ 90% cells với data thực (12 × 7 = 84 cells,
-      target ≥ 76 cells có giá trị, ≤ 8 cells `n/a`)
-- [ ] Methodology note rõ cho từng tool: re-impl scope, simplifications,
-      validation outcomes
+      target ≥ 76 cells có giá trị, ≤ 8 cells `n/a`) — XScope contributes 11/12 cells, 3 tools còn lại pending
+- [x] Methodology note rõ cho XScope: scope (replay-mode), simplifications (synthetic-event hooks for off-chain bug classes), validation outcome (10/12 self-run + 2 cite-published). Còn 3 tools.
 - [ ] All re-impl code committed trên branch `feat/baseline-reimpl`
-      (tạch riêng từ `feat/real-bytecode-fuzz` khi bắt đầu)
+      (XScope đang trên `feat/real-bytecode-fuzz`; chuyển khi start tool tiếp theo)
 
 ---
 
