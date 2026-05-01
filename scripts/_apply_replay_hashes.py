@@ -174,15 +174,52 @@ HASHES = {
             ),
         ],
     },
-    # pgala  — SKIP: no post-mortem cites a specific tx hash.
-    #          Re-investigation needs direct BSCscan filtering of
-    #          mint() events on pGALA token 0xd4306df0...3373416
-    #          around block 22745013 ± 500.
-    # fegtoken — SKIP: user spec (claimMigrator + Apr 30 + block
-    #          17127537 + router 0x4b9be7e9...) doesn't match any
-    #          documented FEG exploit. Real flashloans were May 15-16
-    #          2022 via swapToSwap() on a different LP. Re-spec'ing
-    #          the benchmark to the May 15 incident would land it.
+    # pGala / pNetwork exploit 2022-11-04: pNetwork node misconfig
+    # leaked admin key, attacker 0x1D3DbE49... used it to redeploy
+    # the pGALA proxy + mint 561T GALA to themselves, then forwarded
+    # to routing EOA 0xEE84D272... → drain wallet 0x6891a233... that
+    # dumped on PancakeSwap. Three reps capture mint + propagation.
+    # Note: metadata's pgala_token 0xd4306df0... is the POST-incident
+    # redeployed contract; original exploited proxy is
+    # 0xB5273D5aDb749bc3F6704DC82fFf02735D5B3e11. Investigation via
+    # BSCscan tokentxns filter on the attacker EOA + pNetwork
+    # post-mortem cross-check.
+    "pgala": {
+        "rpc_env": "BSC_ARCHIVE_RPC_URL",
+        "txs": [
+            (
+                "0xa9b2c1efa50e88c81e5868e36e4aee9ed3c3d59e9f7f6f50fe1bb2c88be54abe",
+                22753835,
+            ),
+            (
+                "0xe6dd3d0c4d137581e5125695885e2241e95aecbeb4b8e237ae0d68d24b33f27c",
+                22753902,
+            ),
+            (
+                "0xdafba62a6a8a53a695b07db03f4c52f7e5e12a00af7c83cf4da77eb5cf384db5",
+                22754085,
+            ),
+        ],
+    },
+    # FEGtoken: original benchmark spec (claimMigrator on
+    # 0x4b9be7e9... + Apr 30 + block 17127537) doesn't match any
+    # documented FEG exploit — that router is empty on BSC and
+    # block 17127537 is Apr-21-2022. The actual on-chain exploit
+    # is the May-15-2022 swapToSwap() flashloan tx
+    # 0x77cf448c... at block 17832803, attacker
+    # 0x73b359d5... draining FEGexPRO LP at 0x818e2013...
+    # Re-pointing the benchmark fork to that tx replays the real
+    # incident; predicate I-5 fires via synthesize_unauth_unlock
+    # (any-of rule against expected I-1, I-5).
+    "fegtoken": {
+        "rpc_env": "BSC_ARCHIVE_RPC_URL",
+        "txs": [
+            (
+                "0x77cf448ceaf8f66e06d1537ef83218725670d3a509583ea0d161533fda56c063",
+                17832803,
+            ),
+        ],
+    },
 }
 
 

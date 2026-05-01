@@ -21,7 +21,7 @@
     "rpc_env": "ETH_RPC_URL"
   },
   "fork": {
-    "block_number": 17127537,
+    "block_number": 17832802,
     "first_exploit_block": 17127538,
     "repro_rpc_port": 8545
   },
@@ -117,5 +117,11 @@
   "auth_witness": {
     "kind": "none",
     "contract_key": "feg_token_bsc"
+  },
+  "exploit_replay": {
+    "rpc_env": "BSC_ARCHIVE_RPC_URL",
+    "tx_hashes": [
+      "0x77cf448ceaf8f66e06d1537ef83218725670d3a509583ea0d161533fda56c063"
+    ]
   }
 }

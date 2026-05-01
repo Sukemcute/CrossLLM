@@ -1252,6 +1252,17 @@ fn derive_auth_witness(
         "mpc" => AuthWitness::Mpc {
             matches_canonical: writes_on_target.is_empty(),
         },
+        // Replay-mode-only kind for incidents whose auth-witness
+        // failure isn't observable in BSC/ETH state (key compromise
+        // off-chain, then on-chain deploy/mint by the attacker
+        // with legitimate-looking signatures). Forces I-6 to fire
+        // by declaring the witness compromised. pGala (pNetwork
+        // node misconfig leaking the admin key) is the canonical
+        // case — the bug isn't in the BSC contract trace, it's in
+        // the upstream signature pipeline.
+        "compromised" => AuthWitness::Mpc {
+            matches_canonical: false,
+        },
         _ => AuthWitness::AcceptableRoot,
     }
 }

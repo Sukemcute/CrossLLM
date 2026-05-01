@@ -21,7 +21,7 @@
     "rpc_env": "BSC_RPC_URL"
   },
   "fork": {
-    "block_number": 22700000,
+    "block_number": 22753834,
     "first_exploit_block": 22700001,
     "repro_rpc_port": 8545
   },
@@ -78,7 +78,16 @@
     "pGALAToken": "pgala_token_relaunch"
   },
   "auth_witness": {
-    "kind": "mpc",
+    "kind": "compromised",
     "contract_key": "pgala_token_relaunch"
+  },
+  "exploit_replay": {
+    "rpc_env": "BSC_ARCHIVE_RPC_URL",
+    "tx_hashes": [
+      "0xa9b2c1efa50e88c81e5868e36e4aee9ed3c3d59e9f7f6f50fe1bb2c88be54abe",
+      "0xe6dd3d0c4d137581e5125695885e2241e95aecbeb4b8e237ae0d68d24b33f27c",
+      "0xdafba62a6a8a53a695b07db03f4c52f7e5e12a00af7c83cf4da77eb5cf384db5"
+    ],
+    "synthesize_unauth_unlock": true
   }
 }
