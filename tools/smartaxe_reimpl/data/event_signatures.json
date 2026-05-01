@@ -1,0 +1,20 @@
+{
+  "_comment": "SA4 — per-bridge canonical event signatures (lock + unlock topics). Populated incrementally as xcfg_builder lands. Schema deliberately mirrors metadata.json::contracts.<key>.events for cross-tool reuse.",
+  "_schema": {
+    "<bridge>": {
+      "lock_signatures": ["Event(arg_types,...)"],
+      "unlock_signatures": ["Event(arg_types,...)"],
+      "auth_methods": ["functionName(types)"]
+    }
+  },
+  "nomad": {
+    "lock_signatures": ["Dispatch(bytes32,uint256,uint64,bytes32,bytes)"],
+    "unlock_signatures": ["Process(bytes32,bool,bytes)"],
+    "auth_methods": ["acceptableRoot(bytes32)", "process(bytes)"]
+  },
+  "ronin": {
+    "lock_signatures": ["DepositRequested(bytes32,(address,address,uint256))"],
+    "unlock_signatures": ["WithdrawalDone(bytes32,(address,address,uint256))"],
+    "auth_methods": ["withdrawERC20For(uint256,address,address,uint256,bytes[])"]
+  }
+}

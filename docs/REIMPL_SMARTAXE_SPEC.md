@@ -389,8 +389,8 @@ adjust the threshold or fix the pattern detector.
 | Sub-task | Status |
 |---|---|
 | **SA1** Spec | ✅ this file |
-| **SA2** Python project skeleton + Slither dep | ⏳ next |
-| **SA3** Single-chain CFG via Slither | ⏳ |
+| **SA2** Python project skeleton + Slither dep | ✅ done — `tools/smartaxe_reimpl/` |
+| **SA3** Single-chain CFG via Slither | ✅ done — 16/16 tests pass; 8 Nomad contracts parsed |
 | **SA4** xCFG / xDFG construction | ⏳ |
 | **SA5** Security checks + pattern inference | ⏳ |
 | **SA6** Validate on PolyNetwork | ⏳ |
