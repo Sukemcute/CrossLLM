@@ -1,20 +1,71 @@
 {
-  "_comment": "SA4 — per-bridge canonical event signatures (lock + unlock topics). Populated incrementally as xcfg_builder lands. Schema deliberately mirrors metadata.json::contracts.<key>.events for cross-tool reuse.",
+  "_comment": "Per-bridge cross-chain event signatures + authorization-method whitelists for SmartAxe re-impl. Hand-curated from the bridge solidity sources + post-mortems. Schema: { <bridge>: { lock_signatures: [...], unlock_signatures: [...], auth_methods: [...] } }",
   "_schema": {
     "<bridge>": {
-      "lock_signatures": ["Event(arg_types,...)"],
-      "unlock_signatures": ["Event(arg_types,...)"],
+      "lock_signatures": ["EventName(arg_types,...)"],
+      "unlock_signatures": ["EventName(arg_types,...)"],
       "auth_methods": ["functionName(types)"]
     }
   },
+
   "nomad": {
     "lock_signatures": ["Dispatch(bytes32,uint256,uint64,bytes32,bytes)"],
     "unlock_signatures": ["Process(bytes32,bool,bytes)"],
-    "auth_methods": ["acceptableRoot(bytes32)", "process(bytes)"]
+    "auth_methods": ["acceptableRoot(bytes32)", "process(bytes)", "send(uint32,bytes32,uint32,bytes)"]
   },
   "ronin": {
     "lock_signatures": ["DepositRequested(bytes32,(address,address,uint256))"],
     "unlock_signatures": ["WithdrawalDone(bytes32,(address,address,uint256))"],
-    "auth_methods": ["withdrawERC20For(uint256,address,address,uint256,bytes[])"]
+    "auth_methods": ["withdrawERC20For(uint256,address,address,uint256,bytes[])", "submitWithdrawal(bytes32,(address,address,uint256),bytes[])"]
+  },
+  "polynetwork": {
+    "lock_signatures": ["CrossChainEvent(address,bytes,address,uint64,bytes,bytes)"],
+    "unlock_signatures": ["VerifyHeaderAndExecuteTxEvent(uint64,bytes,bytes,bytes)"],
+    "auth_methods": ["verifyHeaderAndExecuteTx(bytes,bytes,bytes,bytes,bytes)", "_executeCrossChainTx(address,bytes,bytes,bytes,uint64)"]
+  },
+  "wormhole": {
+    "lock_signatures": ["LogMessagePublished(address,uint64,uint32,bytes,uint8)"],
+    "unlock_signatures": ["TransferRedeemed(uint16,bytes32,uint64)"],
+    "auth_methods": ["completeTransfer(bytes)", "verifyVM((bytes32,bytes32,uint64,uint16,uint64,bytes32,uint16,bytes,(bytes32,uint64,uint64,uint64,uint16,uint64)[]))", "parseAndVerifyVM(bytes)"]
+  },
+  "harmony": {
+    "lock_signatures": ["Locked(uint256,address,uint256,address,uint256)"],
+    "unlock_signatures": ["Unlocked(uint256,address,address,uint256,bytes32)", "Confirmation(address,uint256)", "Execution(uint256)"],
+    "auth_methods": ["confirmTransaction(uint256)", "executeTransaction(uint256)", "submitTransaction(address,uint256,bytes)"]
+  },
+  "multichain": {
+    "lock_signatures": ["LogAnySwapOut(bytes32,address,address,address,uint256,uint256,uint256)"],
+    "unlock_signatures": ["LogAnySwapIn(bytes32,address,address,address,uint256,uint256,uint256)"],
+    "auth_methods": ["anySwapIn(bytes32,address,address,uint256,uint256)", "anySwapInAuto(bytes32,address,address,uint256,uint256)", "anySwapFeeTo(address,uint256)"]
+  },
+  "qubit": {
+    "lock_signatures": ["Deposit(uint8,bytes32,uint64)"],
+    "unlock_signatures": ["ProposalEvent(uint8,uint64,uint8,bytes32,bytes32)"],
+    "auth_methods": ["voteProposal(uint8,uint64,bytes32,bytes)", "executeProposal(uint8,uint64,bytes,bytes32,address[])"]
+  },
+  "orbit": {
+    "lock_signatures": ["Deposit(string,bytes,bytes,address,uint256,uint256,bytes)"],
+    "unlock_signatures": ["Withdraw(string,bytes,bytes,bytes,address,uint256,uint256)"],
+    "auth_methods": ["withdraw(string,bytes,bytes,bytes,address,uint256,uint256,uint8[],bytes32[],bytes32[])", "verifySignatures(bytes32,uint8[],bytes32[],bytes32[])"]
+  },
+  "socket": {
+    "lock_signatures": ["TokensBridged(address,address,uint256,uint256,address)"],
+    "unlock_signatures": ["TokensReceived(address,address,uint256,uint256,address)"],
+    "auth_methods": ["performAction(uint256,bytes)", "executeRoute(uint32,bytes)"]
+  },
+  "fegtoken": {
+    "lock_signatures": ["Deposit(address,uint256)"],
+    "unlock_signatures": ["Withdraw(address,uint256)", "Migration(address,uint256)"],
+    "auth_methods": ["claimMigrator()", "swapToSwap(address,uint256,address,uint256)", "migrateBalance(address,uint256)"]
+  },
+  "gempad": {
+    "lock_signatures": ["Locked(address,address,uint256,uint256)"],
+    "unlock_signatures": ["Unlocked(address,address,uint256)", "Withdraw(address,uint256)"],
+    "auth_methods": ["withdraw()", "transferLockOwnership(address,address)", "collectFees(address)"]
+  },
+  "pgala": {
+    "lock_signatures": ["Lock(address,uint256,bytes32)"],
+    "unlock_signatures": ["Mint(address,uint256)", "Transfer(address,address,uint256)"],
+    "auth_methods": ["mint(address,uint256)", "validateMpcSignature(bytes32,bytes)", "executeOnBSC(bytes,bytes)"]
   }
 }
