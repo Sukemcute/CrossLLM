@@ -392,7 +392,7 @@ adjust the threshold or fix the pattern detector.
 | **SA2** Python project skeleton + Slither dep | ✅ done — `tools/smartaxe_reimpl/` |
 | **SA3** Single-chain CFG via Slither | ✅ done — 16/16 tests pass; 8 Nomad contracts parsed |
 | **SA4** xCFG / xDFG construction | ✅ done — 39/39 tests pass; Nomad e2e: 106 BB + 87 Ef edges |
-| **SA5** Security checks + pattern inference | ⏳ |
+| **SA5** Security checks + pattern inference | ✅ done — 64/64 tests; Nomad e2e: 2 omissions detected, run_001.json written |
 | **SA6** Validate on PolyNetwork | ⏳ |
 | **SA7** Run 12-benchmark sweep | ⏳ |
 | **SA8** Update cited JSON → self-run | ⏳ |
