@@ -105,7 +105,9 @@
     "rpc_env": "BSC_ARCHIVE_RPC_URL",
     "tx_hashes": [
       "0x1a50211502a413c0d6d35f3ba859fc4206c5fb899c0adaa28b74c56b644c2997",
+      "0xae86dacfd261953d6b647c566be9ac77ee0bb05bba9dfda72ec0973977f3833a",
       "0x409a5313cb47f8e4cfbd3d3f278ff6bdba402e89baf27891e60d1f648aebda43"
-    ]
+    ],
+    "synthesize_unauth_unlock": true
   }
 }

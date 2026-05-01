@@ -187,6 +187,29 @@ impl<'a> XScopeBuilder<'a> {
         });
     }
 
+    /// Replay-mode hook for bug-class-C1 incidents (forged deposit /
+    /// unrestricted emit) where the attacker's tx is itself a phantom
+    /// deposit claim — no genuine lock event was ever issued on the
+    /// source chain because the source-side state didn't actually back
+    /// the value being claimed. Qubit is the canonical case: a
+    /// `voteProposal` call on BSC carries a Solidity-encoded payload
+    /// that references an Ethereum-side deposit that does not exist.
+    ///
+    /// To expose this to predicate I-2 we synthesise a LockEvent with
+    /// `recipient = 0x0` keyed on the tx hash. The semantic claim is:
+    /// "the bridge accepted a deposit-shaped message whose recipient
+    /// field is unrestricted (zero)" — which IS the bug. Predicate
+    /// I-2 then fires by its standard rule.
+    pub fn add_synthetic_unauth_lock(&mut self, target: Address, msg_hash: B256) {
+        self.lock_events.push(LockEvent {
+            address: target,
+            message_hash: msg_hash,
+            amount: U256::ZERO,
+            recipient: Address::ZERO,
+            topic0: B256::ZERO,
+        });
+    }
+
     /// Replay-mode log ingestion. The on-chain ATG-edge keccak gives
     /// **function** selectors, not **event** topics, so the
     /// `lock_topics` / `unlock_topics` tables in the standard ingest

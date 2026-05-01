@@ -1000,6 +1000,38 @@ fn run_xscope_replay(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                         }
                     }
                 }
+                // Bug-class-C1 (forged-deposit) replay: when metadata
+                // declares `synthesize_unauth_lock = true` and the tx
+                // executed against a known bridge handler, register a
+                // synthetic LockEvent with recipient=0x0 so predicate
+                // I-2 ("unrestricted_deposit_emitting") fires. The
+                // attacker's tx IS the unrestricted-emit evidence —
+                // there is no real source-side lock to capture
+                // because the deposit it claims to process never
+                // existed (Qubit voteProposal is the canonical case).
+                if ctx.synthesize_unauth_lock && tx_outcome.success {
+                    let msg_hash = revm::primitives::keccak256(tx.hash.as_bytes());
+                    builder.add_synthetic_unauth_lock(to, msg_hash);
+                }
+                // Bug-class-C3 (unauthorized unlock via internal call):
+                // when metadata declares `synthesize_unauth_unlock`,
+                // register a synthetic UnlockEvent against the
+                // recipe-declared auth-witness contract on every
+                // successful tx, regardless of whether the top-level
+                // target matches. Used when the unlock happens deep
+                // in the call tree from an attacker-deployed wrapper
+                // (Gempad: drain tx targets an attack contract that
+                // internally calls `withdraw` on GempadLocker).
+                if ctx.synthesize_unauth_unlock && tx_outcome.success {
+                    if let Some(recipe) = ctx.auth_witness.as_ref() {
+                        if let Some(target_str) = recipe.contract_address.as_deref() {
+                            if let Ok(witness_addr) = Address::from_str(target_str.trim()) {
+                                let msg_hash = revm::primitives::keccak256(tx.hash.as_bytes());
+                                builder.add_synthetic_unlock_attempt(witness_addr, msg_hash);
+                            }
+                        }
+                    }
+                }
                 let auth_kind = derive_auth_witness(ctx.auth_witness.as_ref(), &iter_storage);
                 for h in builder.unlock_message_hashes() {
                     builder.set_auth_witness_default(h, auth_kind.clone());

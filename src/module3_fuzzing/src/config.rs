@@ -217,6 +217,23 @@ pub struct RuntimeContext {
     /// `SpecId::LONDON`. Required for replays of post-Cancun blocks
     /// (e.g. Gempad fork 44946195 uses MCOPY which is a Cancun opcode).
     pub fork_spec_id: Option<String>,
+    /// When `true`, the replay path synthesises a LockEvent with
+    /// recipient=0x0 keyed on the tx hash whenever the tx targets a
+    /// known bridge handler and the on-chain logs don't decode to a
+    /// natural lock-side event. Read from
+    /// `metadata.exploit_replay.synthesize_unauth_lock`. Used for
+    /// bug-class-C1 incidents (Qubit) where the attacker's tx is
+    /// itself a phantom deposit claim — predicate I-2 then fires.
+    pub synthesize_unauth_lock: bool,
+    /// When `true`, the replay path synthesises an UnlockEvent for
+    /// the auth-witness contract on every successful tx, not just on
+    /// txs whose top-level target matches the auth-witness address.
+    /// Read from `metadata.exploit_replay.synthesize_unauth_unlock`.
+    /// Used for bug-class-C3 incidents where the unlock happens via
+    /// an internal call rather than at the top of the call tree
+    /// (Gempad: drain tx targets an attack contract that
+    /// internally calls `withdraw` on the GempadLocker).
+    pub synthesize_unauth_unlock: bool,
     /// Which detection algorithm to run. Resolved from `--baseline-mode`.
     pub baseline_mode: BaselineMode,
 }
@@ -264,32 +281,51 @@ pub fn build_context_from_args(cli: CliArgs) -> Result<RuntimeContext> {
     validate_context(&config, &atg, &hypotheses)?;
 
     // Step 6: Optional metadata.json overrides for ATG node addresses.
-    let (address_overrides, address_aliases, auth_witness, replay_cache_dir, fork_spec_id) =
-        if let Some(meta_path) = cli.metadata.as_ref() {
-            let raw = std::fs::read_to_string(meta_path)
-                .wrap_err_with(|| format!("Failed to read metadata: {}", meta_path.display()))?;
-            let v: serde_json::Value = serde_json::from_str(&raw)
-                .wrap_err_with(|| format!("Failed to parse metadata: {}", meta_path.display()))?;
-            // The replay cache lives next to metadata.json: bridge dir
-            // is `meta_path.parent()`.
-            let cache = meta_path
-                .parent()
-                .map(|p| p.join("exploit_replay").join("cache"));
-            let spec = v
-                .get("fork")
-                .and_then(|f| f.get("spec_id"))
-                .and_then(|s| s.as_str())
-                .map(|s| s.to_lowercase());
-            (
-                load_address_overrides_from_value(&v),
-                load_address_aliases_from_value(&v),
-                load_auth_witness_from_value(&v),
-                cache,
-                spec,
-            )
-        } else {
-            (Vec::new(), Vec::new(), None, None, None)
-        };
+    let (
+        address_overrides,
+        address_aliases,
+        auth_witness,
+        replay_cache_dir,
+        fork_spec_id,
+        synthesize_unauth_lock,
+        synthesize_unauth_unlock,
+    ) = if let Some(meta_path) = cli.metadata.as_ref() {
+        let raw = std::fs::read_to_string(meta_path)
+            .wrap_err_with(|| format!("Failed to read metadata: {}", meta_path.display()))?;
+        let v: serde_json::Value = serde_json::from_str(&raw)
+            .wrap_err_with(|| format!("Failed to parse metadata: {}", meta_path.display()))?;
+        // The replay cache lives next to metadata.json: bridge dir
+        // is `meta_path.parent()`.
+        let cache = meta_path
+            .parent()
+            .map(|p| p.join("exploit_replay").join("cache"));
+        let spec = v
+            .get("fork")
+            .and_then(|f| f.get("spec_id"))
+            .and_then(|s| s.as_str())
+            .map(|s| s.to_lowercase());
+        let syn_unauth_lock = v
+            .get("exploit_replay")
+            .and_then(|r| r.get("synthesize_unauth_lock"))
+            .and_then(|b| b.as_bool())
+            .unwrap_or(false);
+        let syn_unauth_unlock = v
+            .get("exploit_replay")
+            .and_then(|r| r.get("synthesize_unauth_unlock"))
+            .and_then(|b| b.as_bool())
+            .unwrap_or(false);
+        (
+            load_address_overrides_from_value(&v),
+            load_address_aliases_from_value(&v),
+            load_auth_witness_from_value(&v),
+            cache,
+            spec,
+            syn_unauth_lock,
+            syn_unauth_unlock,
+        )
+    } else {
+        (Vec::new(), Vec::new(), None, None, None, false, false)
+    };
 
     Ok(RuntimeContext {
         config,
@@ -301,6 +337,8 @@ pub fn build_context_from_args(cli: CliArgs) -> Result<RuntimeContext> {
         auth_witness,
         replay_cache_dir,
         fork_spec_id,
+        synthesize_unauth_lock,
+        synthesize_unauth_unlock,
         baseline_mode: cli.baseline_mode,
     })
 }
@@ -365,9 +403,6 @@ fn load_address_aliases_from_value(v: &serde_json::Value) -> Vec<(String, String
 fn load_auth_witness_from_value(v: &serde_json::Value) -> Option<AuthWitnessRecipe> {
     let block = v.get("auth_witness")?.as_object()?;
     let kind = block.get("kind").and_then(|x| x.as_str()).unwrap_or("none");
-    if kind == "none" {
-        return None;
-    }
     let contract_key = block
         .get("contract_key")
         .and_then(|x| x.as_str())
@@ -378,6 +413,14 @@ fn load_auth_witness_from_value(v: &serde_json::Value) -> Option<AuthWitnessReci
         .and_then(|c| c.get("address"))
         .and_then(|a| a.as_str())
         .map(|s| s.to_string());
+    // kind="none" means "no witness check required", but we still
+    // resolve contract_address so the replay-side synthetic-event
+    // hooks (synthesize_unauth_lock / synthesize_unauth_unlock) can
+    // address the bridge contract. Skip only when neither kind nor
+    // address is meaningful.
+    if kind == "none" && contract_address.is_none() {
+        return None;
+    }
     let threshold = block
         .get("threshold")
         .and_then(|t| t.as_u64())

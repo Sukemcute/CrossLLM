@@ -159,6 +159,15 @@ HASHES = {
                 "0x1a50211502a413c0d6d35f3ba859fc4206c5fb899c0adaa28b74c56b644c2997",
                 44946196,
             ),
+            # Direct CREATE of attack contract B (0xbfcf56d4fc...) by
+            # attacker EOA 0xFDd9b0A7. Sits between funding and drain;
+            # required so the drain tx finds bytecode at the target
+            # address in the fork. Verified via BSCscan "Contract
+            # Creator" panel on the contract address page.
+            (
+                "0xae86dacfd261953d6b647c566be9ac77ee0bb05bba9dfda72ec0973977f3833a",
+                44946208,
+            ),
             (
                 "0x409a5313cb47f8e4cfbd3d3f278ff6bdba402e89baf27891e60d1f648aebda43",
                 44946280,
