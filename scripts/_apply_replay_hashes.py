@@ -238,10 +238,13 @@ def main() -> int:
         earliest_block = min(b for _, b in cfg["txs"])
         meta.setdefault("fork", {})["block_number"] = earliest_block - 1
 
-        meta["exploit_replay"] = {
-            "rpc_env": cfg["rpc_env"],
-            "tx_hashes": [h for h, _ in cfg["txs"]],
-        }
+        # Preserve any existing per-bridge synthesize flags or other
+        # custom keys the X3-polish A4/A5 work wrote into the block —
+        # only overwrite rpc_env + tx_hashes here.
+        existing = meta.get("exploit_replay", {})
+        existing["rpc_env"] = cfg["rpc_env"]
+        existing["tx_hashes"] = [h for h, _ in cfg["txs"]]
+        meta["exploit_replay"] = existing
 
         with open(path, "w", encoding="utf-8") as f:
             json.dump(meta, f, indent=2)

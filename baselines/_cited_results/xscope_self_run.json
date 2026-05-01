@@ -1,0 +1,186 @@
+{
+  "tool": "xscope",
+  "tool_type": "rule_based_detector",
+  "source": "Self-run replay of XScope re-implementation against BridgeSentry's 12 benchmarks. See docs/REIMPL_XSCOPE_X4_OUTCOME.md for per-bridge trajectory (0/12 \u2192 10/12 PASS via 5 X3-polish phases).",
+  "doi_or_url": "Original paper: Zhang et al., \"Xscope: Hunting for Cross-Chain Bridge Attacks\", ASE 2022 \u2014 https://arxiv.org/abs/2208.07119",
+  "extraction_date": "2026-05-01",
+  "methodology_note": "Replay-mode: cached on-chain exploit transactions are dispatched through revm against a fork at (exploit_block - 1). XScope's six predicates I-1..I-6 evaluate against the resulting view. The acceptance rule is any-of: a bridge passes if at least one predicate from its spec \u00a74 expected set fires. TTE is undefined for replay-mode XScope (it's a deterministic per-tx classifier, not a fuzz loop with time-to-find). The 11 ETH/BSC bridges run end-to-end; Wormhole is cite-published because its source side is Solana.",
+  "results": {
+    "nomad": {
+      "detected": true,
+      "tte_seconds": null,
+      "tte_std": null,
+      "runs": 20,
+      "predicates_fired": [
+        "I-5",
+        "I-6"
+      ],
+      "predicates_expected": [
+        "I-6"
+      ],
+      "predicate_match": true,
+      "note": "replay-mode: 20/20 runs flagged (deterministic \u2014 same input each run)"
+    },
+    "qubit": {
+      "detected": true,
+      "tte_seconds": null,
+      "tte_std": null,
+      "runs": 20,
+      "predicates_fired": [
+        "I-2",
+        "I-5"
+      ],
+      "predicates_expected": [
+        "I-2"
+      ],
+      "predicate_match": true,
+      "note": "replay-mode: 20/20 runs flagged (deterministic \u2014 same input each run)"
+    },
+    "pgala": {
+      "detected": true,
+      "tte_seconds": null,
+      "tte_std": null,
+      "runs": 20,
+      "predicates_fired": [
+        "I-5",
+        "I-6"
+      ],
+      "predicates_expected": [
+        "I-3",
+        "I-4",
+        "I-6"
+      ],
+      "predicate_match": true,
+      "note": "replay-mode: 20/20 runs flagged (deterministic \u2014 same input each run)"
+    },
+    "polynetwork": {
+      "detected": true,
+      "tte_seconds": null,
+      "tte_std": null,
+      "runs": 20,
+      "predicates_fired": [
+        "I-5"
+      ],
+      "predicates_expected": [
+        "I-5",
+        "I-6"
+      ],
+      "predicate_match": true,
+      "note": "replay-mode: 20/20 runs flagged (deterministic \u2014 same input each run)"
+    },
+    "wormhole": {
+      "detected": false,
+      "tte_seconds": null,
+      "tte_std": null,
+      "runs": 0,
+      "predicates_fired": [],
+      "predicates_expected": [
+        "I-5",
+        "I-6"
+      ],
+      "predicate_match": false,
+      "note": "no run output (bridge skipped or sweep not run)"
+    },
+    "socket": {
+      "detected": false,
+      "tte_seconds": null,
+      "tte_std": null,
+      "runs": 20,
+      "predicates_fired": [],
+      "predicates_expected": [
+        "I-1",
+        "I-5"
+      ],
+      "predicate_match": false,
+      "note": "no predicate fired (replay-side empty / SKIP)"
+    },
+    "ronin": {
+      "detected": true,
+      "tte_seconds": null,
+      "tte_std": null,
+      "runs": 20,
+      "predicates_fired": [
+        "I-5",
+        "I-6"
+      ],
+      "predicates_expected": [
+        "I-6"
+      ],
+      "predicate_match": true,
+      "note": "replay-mode: 20/20 runs flagged (deterministic \u2014 same input each run)"
+    },
+    "harmony": {
+      "detected": true,
+      "tte_seconds": null,
+      "tte_std": null,
+      "runs": 20,
+      "predicates_fired": [
+        "I-5",
+        "I-6"
+      ],
+      "predicates_expected": [
+        "I-6"
+      ],
+      "predicate_match": true,
+      "note": "replay-mode: 20/20 runs flagged (deterministic \u2014 same input each run)"
+    },
+    "multichain": {
+      "detected": true,
+      "tte_seconds": null,
+      "tte_std": null,
+      "runs": 20,
+      "predicates_fired": [
+        "I-5"
+      ],
+      "predicates_expected": [
+        "I-5"
+      ],
+      "predicate_match": true,
+      "note": "replay-mode: 20/20 runs flagged (deterministic \u2014 same input each run)"
+    },
+    "orbit": {
+      "detected": true,
+      "tte_seconds": null,
+      "tte_std": null,
+      "runs": 20,
+      "predicates_fired": [
+        "I-5",
+        "I-6"
+      ],
+      "predicates_expected": [
+        "I-6"
+      ],
+      "predicate_match": true,
+      "note": "replay-mode: 20/20 runs flagged (deterministic \u2014 same input each run)"
+    },
+    "fegtoken": {
+      "detected": true,
+      "tte_seconds": null,
+      "tte_std": null,
+      "runs": 20,
+      "predicates_fired": [
+        "I-5"
+      ],
+      "predicates_expected": [
+        "I-1",
+        "I-5"
+      ],
+      "predicate_match": true,
+      "note": "replay-mode: 20/20 runs flagged (deterministic \u2014 same input each run)"
+    },
+    "gempad": {
+      "detected": true,
+      "tte_seconds": null,
+      "tte_std": null,
+      "runs": 20,
+      "predicates_fired": [
+        "I-5"
+      ],
+      "predicates_expected": [
+        "I-5"
+      ],
+      "predicate_match": true,
+      "note": "replay-mode: 20/20 runs flagged (deterministic \u2014 same input each run)"
+    }
+  }
+}
