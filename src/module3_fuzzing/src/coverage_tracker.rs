@@ -43,6 +43,22 @@ impl CoverageTracker {
     pub fn clear(&mut self) {
         self.touched.clear();
     }
+
+    /// Address-agnostic flat PC set. Compatibility shim for the
+    /// `execute_on_*_with_coverage` path that landed on `origin/main`
+    /// — it returns just `HashSet<usize>` rather than the
+    /// `(Address, usize)` pairs the inspector records. We collapse
+    /// the address dimension here so both call sites can share the
+    /// same tracker type.
+    pub fn into_pcs(self) -> HashSet<usize> {
+        self.touched.into_iter().map(|(_, pc)| pc).collect()
+    }
+
+    /// Same as [`Self::into_pcs`] but borrowing — useful when the
+    /// caller wants to keep the tracker for further passes.
+    pub fn pcs(&self) -> HashSet<usize> {
+        self.touched.iter().map(|(_, pc)| *pc).collect()
+    }
 }
 
 impl<DB: Database> Inspector<DB> for CoverageTracker {
@@ -92,6 +108,21 @@ mod tests {
         assert_eq!(t.unique_pc_count(), 1);
         t.clear();
         assert_eq!(t.unique_pc_count(), 0);
+    }
+
+    #[test]
+    fn into_pcs_drops_address_dimension() {
+        let mut t = CoverageTracker::new();
+        let a = Address::from([0xAA; 20]);
+        let b = Address::from([0xBB; 20]);
+        t.touched.insert((a, 0));
+        t.touched.insert((b, 0));   // same PC at different address
+        t.touched.insert((a, 1));
+        let flat = t.into_pcs();
+        // PC=0 collapses across the two addresses; PC=1 stays.
+        assert_eq!(flat.len(), 2);
+        assert!(flat.contains(&0));
+        assert!(flat.contains(&1));
     }
 
     /// End-to-end: feed a hand-rolled bytecode (`PUSH1 1 PUSH1 2 ADD STOP`)

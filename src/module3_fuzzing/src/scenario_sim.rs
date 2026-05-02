@@ -97,7 +97,9 @@ pub fn global_state_from_scenario(scenario: &Scenario) -> GlobalState {
         // that use chain names like "ethereum"/"polygon"/"relay" instead of
         // canonical "source"/"destination". A `lock` on "ethereum" is still
         // a source-side action; a `processAndRelease` on "relay" is still a
-        // destination-side mint.
+        // destination-side mint. (Member B's chain-first match logic from
+        // origin/main is a strict subset of this — kept the OP-first
+        // version that handles non-canonical chain names too.)
         let op_is_source = SOURCE_OPS.iter().any(|&v| v == op);
         let op_is_dest = DEST_OPS.iter().any(|&v| v == op);
 
@@ -224,6 +226,9 @@ fn waypoint_predicate_holds(state: &GlobalState, scenario: &Scenario, wp: &Waypo
     let locked = u128_balance(&state.source_state, "__locked__");
 
     // Layer 1 — mock fixture short-circuits (preserve test behaviour).
+    // Subsumes origin/main's simpler `pred.contains("acceptableRoot")`
+    // checks (those still fire below via Layer 2c when the scenario_id
+    // doesn't match a known fixture).
     match scenario.scenario_id.as_str() {
         "s1_zero_root_bypass" => {
             if wp.waypoint_id == "w1" || pred.contains("acceptableRoot") {

@@ -28,6 +28,7 @@ use eyre::{Context, Result};
 use std::path::{Path, PathBuf};
 
 use crate::types::{AtgGraph, FuzzerConfig, HypothesesFile};
+use crate::contract_loader::{load_contract_plan, ContractPlan};
 
 /// Which detection algorithm the fuzzer drives. Default is BridgeSentry's
 /// invariant checker; the other variants run re-implementations of
@@ -236,6 +237,10 @@ pub struct RuntimeContext {
     pub synthesize_unauth_unlock: bool,
     /// Which detection algorithm to run. Resolved from `--baseline-mode`.
     pub baseline_mode: BaselineMode,
+    /// Benchmark-aware contract plan (Member B's A2 helper). Loaded
+    /// from `mapping.json` + `metadata.json` next to the ATG; resolves
+    /// ATG node ids → on-chain addresses for the experiment runner.
+    pub contract_plan: ContractPlan,
 }
 
 // ============================================================================
@@ -327,6 +332,12 @@ pub fn build_context_from_args(cli: CliArgs) -> Result<RuntimeContext> {
         (Vec::new(), Vec::new(), None, None, None, false, false)
     };
 
+    // Member B's contract_plan: independent of the metadata-overrides
+    // path above; reads `mapping.json` + `metadata.json` next to the
+    // ATG to populate node→address resolution for the experiment
+    // runner.
+    let contract_plan = load_contract_plan(&cli.atg.to_string_lossy(), &atg);
+
     Ok(RuntimeContext {
         config,
         atg,
@@ -340,6 +351,7 @@ pub fn build_context_from_args(cli: CliArgs) -> Result<RuntimeContext> {
         synthesize_unauth_lock,
         synthesize_unauth_unlock,
         baseline_mode: cli.baseline_mode,
+        contract_plan,
     })
 }
 
@@ -999,10 +1011,31 @@ mod tests {
     }
 
     #[test]
-    fn load_auth_witness_returns_none_for_kind_none() {
+    fn load_auth_witness_keeps_contract_when_kind_none() {
+        // Updated 2026-05-02: SA6 calibration changed the loader to
+        // keep the resolved contract_address even when kind="none",
+        // so Gempad's `synthesize_unauth_unlock` path can address
+        // the bridge contract. Pre-SA6 the test expected None.
         let v = serde_json::json!({
             "contracts": {"x": {"address": "0xAA00000000000000000000000000000000000000"}},
             "auth_witness": {"kind": "none", "contract_key": "x"}
+        });
+        let recipe = load_auth_witness_from_value(&v)
+            .expect("kind=none + valid contract_key should still produce a recipe");
+        assert_eq!(recipe.kind, "none");
+        assert_eq!(
+            recipe.contract_address.as_deref(),
+            Some("0xAA00000000000000000000000000000000000000")
+        );
+    }
+
+    #[test]
+    fn load_auth_witness_returns_none_when_kind_none_and_no_contract() {
+        // The other half of the SA6 contract: kind="none" + missing
+        // contract still yields None (nothing to address).
+        let v = serde_json::json!({
+            "contracts": {},
+            "auth_witness": {"kind": "none", "contract_key": "missing"}
         });
         assert!(load_auth_witness_from_value(&v).is_none());
     }

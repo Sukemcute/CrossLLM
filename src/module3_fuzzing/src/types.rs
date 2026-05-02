@@ -292,6 +292,12 @@ pub struct FuzzingStats {
     /// Peak snapshot pool size observed.
     #[serde(default)]
     pub snapshot_pool_peak: u64,
+    /// Number of Solidity sources discovered from benchmark contracts_dir.
+    #[serde(default)]
+    pub contracts_scanned: u64,
+    /// Deployment planning/log messages for traceability across runs.
+    #[serde(default)]
+    pub deployment_plan_log: Vec<String>,
 }
 
 // ============================================================================
@@ -465,6 +471,8 @@ mod tests {
                 mutations_applied: 14890,
                 corpus_size: 12,
                 snapshot_pool_peak: 20,
+                contracts_scanned: 0,
+                deployment_plan_log: vec![],
             },
         };
 

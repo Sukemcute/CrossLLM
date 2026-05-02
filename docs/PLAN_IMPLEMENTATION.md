@@ -10,7 +10,7 @@
 |------------|-----------|
 | Tài liệu / Paper | Hoàn chỉnh (paper.tex, docs, guide) |
 | Python (Module 1+2) | **Đã triển khai core:** `extractor.py`, `atg_builder.py`, `invariant_synth.py`, `knowledge_base.py`, `embedder.py` (lazy-import `SentenceTransformer` trong `_encode_texts`), `scenario_gen.py`; có test cho Module 1/2 pass. **Còn thiếu:** dữ liệu đủ 51 exploits, benchmark artifacts đủ 12 bridge, và kiểm thử end-to-end với Module 3 trên từng benchmark. |
-| Rust (Module 3) | **Đã có:** `types.rs`, `config.rs` + CLI (gồm `--r-threshold`, `--max-corpus`, `--max-snapshots`, `--no-dynamic-snapshots`), `dual_evm.rs` (fork/execute + `capture_snapshot`/`restore_snapshot`), `mock_relay.rs`, `snapshot.rs` (SnapshotPool, shared-prefix `select_for_seed`), `mutator.rs`, `checker.rs` (+ `set_reward_weights` decay), `scenario_sim.rs` (+ `evaluate_waypoints`), `fuzz_loop.rs` (Alg. 1: corpus, chọn seed theo trọng số $R$, pool động), `main.rs` gọi `fuzz_loop::run` → `results.json`. |
+| Rust (Module 3) | **Đã có code core:** `types.rs`, `config.rs` + CLI (gồm `--r-threshold`, `--max-corpus`, `--max-snapshots`, `--no-dynamic-snapshots`), `dual_evm.rs` (fork/execute + `capture_snapshot`/`restore_snapshot`), `mock_relay.rs`, `snapshot.rs` (SnapshotPool, shared-prefix `select_for_seed`), `mutator.rs`, `checker.rs`, `scenario_sim.rs`, `fuzz_loop.rs`, `main.rs`. **Trạng thái thực nghiệm:** đã chạy được real fork + real benchmark inputs (ATG/hypotheses), nhưng pipeline vẫn còn dependency simulator/seed-path; chưa đạt full real-bytecode fuzzing end-to-end như paper claim. |
 | Benchmarks | `benchmarks/README.md` có bảng 12 exploit (fork block, hướng tấn công). **Chưa** có đủ 12 thư mục benchmark đầy đủ; **Nomad** là gói tham chiếu (`metadata` + `schema_version`, `BENCHMARK_METADATA.schema.json`, `repro.sh`/`repro.ps1`, `Message.sol` + luồng `prove`→`process`). |
 | JSON schemas giao tiếp | **Đã định nghĩa:** `schemas/*.schema.json` (ATG, hypotheses, invariants, results) + `schemas/README.md`; mock fixtures trong `tests/fixtures/`. Cần **đồng bộ với Member A** (Python) trước khi coi Phase 0 schema là đóng băng. |
 | Dữ liệu 51 exploit | Chưa có nội dung record (`src/module2_rag/data/` gần như trống ngoài README) |
@@ -286,10 +286,11 @@ benchmarks/*/                  ← A: contracts + exploit_trace, B: mapping + fo
 |------|------|-----------|------|
 | 5-6 | ✅ `mock_relay.rs` | 4 chế độ relay: Faithful, Delayed, Tampered, Replayed. Message queue + processed set. | Test mỗi mode riêng |
 | 6 | ✅ `config.rs` | Parse CLI args, đọc JSON config (atg.json, hypotheses.json paths, time budget). | Parse example config thành công |
-| 7 | ✅ `mutator.rs` | Mutation nhận biết ATG: reorder actions, substitute params (boundary/zero), insert adjacent actions, switch relay mode, advance timestamps. | Mutate seed → output khác nhưng structurally valid |
-| 7 | ✅ `checker.rs` | Evaluate invariant assertions. Branch distance heuristic cho boolean invariants. Reward function R(σ) = α·cov + β·waypoints + γ·inv_dist. | Feed violated state → `violated: true`. Feed normal → clean. |
+| 7 | ⚠️ `mutator.rs` | Mutation nhận biết ATG: reorder actions, substitute params (boundary/zero), insert adjacent actions, switch relay mode, advance timestamps. | Mutate seed → output khác nhưng structurally valid (chưa full bytes-level calldata mutator) |
+| 7 | ⚠️ `checker.rs` | Evaluate invariant assertions. Branch distance heuristic cho boolean invariants. Reward function R(σ) = α·cov + β·waypoints + γ·inv_dist. | Feed violated state → `violated: true`. Feed normal → clean (vẫn còn dùng state tổng hợp từ simulator ở một phần flow) |
 
-**Milestone tuần 7:** ✅ Fuzzer loop chạy được: đọc JSON → mutate → execute (Dual-EVM khi có RPC + block; không thì mô phỏng trace) → `scenario_sim` tổng hợp state cho oracle → check invariants → ghi `results.json`.
+**Milestone tuần 7:** ⚠️ Fuzzer loop chạy được: đọc JSON → mutate → execute (Dual-EVM khi có RPC + block; không thì mô phỏng trace) → `scenario_sim` tổng hợp state cho oracle → check invariants → ghi `results.json`.  
+**Lưu ý trạng thái:** đây là mức chạy được engineering-wise; chưa phải mốc full real-bytecode fuzzing để claim TTE paper.
 
 ---
 
@@ -299,11 +300,12 @@ benchmarks/*/                  ← A: contracts + exploit_trace, B: mapping + fo
 |------|-----|---------|
 | Build Rust binary | B | `cargo build --release` → binary sẵn sàng |
 | ✅ Orchestrator gọi binary | A | subprocess call: `./bridgesentry-fuzzer --atg atg.json --scenarios hypotheses.json --budget 600 --output results.json` (đã tích hợp; có `--skip-fuzzer`) |
-| Test end-to-end Nomad | Cả hai | `python orchestrator.py --benchmark benchmarks/nomad/ --time-budget 60 --runs 1` → phát hiện >=1 violation |
+| Test end-to-end Nomad | Cả hai | `python orchestrator.py --benchmark benchmarks/nomad/ --time-budget 60 --runs 1` (mốc này chỉ tick khi violation đến từ real EVM state path, không phải simulator shortcut) |
 | Fix serialization issues | Cả hai | JSON encoding/decoding giữa Python ↔ Rust |
 | Error handling | A: Python side, B: Rust side | Xử lý crash, timeout, invalid input |
 
-**Milestone tuần 8:** Pipeline end-to-end chạy Nomad thành công. **Đây là thời điểm "it works".**
+**Milestone tuần 8:** ⚠️ Pipeline end-to-end chạy Nomad ở mức tích hợp kỹ thuật.  
+**Điều kiện tick DONE theo paper:** real-bytecode fuzzing path + TTE realistic + basic_blocks thực đo.
 
 ---
 
@@ -398,8 +400,8 @@ benchmarks/*/                  ← A: contracts + exploit_trace, B: mapping + fo
 | 4 | ✅ atg_builder.py + ✅ invariant_synth.py | ✅ snapshot.rs + dual_evm capture/restore | atg.json cho Nomad: chưa (thiếu benchmark artifacts) · ✅ snapshot round-trip (unit tests + `snapshot_restore_preserves_tracked_balances` #[ignore] RPC) |
 | 5 | ✅ knowledge_base.py + bắt đầu 51 records (đã có sample records) | ✅ mock_relay.rs: 4 modes | ✅ KB load/filter tests · relay mode tests |
 | 6 | Tiếp tục 51 records + ✅ embedder.py | ✅ config.rs + ✅ types.rs | ✅ Module 3: CLI + deserialize ATG/hypotheses · ✅ FAISS/search test |
-| 7 | ✅ scenario_gen.py → hypotheses.json | ✅ mutator.rs + ✅ checker.rs + ✅ fuzz_loop (Alg.1: corpus, R, SnapshotPool) | hypotheses.json cho Nomad: chưa (chưa có benchmark Nomad đầy đủ) · fuzzer loop |
-| 8 | ✅ orchestrator.py tích hợp | main.rs CLI + binary build | END-TO-END NOMAD: chưa |
+| 7 | ✅ scenario_gen.py → hypotheses.json | ⚠️ mutator.rs + ⚠️ checker.rs + ⚠️ fuzz_loop (Alg.1: corpus, R, SnapshotPool) | hypotheses.json cho Nomad: chưa (chưa có benchmark Nomad đầy đủ) · fuzzer loop chạy được nhưng chưa full real-bytecode |
+| 8 | ✅ orchestrator.py tích hợp | ✅ main.rs CLI + binary build | END-TO-END NOMAD: chưa (điều kiện theo paper chưa đạt) |
 | 9 | 4 benchmarks ưu tiên cao | Smoke test + debug | 5/12 benchmarks chạy |
 | 10 | 7 benchmarks còn lại | Benchmark testing | 12/12 benchmarks chạy |
 | 11 | Baseline: GPTScan | Baseline: ItyFuzz | Comparison data |

@@ -10,6 +10,7 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use revm::primitives::specification::SpecId;
 use revm::primitives::Address;
+use revm::primitives::keccak256;
 
 use crate::baselines::xscope::AuthWitness;
 use crate::baselines::xscope_adapter::XScopeBuilder;
@@ -121,12 +122,20 @@ pub fn init_dual_evm(ctx: &RuntimeContext) -> Option<DualEvm> {
         }
     };
 
-    let tracked: Vec<Address> = ctx
+    let mut tracked: Vec<Address> = ctx
         .atg
         .nodes
         .iter()
         .filter_map(|n| Address::from_str(&n.address).ok())
         .collect();
+    tracked.extend(
+        ctx.contract_plan
+            .node_to_address
+            .values()
+            .filter_map(|a| Address::from_str(a).ok()),
+    );
+    tracked.sort_unstable();
+    tracked.dedup();
     dual.set_tracked_addresses(tracked);
     Some(dual)
 }
@@ -218,10 +227,14 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     let mut violations = Vec::new();
     let mut violation_keys: HashSet<(String, String)> = HashSet::new();
     let mut touched_edges: HashSet<String> = HashSet::new();
+    let mut touched_source_pcs: HashSet<usize> = HashSet::new();
+    let mut touched_dest_pcs: HashSet<usize> = HashSet::new();
     let mut total_iterations = 0_u64;
     let mut mutations_applied = 0_u64;
     let mut snapshots_captured_count: u64 = pool.len() as u64;
     let mut pool_peak = pool.len() as u64;
+    let contracts_scanned = ctx.contract_plan.scan_sol_files().len() as u64;
+    let deployment_plan_log = ctx.contract_plan.deployment_plan_log(&ctx.atg);
 
     let mut iter_checkpoint = 0u64;
     let mut edges_at_checkpoint = 0usize;
@@ -378,6 +391,12 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         } else {
             (touched_edges.len() as f64 / ctx.atg.edges.len() as f64).min(1.0)
         },
+        // basic_blocks_source / _dest are computed above by partitioning
+        // `campaign_coverage.touched` (the (Address, pc) inspector
+        // accumulator) against the dispatched_source / dispatched_dest
+        // address sets — strictly more accurate than origin/main's flat
+        // `touched_source_pcs.len()` count, which loses the address
+        // dimension when the same PC is hit on both sides.
         basic_blocks_source,
         basic_blocks_dest,
     };
@@ -394,6 +413,8 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             mutations_applied,
             corpus_size: corpus.len() as u64,
             snapshot_pool_peak: pool_peak,
+            contracts_scanned,
+            deployment_plan_log,
         },
     })
 }
@@ -482,14 +503,19 @@ fn execute_scenario(
                     iter_cov.unique_pc_count()
                 ));
             } else if let Some(contract_node_id) = action.contract.as_deref() {
-                // Encode failed — fall back to bare caller||to header, no
-                // calldata. Preserves prior behavior on actions whose
-                // contract isn't in the registry (mock fixtures).
+                // Encode failed — fall back to ABI-encoded calldata via
+                // `build_evm_payload` (Member B's helper from origin/main)
+                // and resolve the target address via `contract_plan` so
+                // mapping.json overrides take effect when the ATG's
+                // node.address is empty/invalid. Coverage is captured via
+                // the inspector path so the (Address, pc) attribution
+                // matches the registry-driven branch above.
                 if let Some(node) = ctx.atg.nodes.iter().find(|n| n.node_id == contract_node_id) {
-                    if let Ok(to) = Address::from_str(&node.address) {
-                        let mut payload = Vec::with_capacity(40);
-                        payload.extend_from_slice(default_caller().as_slice());
-                        payload.extend_from_slice(to.as_slice());
+                    let resolved_addr = ctx
+                        .contract_plan
+                        .resolve_node_address(contract_node_id, &node.address);
+                    if let Ok(to) = Address::from_str(&resolved_addr) {
+                        let payload = build_evm_payload(action, to);
                         let mut iter_cov = CoverageTracker::default();
                         let exec = if action.chain.eq_ignore_ascii_case("source") {
                             dispatched_source.insert(to);
@@ -562,6 +588,80 @@ fn bare_op_lower(raw: &str) -> String {
         .next()
         .unwrap_or("")
         .to_ascii_lowercase()
+}
+
+// ---------------------------------------------------------------------------
+// `build_evm_payload` family — Member B's heuristic ABI encoder for the
+// fallback path when the registry doesn't know how to encode the action.
+// Lower-fidelity than `CalldataMutator::encode_action` (which uses ATG-derived
+// selectors + per-bridge type tables) but works on bare LLM scenarios that
+// only carry a function name + a `params` JSON blob.
+// ---------------------------------------------------------------------------
+
+fn build_evm_payload(action: &crate::types::Action, to: Address) -> Vec<u8> {
+    let mut payload = Vec::with_capacity(4 + 40 + 96);
+    payload.extend_from_slice(default_caller().as_slice());
+    payload.extend_from_slice(to.as_slice());
+
+    let calldata = build_calldata(action);
+    payload.extend_from_slice(&calldata);
+    payload
+}
+
+fn build_calldata(action: &crate::types::Action) -> Vec<u8> {
+    let mut out = Vec::new();
+    let Some(sig) = action.function.as_deref() else {
+        return out;
+    };
+
+    let signature = if sig.contains('(') {
+        sig.to_string()
+    } else {
+        format!("{sig}()")
+    };
+    let selector_hash = keccak256(signature.as_bytes());
+    out.extend_from_slice(&selector_hash.as_slice()[..4]);
+
+    if let Some(amount) = action.params.get("amount").and_then(json_to_u128) {
+        out.extend_from_slice(&abi_word_from_u128(amount));
+    }
+
+    if let Some(addr) = extract_address_like(action) {
+        out.extend_from_slice(&abi_word_from_address(addr));
+    }
+
+    out
+}
+
+fn extract_address_like(action: &crate::types::Action) -> Option<Address> {
+    for key in ["recipient", "to", "token", "sender"] {
+        if let Some(raw) = action.params.get(key).and_then(|v| v.as_str()) {
+            if let Ok(addr) = Address::from_str(raw) {
+                return Some(addr);
+            }
+        }
+    }
+    None
+}
+
+fn abi_word_from_u128(v: u128) -> [u8; 32] {
+    let mut out = [0u8; 32];
+    out[16..].copy_from_slice(&v.to_be_bytes());
+    out
+}
+
+fn abi_word_from_address(addr: Address) -> [u8; 32] {
+    let mut out = [0u8; 32];
+    out[12..].copy_from_slice(addr.as_slice());
+    out
+}
+
+fn json_to_u128(v: &serde_json::Value) -> Option<u128> {
+    match v {
+        serde_json::Value::String(s) => s.parse::<u128>().ok(),
+        serde_json::Value::Number(n) => n.as_u64().map(|x| x as u128),
+        _ => None,
+    }
 }
 
 fn merge_balances(dst: &mut HashMap<String, String>, src: HashMap<String, String>) {
@@ -852,6 +952,12 @@ fn run_xscope(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             mutations_applied: 0,
             corpus_size: ctx.hypotheses.scenarios.len() as u64,
             snapshot_pool_peak: 0,
+            // XScope baseline doesn't drive contract scanning; the
+            // deployment plan / contracts-scanned bookkeeping that
+            // origin/main added to FuzzingStats only matters in the
+            // BridgeSentry path. Default to zero / empty here.
+            contracts_scanned: 0,
+            deployment_plan_log: vec![],
         },
     })
 }
@@ -1127,6 +1233,10 @@ fn run_xscope_replay(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             mutations_applied: 0,
             corpus_size: txs.len() as u64,
             snapshot_pool_peak: 0,
+            // Replay mode dispatches cached on-chain txs, not
+            // newly-deployed contracts; same defaults as run_xscope.
+            contracts_scanned: 0,
+            deployment_plan_log: vec![],
         },
     })
 }

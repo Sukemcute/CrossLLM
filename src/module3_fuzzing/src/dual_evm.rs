@@ -12,8 +12,8 @@ use std::sync::{Arc, OnceLock};
 use ethers_core::types::{BlockId as EthBlockId, H256 as EthH256};
 use ethers_providers::{Http, Middleware, Provider};
 use revm::db::{CacheDB, EthersDB};
-use revm::inspector_handle_register;
 use revm::{
+    inspector_handle_register,
     primitives::{
         specification::SpecId,
         AccountInfo, Address, BlockEnv, Bytes, CfgEnv, CfgEnvWithHandlerCfg, EnvWithHandlerCfg,
@@ -133,6 +133,20 @@ impl ChainVm {
         Ok(res)
     }
 
+    /// Convenience wrapper around [`Self::run_tx_with_inspector`] that
+    /// returns the flat `HashSet<usize>` of touched PCs alongside the
+    /// `ExecutionResult`. Compatibility shim for the `*_with_coverage`
+    /// path that landed on `origin/main` while the inspector path was
+    /// in flight on the baselines branch — both call shapes coexist.
+    fn run_tx_with_coverage(
+        &mut self,
+        tx: TxEnv,
+    ) -> Result<(ExecutionResult, std::collections::HashSet<usize>), String> {
+        let mut tracker = CoverageTracker::default();
+        let res = self.run_tx_with_inspector(tx, &mut tracker)?;
+        Ok((res, tracker.into_pcs()))
+    }
+
     fn execute_raw_call(
         &mut self,
         caller: Address,
@@ -211,6 +225,42 @@ impl ChainVm {
     fn map_call_result(result: ExecutionResult) -> Result<Vec<u8>, String> {
         match result {
             ExecutionResult::Success { output, .. } => Ok(output.into_data().to_vec()),
+            ExecutionResult::Revert { output, .. } => Err(format!(
+                "execution reverted: 0x{}",
+                hex::encode(output)
+            )),
+            ExecutionResult::Halt { reason, .. } => Err(format!("execution halted: {reason:?}")),
+        }
+    }
+
+    fn execute_raw_call_with_coverage(
+        &mut self,
+        caller: Address,
+        to: Address,
+        data: Bytes,
+    ) -> Result<(Vec<u8>, std::collections::HashSet<usize>), String> {
+        let basefee = self.fork_block.basefee;
+        let tx = TxEnv {
+            caller,
+            gas_limit: 30_000_000,
+            gas_price: basefee.saturating_add(U256::from(1u8)),
+            gas_priority_fee: None,
+            transact_to: TransactTo::Call(to),
+            value: U256::ZERO,
+            data,
+            nonce: Some(self.nonce_hint(caller)),
+            chain_id: Some(self.chain_id),
+            access_list: Vec::new(),
+            blob_hashes: Vec::new(),
+            max_fee_per_blob_gas: None,
+            eof_initcodes: Vec::new(),
+            eof_initcodes_hashed: Default::default(),
+        };
+
+        let (result, touched) = self.run_tx_with_coverage(tx)?;
+
+        match result {
+            ExecutionResult::Success { output, .. } => Ok((output.into_data().to_vec(), touched)),
             ExecutionResult::Revert { output, .. } => Err(format!(
                 "execution reverted: 0x{}",
                 hex::encode(output)
@@ -541,6 +591,29 @@ impl DualEvm {
         let (caller, to, data) = parse_execute_payload(tx)?;
         self.dest
             .execute_raw_call_with_inspector_full(caller, to, data, inspector)
+    }
+
+    /// Execute on source with per-call bytecode coverage PCs (memB's
+    /// shape — a flat ``HashSet<usize>`` rather than the
+    /// ``(Address, usize)`` pairs the inspector path tracks). Kept as
+    /// a thin wrapper so existing call sites in fuzz_loop / scenario_sim
+    /// keep compiling without going through the inspector boilerplate.
+    pub fn execute_on_source_with_coverage(
+        &mut self,
+        tx: &[u8],
+    ) -> Result<(Vec<u8>, std::collections::HashSet<usize>), String> {
+        let (caller, to, data) = parse_execute_payload(tx)?;
+        self.source.execute_raw_call_with_coverage(caller, to, data)
+    }
+
+    /// Destination-side counterpart of
+    /// [`Self::execute_on_source_with_coverage`].
+    pub fn execute_on_dest_with_coverage(
+        &mut self,
+        tx: &[u8],
+    ) -> Result<(Vec<u8>, std::collections::HashSet<usize>), String> {
+        let (caller, to, data) = parse_execute_payload(tx)?;
+        self.dest.execute_raw_call_with_coverage(caller, to, data)
     }
 
     /// Read the **token-level** balance change observed for `who` on the
