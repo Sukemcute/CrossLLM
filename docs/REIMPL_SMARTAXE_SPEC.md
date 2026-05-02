@@ -394,5 +394,5 @@ adjust the threshold or fix the pattern detector.
 | **SA4** xCFG / xDFG construction | ✅ done — 39/39 tests pass; Nomad e2e: 106 BB + 87 Ef edges |
 | **SA5** Security checks + pattern inference | ✅ done — 64/64 tests; Nomad e2e: 2 omissions detected, run_001.json written |
 | **SA6** Validate on PolyNetwork | ✅ done — `predicate_match=true`; SC3 fires on `verifyHeaderAndExecuteTx`; 70/70 tests; report at [`docs/REIMPL_SMARTAXE_SA6_REPORT.md`](REIMPL_SMARTAXE_SA6_REPORT.md) |
-| **SA7** Run 12-benchmark sweep | ⏳ |
+| **SA7** Run 12-benchmark sweep | ✅ done — 12/12 bridges run; detected=12/12, strict predicate_match=4/12 (limitation: simplified benchmarks include syntactically valid guards). Outcome at [`docs/REIMPL_SMARTAXE_SA7_OUTCOME.md`](REIMPL_SMARTAXE_SA7_OUTCOME.md) |
 | **SA8** Update cited JSON → self-run | ⏳ |

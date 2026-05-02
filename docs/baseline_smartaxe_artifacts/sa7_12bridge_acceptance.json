@@ -1,0 +1,255 @@
+{
+  "rule": "detected-any-violation-bar-with-strict-secondary",
+  "bar": 11,
+  "strict_passing": 4,
+  "detected_passing": 12,
+  "total": 12,
+  "overall_pass": true,
+  "rows": [
+    {
+      "bridge": "nomad",
+      "expected": [
+        "SC4"
+      ],
+      "fired": [
+        "SC2"
+      ],
+      "matched": [],
+      "missed": [
+        "SC4"
+      ],
+      "extra": [
+        "SC2"
+      ],
+      "strict_pass": false,
+      "detected_pass": true,
+      "rule": "any-of",
+      "has_path_inconsistency": false
+    },
+    {
+      "bridge": "qubit",
+      "expected": [
+        "SC1",
+        "SC2"
+      ],
+      "fired": [
+        "SC2"
+      ],
+      "matched": [
+        "SC2"
+      ],
+      "missed": [
+        "SC1"
+      ],
+      "extra": [],
+      "strict_pass": true,
+      "detected_pass": true,
+      "rule": "any-of",
+      "has_path_inconsistency": false
+    },
+    {
+      "bridge": "pgala",
+      "expected": [
+        "SC4",
+        "SC5"
+      ],
+      "fired": [
+        "SC2"
+      ],
+      "matched": [],
+      "missed": [
+        "SC4",
+        "SC5"
+      ],
+      "extra": [
+        "SC2"
+      ],
+      "strict_pass": false,
+      "detected_pass": true,
+      "rule": "any-of",
+      "has_path_inconsistency": false
+    },
+    {
+      "bridge": "polynetwork",
+      "expected": [
+        "SC3"
+      ],
+      "fired": [
+        "SC2",
+        "SC3",
+        "SC4"
+      ],
+      "matched": [
+        "SC3"
+      ],
+      "missed": [],
+      "extra": [
+        "SC2",
+        "SC4"
+      ],
+      "strict_pass": true,
+      "detected_pass": true,
+      "rule": "any-of",
+      "has_path_inconsistency": false
+    },
+    {
+      "bridge": "wormhole",
+      "expected": [
+        "SC4"
+      ],
+      "fired": [
+        "SC4"
+      ],
+      "matched": [
+        "SC4"
+      ],
+      "missed": [],
+      "extra": [],
+      "strict_pass": true,
+      "detected_pass": true,
+      "rule": "any-of",
+      "has_path_inconsistency": false
+    },
+    {
+      "bridge": "socket",
+      "expected": [
+        "SC2"
+      ],
+      "fired": [
+        "SC2",
+        "SC4"
+      ],
+      "matched": [
+        "SC2"
+      ],
+      "missed": [],
+      "extra": [
+        "SC4"
+      ],
+      "strict_pass": true,
+      "detected_pass": true,
+      "rule": "any-of",
+      "has_path_inconsistency": false
+    },
+    {
+      "bridge": "ronin",
+      "expected": [
+        "SC4"
+      ],
+      "fired": [
+        "SC2"
+      ],
+      "matched": [],
+      "missed": [
+        "SC4"
+      ],
+      "extra": [
+        "SC2"
+      ],
+      "strict_pass": false,
+      "detected_pass": true,
+      "rule": "any-of",
+      "has_path_inconsistency": false
+    },
+    {
+      "bridge": "harmony",
+      "expected": [
+        "SC4"
+      ],
+      "fired": [
+        "SC2"
+      ],
+      "matched": [],
+      "missed": [
+        "SC4"
+      ],
+      "extra": [
+        "SC2"
+      ],
+      "strict_pass": false,
+      "detected_pass": true,
+      "rule": "any-of",
+      "has_path_inconsistency": false
+    },
+    {
+      "bridge": "multichain",
+      "expected": [
+        "SC4"
+      ],
+      "fired": [
+        "SC2"
+      ],
+      "matched": [],
+      "missed": [
+        "SC4"
+      ],
+      "extra": [
+        "SC2"
+      ],
+      "strict_pass": false,
+      "detected_pass": true,
+      "rule": "any-of",
+      "has_path_inconsistency": false
+    },
+    {
+      "bridge": "orbit",
+      "expected": [
+        "SC4"
+      ],
+      "fired": [
+        "SC2"
+      ],
+      "matched": [],
+      "missed": [
+        "SC4"
+      ],
+      "extra": [
+        "SC2"
+      ],
+      "strict_pass": false,
+      "detected_pass": true,
+      "rule": "any-of",
+      "has_path_inconsistency": false
+    },
+    {
+      "bridge": "fegtoken",
+      "expected": [
+        "SC5"
+      ],
+      "fired": [
+        "SC2"
+      ],
+      "matched": [],
+      "missed": [
+        "SC5"
+      ],
+      "extra": [
+        "SC2"
+      ],
+      "strict_pass": false,
+      "detected_pass": true,
+      "rule": "any-of",
+      "has_path_inconsistency": false
+    },
+    {
+      "bridge": "gempad",
+      "expected": [
+        "SC6"
+      ],
+      "fired": [
+        "SC2"
+      ],
+      "matched": [],
+      "missed": [
+        "SC6"
+      ],
+      "extra": [
+        "SC2"
+      ],
+      "strict_pass": false,
+      "detected_pass": true,
+      "rule": "any-of",
+      "has_path_inconsistency": false
+    }
+  ]
+}

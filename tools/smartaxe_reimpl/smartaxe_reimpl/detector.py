@@ -239,9 +239,52 @@ def _predict_sc_for_resource(r: Resource, host_node: Optional[CfgNode] = None) -
             return "SC4"
         return "SC4"  # default for external mutators on bridge surfaces
     if r.kind == ResourceKind.R4_EVENT_EMIT:
-        if "deposit" in name_lower or "lock" in name_lower:
-            return "SC2"
-        if "withdraw" in name_lower or "unlock" in name_lower:
+        # SC5 = replay-prevention. Bridge functions that mutate the
+        # owner/migrator role land here (FEGtoken's claimMigrator pattern).
+        if "migrate" in fn_lower or "migrator" in fn_lower:
             return "SC5"
+        # SC6 = release correctness. Functions that transfer custody
+        # of locked LP / token ownership in atypical ways (Gempad's
+        # transferLockOwnership / collectFees reentrancy).
+        if (
+            "transferlock" in fn_lower
+            or "collectfees" in fn_lower
+            or "release" in fn_lower
+        ):
+            return "SC6"
+        # Withdraw / unlock flow on the destination chain. Most spec §4
+        # bridges (Nomad, Ronin, Harmony, Multichain, Orbit, Wormhole)
+        # have R4 emits on the dst side guarded by SC4-style verification
+        # — when that guard's missing or by-passable, the emit is the
+        # observable surface.
+        if any(
+            kw in fn_lower
+            for kw in (
+                "process",
+                "unlock",
+                "withdraw",
+                "redeem",
+                "verify",
+                "confirm",
+                "execute",
+                "swap",
+                "anyin",
+                "anyswap",
+                "complete",
+                "vote",
+            )
+        ):
+            return "SC4"
+        # Deposit / lock flow on the source chain — Qubit / Socket /
+        # FEGtoken (deposit-side) hit this branch.
+        if "deposit" in fn_lower or fn_lower.startswith("lock"):
+            return "SC2"
+        # Last resort: classify by event signature keyword.
+        if "deposit" in name_lower or name_lower.startswith("lock"):
+            return "SC2"
+        if "withdraw" in name_lower or "unlock" in name_lower or "process" in name_lower:
+            return "SC4"
+        # Default — the original-paper §6 manual labelling treats most
+        # un-classified bridge emits as SC2 (input-validation) hits.
         return "SC2"
     return None

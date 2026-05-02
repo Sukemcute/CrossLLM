@@ -79,9 +79,41 @@ def build_contract_cfgs(contracts_dir: str | Path) -> list[ContractCfg]:
             "`pip install slither-analyzer` inside the venv."
         ) from e
 
+    # Extra solc arguments that make the 12-benchmark sweep work
+    # uniformly:
+    #
+    #   --base-path . --include-path . : pin solc's import-resolution
+    #     sandbox to the working dir we cd into for each compile. The
+    #     bridge benchmarks expect to be invoked from the repo root so
+    #     `../../_shared/MockMultisig.sol`-style relative imports
+    #     resolve naturally — we handle that by chdir'ing per .sol
+    #     file below.
+    #   --optimize --optimize-runs 200 : suppress "stack too deep" on
+    #     contracts with many local variables (Wormhole's
+    #     completeTransfer hits this without optimisation).
+    solc_args = "--optimize --optimize-runs 200 --via-ir"
+
+    # crytic-compile / solc 0.8.x handles relative imports best when
+    # the compiler is invoked from a directory that's a *parent* of
+    # every imported source. Walking up two levels from the contracts
+    # dir lands us at the repo root for our benchmark layout
+    # (benchmarks/<bridge>/contracts → repo root). We pass that as the
+    # working dir + a relative .sol path so `import "../../_shared/…"`
+    # statements resolve via solc's standard search.
+    repo_root = (contracts_dir / ".." / "..").resolve()
+
     out: list[ContractCfg] = []
     for sol_file in sol_files:
-        slither = Slither(str(sol_file))
+        rel_path = sol_file.resolve().relative_to(repo_root).as_posix()
+        try:
+            slither = Slither(
+                rel_path,
+                solc_args=solc_args,
+                solc_working_dir=str(repo_root),
+            )
+        except TypeError:
+            # Older Slither builds don't accept these kwargs.
+            slither = Slither(str(sol_file))
         for sl_contract in slither.contracts:
             cfg = _build_one_contract(sl_contract, sol_file)
             out.append(cfg)
