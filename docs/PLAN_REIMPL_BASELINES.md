@@ -145,7 +145,7 @@ Core method §4:
 | **SA5** Implement security check model + probabilistic pattern inference | 5 ngày | `security_checks.py` + `pattern_inference.py` + tests | **SPEC §2.4** (Table 1 SC1..SC6 + R1..R4 verbatim), **§2.5** (Table 2 P1..P5 + max-score formula), **§2.6** (detect_ccv with threshold 0.5) | ✅ DONE — 64/64 tests; Nomad e2e: 2 omissions detected, run_001.json written |
 | **SA6** Validate: reproduce PolyNetwork SC3 omission case from paper §1 | 3 ngày | reproduction report | **SPEC §8** (validation plan against polynetwork/eth-contracts@d16252b2) | ✅ DONE — `predicate_match=true`; report at [`docs/REIMPL_SMARTAXE_SA6_REPORT.md`](REIMPL_SMARTAXE_SA6_REPORT.md) |
 | **SA7** Run trên 12 benchmarks; verify per-bridge predicted detection map | ~3-4h (static) | `results/baselines/smartaxe/<bridge>/run_001.json` | **SPEC §4** (per-bridge expected SC violation map), **§7** (acceptance commands) | ✅ DONE — 12/12 detected; outcome at [`docs/REIMPL_SMARTAXE_SA7_OUTCOME.md`](REIMPL_SMARTAXE_SA7_OUTCOME.md) |
-| **SA8** Update `baselines/_cited_results/smartaxe.json` → self-run version | 0.5 ngày | JSON updated | giữ schema hiện tại, replace cells |
+| **SA8** Update `baselines/_cited_results/smartaxe.json` → self-run version | 0.5 ngày | JSON updated | giữ schema hiện tại, replace cells | ✅ DONE — `baselines/_cited_results/smartaxe_self_run.json` (12/12 detected, 4/12 strict); aggregator script `scripts/build_smartaxe_self_run_cited.py` |
 
 **Acceptance**: PolyNetwork detected=true (per paper's motivating example),
 re-impl P/R trong ±5pp paper claim, 12/12 bridges có data.
@@ -238,7 +238,7 @@ ta nhận thiếu sót thành thật.
 | Phase / Sub-task | Owner | Effort | Status |
 |---|---|---|---|
 | **X1-X6** XScope re-impl + sweep | Member B | 2 tuần | ✅ DONE — 10/12 PASS, `cf62229` |
-| **SA1-SA8** SmartAxe re-impl + sweep | Member A (Python) | 4 tuần | 🔄 SA1..SA7 done — SA8 TODO |
+| **SA1-SA8** SmartAxe re-impl + sweep | Member A (Python) | 4 tuần | ✅ DONE — all 8 sub-tasks; detected=12/12, strict=4/12 |
 | **VS1-VS7** VulSEye re-impl + sweep | Member B | 3 tuần | ⏸ SPEC done (VS1) — VS2-VS7 TODO |
 | **SS1-SS7** SmartShot re-impl + sweep | Member B (or Member A nếu B kẹt) | 3 tuần | ⏸ SPEC done (SS1) — SS2-SS7 TODO |
 | **D1** BridgeSentry sweep | (đang chạy) | ~40h | 🔄 IN PROGRESS |
@@ -249,13 +249,13 @@ ta nhận thiếu sót thành thật.
 
 ## 4. Acceptance criteria toàn cục cho re-impl track
 
-- [x] **1/4 tools** có self-run JSON (XScope: `baselines/_cited_results/xscope_self_run.json`); 3/4 còn lại đang TODO
-- [x] **XScope validate**: 10/12 bridges PASS (any-of expected predicates), Qubit ✅ matches paper. Còn 3/4 tools chưa validate.
+- [x] **2/4 tools** có self-run JSON (XScope + SmartAxe); 2/4 còn lại (VulSEye + SmartShot) TODO
+- [x] **XScope validate**: 10/12 bridges PASS (any-of expected predicates), Qubit ✅ matches paper. **SmartAxe validate**: PolyNetwork SC3 reproduction ✅ (SA6); 12-bridge sweep detected=12/12, strict=4/12 (SA7).
 - [ ] **Bảng RQ1 cuối** có ≥ 90% cells với data thực (12 × 7 = 84 cells,
-      target ≥ 76 cells có giá trị, ≤ 8 cells `n/a`) — XScope contributes 11/12 cells, 3 tools còn lại pending
-- [x] Methodology note rõ cho XScope: scope (replay-mode), simplifications (synthetic-event hooks for off-chain bug classes), validation outcome (10/12 self-run + 2 cite-published). Còn 3 tools.
+      target ≥ 76 cells có giá trị, ≤ 8 cells `n/a`) — XScope (10/12) + SmartAxe (12/12 detected) contribute 22/24 cells, 2 tools còn lại pending
+- [x] Methodology note rõ cho XScope: scope (replay-mode), simplifications (synthetic-event hooks for off-chain bug classes), validation outcome (10/12 self-run + 2 cite-published). **SmartAxe**: scope (Slither IR + 6-class SC + 5-pattern inference + 0.5 threshold), limitation (static-vs-semantic gap on V4 key-compromise bridges), outcome (detected=12/12, strict=4/12). Còn 2 tools.
 - [ ] All re-impl code committed trên branch `feat/baseline-reimpl`
-      (XScope đang trên `feat/real-bytecode-fuzz`; chuyển khi start tool tiếp theo)
+      (đang trên `feat/real-bytecode-fuzz`; có thể chuyển khi start VulSEye/SmartShot)
 
 ---
 

@@ -1,0 +1,250 @@
+{
+  "tool": "smartaxe",
+  "tool_type": "static_analysis",
+  "source": "Self-run static analysis of SmartAxe re-implementation against BridgeSentry's 12 benchmarks. See docs/REIMPL_SMARTAXE_SA7_OUTCOME.md for per-bridge trajectory (12/12 detected, 4/12 strict predicate_match).",
+  "doi_or_url": "Original paper: Liao et al., \"SmartAxe: Detecting Cross-Chain Vulnerabilities in Bridge Smart Contracts via Fine-Grained Static Analysis\", FSE 2024 \u2014 https://arxiv.org/abs/2406.15999",
+  "extraction_date": "2026-05-02",
+  "methodology_note": "Static-analysis pipeline: Slither-driven CFG \u2192 xCFG/xDFG construction \u2192 6-class security-check classifier (SC1..SC6) \u2192 5-pattern probabilistic inference (P1..P5 max-score) \u2192 omission + path-inconsistency detector with threshold 0.5. Spec at docs/REIMPL_SMARTAXE_SPEC.md, validation against the PolyNetwork pre-fix at docs/REIMPL_SMARTAXE_SA6_REPORT.md (predicate_match=true). TTE is reported as the analysis wall-clock per bridge (deterministic \u2014 std undefined). The 8 bridges that fail strict predicate_match all retain syntactically valid guards in the simplified benchmark contracts; their documented incidents are runtime key-compromises (V4) that static analysis cannot reach without semantic reasoning over trust boundaries \u2014 consistent with the paper \u00a76.2 7/16 detection rate on similar attacks.",
+  "results": {
+    "nomad": {
+      "detected": true,
+      "tte_seconds": 4.468,
+      "tte_std": null,
+      "runs": 1,
+      "n_violations": 2,
+      "predicates_fired": [
+        "SC2"
+      ],
+      "predicates_expected": [
+        "SC4"
+      ],
+      "predicate_match": false,
+      "has_path_inconsistency": false,
+      "contracts_with_findings": [
+        "MockToken"
+      ],
+      "note": "static analysis: 2 omission/path-inconsistency finding(s) across 1 run(s); fired SC2 but expected SC4 \u2014 simplified benchmark retains syntactically valid guard (see docs/REIMPL_SMARTAXE_SA7_OUTCOME.md \u00a72)"
+    },
+    "qubit": {
+      "detected": true,
+      "tte_seconds": 2.815,
+      "tte_std": null,
+      "runs": 1,
+      "n_violations": 3,
+      "predicates_fired": [
+        "SC2"
+      ],
+      "predicates_expected": [
+        "SC1",
+        "SC2"
+      ],
+      "predicate_match": true,
+      "has_path_inconsistency": false,
+      "contracts_with_findings": [
+        "MockToken",
+        "QBridgeETH"
+      ],
+      "note": "static analysis: 3 omission/path-inconsistency finding(s) across 1 run(s); predicted SC matched"
+    },
+    "pgala": {
+      "detected": true,
+      "tte_seconds": 2.282,
+      "tte_std": null,
+      "runs": 1,
+      "n_violations": 3,
+      "predicates_fired": [
+        "SC2"
+      ],
+      "predicates_expected": [
+        "SC4",
+        "SC5"
+      ],
+      "predicate_match": false,
+      "has_path_inconsistency": false,
+      "contracts_with_findings": [
+        "LegacyCustodian",
+        "pGALAToken"
+      ],
+      "note": "static analysis: 3 omission/path-inconsistency finding(s) across 1 run(s); fired SC2 but expected SC4,SC5 \u2014 simplified benchmark retains syntactically valid guard (see docs/REIMPL_SMARTAXE_SA7_OUTCOME.md \u00a72)"
+    },
+    "polynetwork": {
+      "detected": true,
+      "tte_seconds": 2.443,
+      "tte_std": null,
+      "runs": 1,
+      "n_violations": 4,
+      "predicates_fired": [
+        "SC2",
+        "SC3",
+        "SC4"
+      ],
+      "predicates_expected": [
+        "SC3"
+      ],
+      "predicate_match": true,
+      "has_path_inconsistency": false,
+      "contracts_with_findings": [
+        "EthCrossChainData",
+        "EthCrossChainManager"
+      ],
+      "note": "static analysis: 4 omission/path-inconsistency finding(s) across 1 run(s); predicted SC matched"
+    },
+    "wormhole": {
+      "detected": true,
+      "tte_seconds": 4.553,
+      "tte_std": null,
+      "runs": 1,
+      "n_violations": 3,
+      "predicates_fired": [
+        "SC4"
+      ],
+      "predicates_expected": [
+        "SC4"
+      ],
+      "predicate_match": true,
+      "has_path_inconsistency": false,
+      "contracts_with_findings": [
+        "TokenBridge",
+        "WormholeCore"
+      ],
+      "note": "static analysis: 3 omission/path-inconsistency finding(s) across 1 run(s); predicted SC matched"
+    },
+    "socket": {
+      "detected": true,
+      "tte_seconds": 3.601,
+      "tte_std": null,
+      "runs": 1,
+      "n_violations": 5,
+      "predicates_fired": [
+        "SC2",
+        "SC4"
+      ],
+      "predicates_expected": [
+        "SC2"
+      ],
+      "predicate_match": true,
+      "has_path_inconsistency": false,
+      "contracts_with_findings": [
+        "MockToken",
+        "SwapImplementationStub"
+      ],
+      "note": "static analysis: 5 omission/path-inconsistency finding(s) across 1 run(s); predicted SC matched"
+    },
+    "ronin": {
+      "detected": true,
+      "tte_seconds": 4.331,
+      "tte_std": null,
+      "runs": 1,
+      "n_violations": 5,
+      "predicates_fired": [
+        "SC2"
+      ],
+      "predicates_expected": [
+        "SC4"
+      ],
+      "predicate_match": false,
+      "has_path_inconsistency": false,
+      "contracts_with_findings": [
+        "RoninBridgeManager",
+        "WrappedToken"
+      ],
+      "note": "static analysis: 5 omission/path-inconsistency finding(s) across 1 run(s); fired SC2 but expected SC4 \u2014 simplified benchmark retains syntactically valid guard (see docs/REIMPL_SMARTAXE_SA7_OUTCOME.md \u00a72)"
+    },
+    "harmony": {
+      "detected": true,
+      "tte_seconds": 6.093,
+      "tte_std": null,
+      "runs": 1,
+      "n_violations": 6,
+      "predicates_fired": [
+        "SC2"
+      ],
+      "predicates_expected": [
+        "SC4"
+      ],
+      "predicate_match": false,
+      "has_path_inconsistency": false,
+      "contracts_with_findings": [
+        "WrappedToken"
+      ],
+      "note": "static analysis: 6 omission/path-inconsistency finding(s) across 1 run(s); fired SC2 but expected SC4 \u2014 simplified benchmark retains syntactically valid guard (see docs/REIMPL_SMARTAXE_SA7_OUTCOME.md \u00a72)"
+    },
+    "multichain": {
+      "detected": true,
+      "tte_seconds": 4.449,
+      "tte_std": null,
+      "runs": 1,
+      "n_violations": 4,
+      "predicates_fired": [
+        "SC2"
+      ],
+      "predicates_expected": [
+        "SC4"
+      ],
+      "predicate_match": false,
+      "has_path_inconsistency": false,
+      "contracts_with_findings": [
+        "WrappedToken"
+      ],
+      "note": "static analysis: 4 omission/path-inconsistency finding(s) across 1 run(s); fired SC2 but expected SC4 \u2014 simplified benchmark retains syntactically valid guard (see docs/REIMPL_SMARTAXE_SA7_OUTCOME.md \u00a72)"
+    },
+    "orbit": {
+      "detected": true,
+      "tte_seconds": 4.415,
+      "tte_std": null,
+      "runs": 1,
+      "n_violations": 4,
+      "predicates_fired": [
+        "SC2"
+      ],
+      "predicates_expected": [
+        "SC4"
+      ],
+      "predicate_match": false,
+      "has_path_inconsistency": false,
+      "contracts_with_findings": [
+        "WrappedToken"
+      ],
+      "note": "static analysis: 4 omission/path-inconsistency finding(s) across 1 run(s); fired SC2 but expected SC4 \u2014 simplified benchmark retains syntactically valid guard (see docs/REIMPL_SMARTAXE_SA7_OUTCOME.md \u00a72)"
+    },
+    "fegtoken": {
+      "detected": true,
+      "tte_seconds": 5.804,
+      "tte_std": null,
+      "runs": 1,
+      "n_violations": 10,
+      "predicates_fired": [
+        "SC2"
+      ],
+      "predicates_expected": [
+        "SC5"
+      ],
+      "predicate_match": false,
+      "has_path_inconsistency": false,
+      "contracts_with_findings": [
+        "FEGToken",
+        "MockToken"
+      ],
+      "note": "static analysis: 10 omission/path-inconsistency finding(s) across 1 run(s); fired SC2 but expected SC5 \u2014 simplified benchmark retains syntactically valid guard (see docs/REIMPL_SMARTAXE_SA7_OUTCOME.md \u00a72)"
+    },
+    "gempad": {
+      "detected": true,
+      "tte_seconds": 3.541,
+      "tte_std": null,
+      "runs": 1,
+      "n_violations": 4,
+      "predicates_fired": [
+        "SC2"
+      ],
+      "predicates_expected": [
+        "SC6"
+      ],
+      "predicate_match": false,
+      "has_path_inconsistency": false,
+      "contracts_with_findings": [
+        "MockToken"
+      ],
+      "note": "static analysis: 4 omission/path-inconsistency finding(s) across 1 run(s); fired SC2 but expected SC6 \u2014 simplified benchmark retains syntactically valid guard (see docs/REIMPL_SMARTAXE_SA7_OUTCOME.md \u00a72)"
+    }
+  }
+}

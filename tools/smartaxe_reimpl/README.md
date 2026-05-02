@@ -63,4 +63,4 @@ Per [spec §5](../../docs/REIMPL_SMARTAXE_SPEC.md#5-out-of-scope-deliberately-no
 | SA5 security checks + inference | ✅ done — 64/64 tests; Nomad e2e: 2 omissions |
 | SA6 PolyNetwork validation | ✅ done — `predicate_match=true`; 70/70 tests |
 | SA7 12-benchmark sweep | ✅ done — detected=12/12, strict=4/12 |
-| SA8 self-run cited JSON | ⏳ |
+| SA8 self-run cited JSON | ✅ done — `baselines/_cited_results/smartaxe_self_run.json` |
