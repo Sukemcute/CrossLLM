@@ -1,0 +1,31 @@
+{
+  "tool": "vulseye",
+  "tool_type": "stateful_directed_graybox_fuzzer",
+  "source": "Liang, R., Chen, J., Wu, C., He, K., Wu, Y., Cao, R., Du, R., Zhao, Z., Liu, Y. — \"Vulseye: Detect Smart Contract Vulnerabilities via Stateful Directed Graybox Fuzzing\", IEEE TIFS 2025.",
+  "doi_or_url": "https://ieeexplore.ieee.org/document/10869489 (arXiv: https://arxiv.org/abs/2408.10116)",
+  "extraction_date": "2026-04-28",
+  "methodology_note": "VulSEye is a stateful directed graybox fuzzer for general smart-contract vulnerabilities — its eval set (per the paper abstract) comprises 4,845 vulnerabilities surfaced in real-world contracts and 11 0-days in the top-50 Ethereum DApps (~2.5M USD impact). The vulnerability classes are general DeFi (reentrancy, access control, arithmetic, etc.), not the cross-chain semantic invariants we benchmark, and the paper does not enumerate the 12 cross-chain bridge incidents in our set. Per-bridge cells therefore stay null with a domain-mismatch note. Aggregate metrics are recorded for context.",
+  "aggregate_metrics_from_paper": {
+    "vulnerabilities_found_total": 4845,
+    "speedup_vs_state_of_the_art": "up to 9.7x",
+    "zero_days_top_50_dapps": 11,
+    "zero_day_loss_estimate_usd": 2500000
+  },
+  "results": {
+    "polynetwork": {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — VulSEye eval set is general DeFi contracts, not cross-chain bridge incidents"},
+    "wormhole":    {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — VulSEye eval set is general DeFi contracts"},
+    "ronin":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — VulSEye eval set is general DeFi contracts"},
+    "nomad":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — VulSEye eval set is general DeFi contracts"},
+    "harmony":     {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — VulSEye eval set is general DeFi contracts"},
+    "multichain":  {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — VulSEye eval set is general DeFi contracts"},
+    "socket":      {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — VulSEye eval set is general DeFi contracts"},
+    "orbit":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — VulSEye eval set is general DeFi contracts"},
+    "gempad":      {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — VulSEye eval set is general DeFi contracts"},
+    "fegtoken":    {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — VulSEye eval set is general DeFi contracts"},
+    "pgala":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — VulSEye eval set is general DeFi contracts"},
+    "qubit":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — VulSEye eval set is general DeFi contracts"}
+  },
+  "_instructions_for_filling": [
+    "Filled 2026-04-28 from the TIFS 2025 paper (arXiv 2408.10116). VulSEye does not enumerate per-bridge results because its evaluation domain is general smart-contract fuzzing on 4,845 vulnerabilities + 11 top-50 0-days, not the cross-chain bridge incident set we benchmark. Per-bridge cells therefore stay null with a 'domain mismatch' note."
+  ]
+}

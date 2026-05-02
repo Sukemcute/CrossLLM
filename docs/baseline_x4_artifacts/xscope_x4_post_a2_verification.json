@@ -1,0 +1,205 @@
+{
+  "rule": "any-of",
+  "bar": 11,
+  "passing": 0,
+  "total": 12,
+  "overall_pass": false,
+  "rows": [
+    {
+      "bridge": "nomad",
+      "expected": [
+        "I-6"
+      ],
+      "fired": [],
+      "matched": [],
+      "missed": [
+        "I-6"
+      ],
+      "extra": [],
+      "passed": false,
+      "rule": "any-of"
+    },
+    {
+      "bridge": "qubit",
+      "expected": [
+        "I-2"
+      ],
+      "fired": [],
+      "matched": [],
+      "missed": [
+        "I-2"
+      ],
+      "extra": [],
+      "passed": false,
+      "rule": "any-of"
+    },
+    {
+      "bridge": "multichain",
+      "expected": [
+        "I-5"
+      ],
+      "fired": [
+        "I-2"
+      ],
+      "matched": [],
+      "missed": [
+        "I-5"
+      ],
+      "extra": [
+        "I-2"
+      ],
+      "passed": false,
+      "rule": "any-of"
+    },
+    {
+      "bridge": "ronin",
+      "expected": [
+        "I-6"
+      ],
+      "fired": [
+        "I-2"
+      ],
+      "matched": [],
+      "missed": [
+        "I-6"
+      ],
+      "extra": [
+        "I-2"
+      ],
+      "passed": false,
+      "rule": "any-of"
+    },
+    {
+      "bridge": "harmony",
+      "expected": [
+        "I-6"
+      ],
+      "fired": [],
+      "matched": [],
+      "missed": [
+        "I-6"
+      ],
+      "extra": [],
+      "passed": false,
+      "rule": "any-of"
+    },
+    {
+      "bridge": "wormhole",
+      "expected": [
+        "I-5",
+        "I-6"
+      ],
+      "fired": [
+        "I-2"
+      ],
+      "matched": [],
+      "missed": [
+        "I-5",
+        "I-6"
+      ],
+      "extra": [
+        "I-2"
+      ],
+      "passed": false,
+      "rule": "any-of"
+    },
+    {
+      "bridge": "polynetwork",
+      "expected": [
+        "I-5",
+        "I-6"
+      ],
+      "fired": [],
+      "matched": [],
+      "missed": [
+        "I-5",
+        "I-6"
+      ],
+      "extra": [],
+      "passed": false,
+      "rule": "any-of"
+    },
+    {
+      "bridge": "pgala",
+      "expected": [
+        "I-3",
+        "I-4",
+        "I-6"
+      ],
+      "fired": [],
+      "matched": [],
+      "missed": [
+        "I-3",
+        "I-4",
+        "I-6"
+      ],
+      "extra": [],
+      "passed": false,
+      "rule": "any-of"
+    },
+    {
+      "bridge": "socket",
+      "expected": [
+        "I-1",
+        "I-5"
+      ],
+      "fired": [],
+      "matched": [],
+      "missed": [
+        "I-1",
+        "I-5"
+      ],
+      "extra": [],
+      "passed": false,
+      "rule": "any-of"
+    },
+    {
+      "bridge": "orbit",
+      "expected": [
+        "I-6"
+      ],
+      "fired": [
+        "I-2"
+      ],
+      "matched": [],
+      "missed": [
+        "I-6"
+      ],
+      "extra": [
+        "I-2"
+      ],
+      "passed": false,
+      "rule": "any-of"
+    },
+    {
+      "bridge": "fegtoken",
+      "expected": [
+        "I-1",
+        "I-5"
+      ],
+      "fired": [],
+      "matched": [],
+      "missed": [
+        "I-1",
+        "I-5"
+      ],
+      "extra": [],
+      "passed": false,
+      "rule": "any-of"
+    },
+    {
+      "bridge": "gempad",
+      "expected": [
+        "I-5"
+      ],
+      "fired": [],
+      "matched": [],
+      "missed": [
+        "I-5"
+      ],
+      "extra": [],
+      "passed": false,
+      "rule": "any-of"
+    }
+  ]
+}

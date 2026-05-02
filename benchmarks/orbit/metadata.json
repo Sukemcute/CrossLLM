@@ -5,7 +5,9 @@
   "incident_date_utc": "2024-01-01",
   "loss_usd_estimate": 82000000,
   "attack_type": "key_compromise",
-  "vulnerability_classes": ["V4"],
+  "vulnerability_classes": [
+    "V4"
+  ],
   "attack_stage": "off_chain",
   "source_chain": {
     "name": "ethereum",
@@ -18,7 +20,7 @@
     "rpc_env": "ORBIT_RPC_URL"
   },
   "fork": {
-    "block_number": 18900000,
+    "block_number": 18900174,
     "first_exploit_block": 18900155,
     "repro_rpc_port": 8545
   },
@@ -34,31 +36,31 @@
       "address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
       "chain": "source",
       "etherscan_url": "https://etherscan.io/address/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-      "role": "WETH leg — ~$10M drained."
+      "role": "WETH leg \u2014 ~$10M drained."
     },
     "usdt_ethereum": {
       "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
       "chain": "source",
       "etherscan_url": "https://etherscan.io/address/0xdAC17F958D2ee523a2206206994597C13D831ec7",
-      "role": "USDT leg — ~$10M drained."
+      "role": "USDT leg \u2014 ~$10M drained."
     },
     "usdc_ethereum": {
       "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
       "chain": "source",
       "etherscan_url": "https://etherscan.io/address/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-      "role": "USDC leg — ~$10M drained."
+      "role": "USDC leg \u2014 ~$10M drained."
     },
     "wbtc_ethereum": {
       "address": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
       "chain": "source",
       "etherscan_url": "https://etherscan.io/address/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
-      "role": "WBTC leg — ~$30M drained, the largest single asset."
+      "role": "WBTC leg \u2014 ~$30M drained, the largest single asset."
     },
     "dai_ethereum": {
       "address": "0x6B175474E89094C44Da98b954EedeAC495271d0F",
       "chain": "source",
       "etherscan_url": "https://etherscan.io/address/0x6B175474E89094C44Da98b954EedeAC495271d0F",
-      "role": "DAI leg — ~$10M drained."
+      "role": "DAI leg \u2014 ~$10M drained."
     },
     "attacker": {
       "address": "0x70e8C8139d1ceF162D5ba3B286380EB5913098c4",
@@ -87,11 +89,11 @@
   "off_chain_compromise_note": {
     "reason": "Same shape as Ronin (Sprint R) and Harmony (Sprint H): farmer (validator) private keys leaked off-chain. Match Systems' forensic analysis attributes this incident to Lazarus Group based on subsequent on-chain laundering patterns; the team's announcements stopped short of formal attribution.",
     "implication": "Module 1 should infer the same `validator_set_authority` invariant pattern. Module 2's RAG retrieval has by this point seen Ronin (5/9) and Harmony (2/4) templates; Orbit's 7/10 (70%) is the highest threshold ratio in the off-chain set, which makes Module 2's reuse of the `key_compromise` template a sharper test of generalisation.",
-    "modelled_by": "OrbitVault extends MockMultisig (N=10, K=7). The compromise model is 'attacker is given 7 of the 10 farmer keys' — the highest absolute-count compromise in the dataset."
+    "modelled_by": "OrbitVault extends MockMultisig (N=10, K=7). The compromise model is 'attacker is given 7 of the 10 farmer keys' \u2014 the highest absolute-count compromise in the dataset."
   },
   "root_cause_summary": {
     "vulnerable_pattern": "Bridge withdrawal authorisation requires 7-of-10 ECDSA signatures from a fixed farmer set. The on-chain check is correct.",
-    "verification_bypass": "Off-chain: 7 of the 10 farmer private keys leaked. The compromise was highly concentrated — the attacker landed enough farmer infrastructure simultaneously to satisfy 7 keys in a single attacker identity. Operational details remain partially undisclosed by Ozys.",
+    "verification_bypass": "Off-chain: 7 of the 10 farmer private keys leaked. The compromise was highly concentrated \u2014 the attacker landed enough farmer infrastructure simultaneously to satisfy 7 keys in a single attacker identity. Operational details remain partially undisclosed by Ozys.",
     "affected_logic": [
       "OrbitVault._validateSignatures (modelled by MockMultisig.execute)",
       "OrbitVault.unlock (self-callable only via the multi-sig)"
@@ -101,15 +103,15 @@
   "exploit_characteristics": {
     "style": "validator quorum collapse via concentrated farmer-key compromise",
     "num_transactions_estimate": 5,
-    "notes": "Five large drain transactions in block 18900155 (one block — much tighter than Ronin's 1-block double drain or Harmony's ~5-block 11-batch). The single-block pattern is consistent with all 7 keys being reachable from a single attacker host with pre-staged transactions ready to broadcast."
+    "notes": "Five large drain transactions in block 18900155 (one block \u2014 much tighter than Ronin's 1-block double drain or Harmony's ~5-block 11-batch). The single-block pattern is consistent with all 7 keys being reachable from a single attacker host with pre-staged transactions ready to broadcast."
   },
   "references": [
     {
-      "title": "Ozys Official — Orbit Bridge Incident Statement",
+      "title": "Ozys Official \u2014 Orbit Bridge Incident Statement",
       "url": "https://x.com/Ozys_Official/status/1741655068636635461"
     },
     {
-      "title": "Match Systems — Orbit Bridge Hack Analysis",
+      "title": "Match Systems \u2014 Orbit Bridge Hack Analysis",
       "url": "https://matchsystems.io/research/orbit-bridge-hack/"
     },
     {
@@ -126,5 +128,25 @@
   "reporting": {
     "table_row": 8,
     "loss_usd_confidence": "estimate"
+  },
+  "address_aliases": {
+    "OrbitVault": "orbit_vault",
+    "WrappedToken": "weth_ethereum",
+    "MockMultisig": "orbit_vault"
+  },
+  "auth_witness": {
+    "kind": "multisig",
+    "contract_key": "orbit_vault",
+    "threshold": 7
+  },
+  "exploit_replay": {
+    "rpc_env": "ETH_RPC_URL",
+    "tx_hashes": [
+      "0x8c92301a6840eb2ed97cc5a1c55c82931a2b24ef132d78f3428070b4b13130da",
+      "0x9b9f5e075b530daf262a5ef569e73f1719d71490b4a732783cbcdd4935840ebc",
+      "0xeebfc657f47f3cb0bc8cec5cb9e591e6faf366a86f9cbe28e4398fc18060f03c",
+      "0xaa574f81b17f5635d66204a0e6584a394bdff966854e4e45f6cb79cf4409ba92",
+      "0x36b7e415d611138f5a1d447494da36bd8309ce578e7059e201832f2e05aec5c1"
+    ]
   }
 }

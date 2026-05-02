@@ -1,0 +1,2197 @@
+{
+  "bridge_name": "nomad",
+  "run_id": 0,
+  "time_budget_s": 60,
+  "violations": [
+    {
+      "invariant_id": "asset_conservation_total",
+      "detected_at_s": 1.0250258,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "2000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_per_token",
+      "detected_at_s": 1.0250327,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "dest_total": "2000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_no_negative",
+      "detected_at_s": 1.0250356,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "dest_total": "2000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_pending_sync",
+      "detected_at_s": 1.0250402,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "dest_total": "2000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "authorization_valid_signature",
+      "detected_at_s": 1.025043,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "2000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "authorization_proof_of_lock",
+      "detected_at_s": 1.0250471,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "dest_total": "2000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "authorization_fee_collector",
+      "detected_at_s": 1.025052,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "2000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "authorization_owner_update_replica",
+      "detected_at_s": 1.0250597,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "dest_total": "2000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_message_processed_once",
+      "detected_at_s": 1.0250623,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "2000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_nonce_per_source",
+      "detected_at_s": 1.0250664,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "2000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_replay_protection_root",
+      "detected_at_s": 1.0250687,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "2000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_no_duplicate_mint",
+      "detected_at_s": 1.0250742,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "2000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_refund_after_timeout",
+      "detected_at_s": 1.025077,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "2000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_message_must_be_processed_before_expiry",
+      "detected_at_s": 1.0250795,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "dest_total": "2000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "timeliness_lock_reclaim_max_delay",
+      "detected_at_s": 1.0250879,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "dest_total": "2000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "timeliness_hashlock_expiration",
+      "detected_at_s": 1.0250971,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "2000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_fee_withdrawal_window",
+      "detected_at_s": 1.0250995999999999,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "dest_total": "2000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "timeliness_message_order_monotonic",
+      "detected_at_s": 1.0251069,
+      "trigger_scenario": "nomad_nonce_reuse_tampered_relay_001",
+      "trigger_trace": [
+        "tx:3:Replica:err(execution reverted: 0x):cov=81",
+        "tx:4:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "2000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_total",
+      "detected_at_s": 2.3830487,
+      "trigger_scenario": "nomad_timeliness_expiry_bypass_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=57",
+        "tx:4:Replica:err(execution reverted: 0x):cov=56",
+        "tx:5:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_per_token",
+      "detected_at_s": 2.3830562,
+      "trigger_scenario": "nomad_timeliness_expiry_bypass_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=57",
+        "tx:4:Replica:err(execution reverted: 0x):cov=56",
+        "tx:5:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_no_negative",
+      "detected_at_s": 2.3830594,
+      "trigger_scenario": "nomad_timeliness_expiry_bypass_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=57",
+        "tx:4:Replica:err(execution reverted: 0x):cov=56",
+        "tx:5:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_pending_sync",
+      "detected_at_s": 2.3830628,
+      "trigger_scenario": "nomad_timeliness_expiry_bypass_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=57",
+        "tx:4:Replica:err(execution reverted: 0x):cov=56",
+        "tx:5:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "authorization_valid_signature",
+      "detected_at_s": 2.3830658,
+      "trigger_scenario": "nomad_timeliness_expiry_bypass_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=57",
+        "tx:4:Replica:err(execution reverted: 0x):cov=56",
+        "tx:5:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "authorization_proof_of_lock",
+      "detected_at_s": 2.3830684,
+      "trigger_scenario": "nomad_timeliness_expiry_bypass_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=57",
+        "tx:4:Replica:err(execution reverted: 0x):cov=56",
+        "tx:5:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "authorization_fee_collector",
+      "detected_at_s": 2.3830744,
+      "trigger_scenario": "nomad_timeliness_expiry_bypass_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=57",
+        "tx:4:Replica:err(execution reverted: 0x):cov=56",
+        "tx:5:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "authorization_owner_update_replica",
+      "detected_at_s": 2.3830804,
+      "trigger_scenario": "nomad_timeliness_expiry_bypass_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=57",
+        "tx:4:Replica:err(execution reverted: 0x):cov=56",
+        "tx:5:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_message_processed_once",
+      "detected_at_s": 2.3830835,
+      "trigger_scenario": "nomad_timeliness_expiry_bypass_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=57",
+        "tx:4:Replica:err(execution reverted: 0x):cov=56",
+        "tx:5:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_nonce_per_source",
+      "detected_at_s": 2.383086,
+      "trigger_scenario": "nomad_timeliness_expiry_bypass_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=57",
+        "tx:4:Replica:err(execution reverted: 0x):cov=56",
+        "tx:5:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_replay_protection_root",
+      "detected_at_s": 2.3831002,
+      "trigger_scenario": "nomad_timeliness_expiry_bypass_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=57",
+        "tx:4:Replica:err(execution reverted: 0x):cov=56",
+        "tx:5:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_no_duplicate_mint",
+      "detected_at_s": 2.3831034,
+      "trigger_scenario": "nomad_timeliness_expiry_bypass_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=57",
+        "tx:4:Replica:err(execution reverted: 0x):cov=56",
+        "tx:5:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "timeliness_refund_after_timeout",
+      "detected_at_s": 2.3831062,
+      "trigger_scenario": "nomad_timeliness_expiry_bypass_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=57",
+        "tx:4:Replica:err(execution reverted: 0x):cov=56",
+        "tx:5:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_message_must_be_processed_before_expiry",
+      "detected_at_s": 2.383109,
+      "trigger_scenario": "nomad_timeliness_expiry_bypass_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=57",
+        "tx:4:Replica:err(execution reverted: 0x):cov=56",
+        "tx:5:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_lock_reclaim_max_delay",
+      "detected_at_s": 2.3831144,
+      "trigger_scenario": "nomad_timeliness_expiry_bypass_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=57",
+        "tx:4:Replica:err(execution reverted: 0x):cov=56",
+        "tx:5:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_hashlock_expiration",
+      "detected_at_s": 2.3831214,
+      "trigger_scenario": "nomad_timeliness_expiry_bypass_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=57",
+        "tx:4:Replica:err(execution reverted: 0x):cov=56",
+        "tx:5:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_fee_withdrawal_window",
+      "detected_at_s": 2.3831239,
+      "trigger_scenario": "nomad_timeliness_expiry_bypass_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=57",
+        "tx:4:Replica:err(execution reverted: 0x):cov=56",
+        "tx:5:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "timeliness_message_order_monotonic",
+      "detected_at_s": 2.3831263,
+      "trigger_scenario": "nomad_timeliness_expiry_bypass_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=57",
+        "tx:4:Replica:err(execution reverted: 0x):cov=56",
+        "tx:5:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_total",
+      "detected_at_s": 3.0768822,
+      "trigger_scenario": "nomad_duplicate_mint_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok"
+      ],
+      "state_diff": {
+        "source_total": "1000000000000000000",
+        "dest_total": "3000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_per_token",
+      "detected_at_s": 3.0768868,
+      "trigger_scenario": "nomad_duplicate_mint_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok"
+      ],
+      "state_diff": {
+        "dest_total": "3000000000000000000",
+        "source_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_no_negative",
+      "detected_at_s": 3.0768887,
+      "trigger_scenario": "nomad_duplicate_mint_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok"
+      ],
+      "state_diff": {
+        "source_total": "1000000000000000000",
+        "dest_total": "3000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_pending_sync",
+      "detected_at_s": 3.0768904,
+      "trigger_scenario": "nomad_duplicate_mint_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok"
+      ],
+      "state_diff": {
+        "source_total": "1000000000000000000",
+        "dest_total": "3000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "authorization_valid_signature",
+      "detected_at_s": 3.076892,
+      "trigger_scenario": "nomad_duplicate_mint_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok"
+      ],
+      "state_diff": {
+        "dest_total": "3000000000000000000",
+        "source_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "authorization_proof_of_lock",
+      "detected_at_s": 3.0768942,
+      "trigger_scenario": "nomad_duplicate_mint_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok"
+      ],
+      "state_diff": {
+        "dest_total": "3000000000000000000",
+        "source_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "authorization_fee_collector",
+      "detected_at_s": 3.0768963,
+      "trigger_scenario": "nomad_duplicate_mint_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok"
+      ],
+      "state_diff": {
+        "source_total": "1000000000000000000",
+        "dest_total": "3000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "authorization_owner_update_replica",
+      "detected_at_s": 3.0768987,
+      "trigger_scenario": "nomad_duplicate_mint_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok"
+      ],
+      "state_diff": {
+        "dest_total": "3000000000000000000",
+        "source_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_message_processed_once",
+      "detected_at_s": 3.0769041,
+      "trigger_scenario": "nomad_duplicate_mint_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok"
+      ],
+      "state_diff": {
+        "source_total": "1000000000000000000",
+        "dest_total": "3000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_nonce_per_source",
+      "detected_at_s": 3.0769077,
+      "trigger_scenario": "nomad_duplicate_mint_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok"
+      ],
+      "state_diff": {
+        "source_total": "1000000000000000000",
+        "dest_total": "3000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_replay_protection_root",
+      "detected_at_s": 3.0769092,
+      "trigger_scenario": "nomad_duplicate_mint_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok"
+      ],
+      "state_diff": {
+        "source_total": "1000000000000000000",
+        "dest_total": "3000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_no_duplicate_mint",
+      "detected_at_s": 3.0769108,
+      "trigger_scenario": "nomad_duplicate_mint_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok"
+      ],
+      "state_diff": {
+        "dest_total": "3000000000000000000",
+        "source_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_refund_after_timeout",
+      "detected_at_s": 3.0769131,
+      "trigger_scenario": "nomad_duplicate_mint_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok"
+      ],
+      "state_diff": {
+        "source_total": "1000000000000000000",
+        "dest_total": "3000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_message_must_be_processed_before_expiry",
+      "detected_at_s": 3.0769147,
+      "trigger_scenario": "nomad_duplicate_mint_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok"
+      ],
+      "state_diff": {
+        "source_total": "1000000000000000000",
+        "dest_total": "3000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_lock_reclaim_max_delay",
+      "detected_at_s": 3.0769193,
+      "trigger_scenario": "nomad_duplicate_mint_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok"
+      ],
+      "state_diff": {
+        "source_total": "1000000000000000000",
+        "dest_total": "3000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_hashlock_expiration",
+      "detected_at_s": 3.076921,
+      "trigger_scenario": "nomad_duplicate_mint_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok"
+      ],
+      "state_diff": {
+        "dest_total": "3000000000000000000",
+        "source_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_fee_withdrawal_window",
+      "detected_at_s": 3.0769425,
+      "trigger_scenario": "nomad_duplicate_mint_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok"
+      ],
+      "state_diff": {
+        "dest_total": "3000000000000000000",
+        "source_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_message_order_monotonic",
+      "detected_at_s": 3.0769444,
+      "trigger_scenario": "nomad_duplicate_mint_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok"
+      ],
+      "state_diff": {
+        "source_total": "1000000000000000000",
+        "dest_total": "3000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_total",
+      "detected_at_s": 3.7483456,
+      "trigger_scenario": "nomad_sig_forgery_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "tx:3:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:5:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "dest_total": "1000001",
+        "source_total": "1"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_per_token",
+      "detected_at_s": 3.748358,
+      "trigger_scenario": "nomad_sig_forgery_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "tx:3:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:5:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "dest_total": "1000001",
+        "source_total": "1"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_no_negative",
+      "detected_at_s": 3.7483962,
+      "trigger_scenario": "nomad_sig_forgery_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "tx:3:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:5:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1",
+        "dest_total": "1000001"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_pending_sync",
+      "detected_at_s": 3.7484003,
+      "trigger_scenario": "nomad_sig_forgery_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "tx:3:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:5:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1",
+        "dest_total": "1000001"
+      }
+    },
+    {
+      "invariant_id": "authorization_valid_signature",
+      "detected_at_s": 3.7484032000000003,
+      "trigger_scenario": "nomad_sig_forgery_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "tx:3:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:5:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "dest_total": "1000001",
+        "source_total": "1"
+      }
+    },
+    {
+      "invariant_id": "authorization_proof_of_lock",
+      "detected_at_s": 3.7484062,
+      "trigger_scenario": "nomad_sig_forgery_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "tx:3:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:5:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1",
+        "dest_total": "1000001"
+      }
+    },
+    {
+      "invariant_id": "authorization_fee_collector",
+      "detected_at_s": 3.7484091,
+      "trigger_scenario": "nomad_sig_forgery_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "tx:3:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:5:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "dest_total": "1000001",
+        "source_total": "1"
+      }
+    },
+    {
+      "invariant_id": "authorization_owner_update_replica",
+      "detected_at_s": 3.7484121999999997,
+      "trigger_scenario": "nomad_sig_forgery_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "tx:3:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:5:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1",
+        "dest_total": "1000001"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_message_processed_once",
+      "detected_at_s": 3.7484157,
+      "trigger_scenario": "nomad_sig_forgery_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "tx:3:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:5:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1",
+        "dest_total": "1000001"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_nonce_per_source",
+      "detected_at_s": 3.7484193,
+      "trigger_scenario": "nomad_sig_forgery_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "tx:3:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:5:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "dest_total": "1000001",
+        "source_total": "1"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_replay_protection_root",
+      "detected_at_s": 3.748427,
+      "trigger_scenario": "nomad_sig_forgery_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "tx:3:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:5:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "dest_total": "1000001",
+        "source_total": "1"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_no_duplicate_mint",
+      "detected_at_s": 3.7484363,
+      "trigger_scenario": "nomad_sig_forgery_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "tx:3:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:5:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1",
+        "dest_total": "1000001"
+      }
+    },
+    {
+      "invariant_id": "timeliness_refund_after_timeout",
+      "detected_at_s": 3.7484399,
+      "trigger_scenario": "nomad_sig_forgery_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "tx:3:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:5:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1",
+        "dest_total": "1000001"
+      }
+    },
+    {
+      "invariant_id": "timeliness_message_must_be_processed_before_expiry",
+      "detected_at_s": 3.7484432,
+      "trigger_scenario": "nomad_sig_forgery_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "tx:3:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:5:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1",
+        "dest_total": "1000001"
+      }
+    },
+    {
+      "invariant_id": "timeliness_lock_reclaim_max_delay",
+      "detected_at_s": 3.7484458,
+      "trigger_scenario": "nomad_sig_forgery_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "tx:3:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:5:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "dest_total": "1000001",
+        "source_total": "1"
+      }
+    },
+    {
+      "invariant_id": "timeliness_hashlock_expiration",
+      "detected_at_s": 3.7484493,
+      "trigger_scenario": "nomad_sig_forgery_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "tx:3:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:5:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "dest_total": "1000001",
+        "source_total": "1"
+      }
+    },
+    {
+      "invariant_id": "timeliness_fee_withdrawal_window",
+      "detected_at_s": 3.7484538,
+      "trigger_scenario": "nomad_sig_forgery_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "tx:3:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:5:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "dest_total": "1000001",
+        "source_total": "1"
+      }
+    },
+    {
+      "invariant_id": "timeliness_message_order_monotonic",
+      "detected_at_s": 3.7484591,
+      "trigger_scenario": "nomad_sig_forgery_2024_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "tx:3:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:5:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1",
+        "dest_total": "1000001"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_total",
+      "detected_at_s": 5.6850222,
+      "trigger_scenario": "nomad_pending_sync_replay_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "source_total": "1",
+        "dest_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_per_token",
+      "detected_at_s": 5.6850268,
+      "trigger_scenario": "nomad_pending_sync_replay_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000000000",
+        "source_total": "1"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_no_negative",
+      "detected_at_s": 5.6850295,
+      "trigger_scenario": "nomad_pending_sync_replay_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "source_total": "1",
+        "dest_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_pending_sync",
+      "detected_at_s": 5.6850318,
+      "trigger_scenario": "nomad_pending_sync_replay_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "source_total": "1",
+        "dest_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "authorization_valid_signature",
+      "detected_at_s": 5.6850337,
+      "trigger_scenario": "nomad_pending_sync_replay_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "source_total": "1",
+        "dest_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "authorization_proof_of_lock",
+      "detected_at_s": 5.6850363999999995,
+      "trigger_scenario": "nomad_pending_sync_replay_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000000000",
+        "source_total": "1"
+      }
+    },
+    {
+      "invariant_id": "authorization_fee_collector",
+      "detected_at_s": 5.6850384,
+      "trigger_scenario": "nomad_pending_sync_replay_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "source_total": "1",
+        "dest_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "authorization_owner_update_replica",
+      "detected_at_s": 5.6850407,
+      "trigger_scenario": "nomad_pending_sync_replay_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "source_total": "1",
+        "dest_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_message_processed_once",
+      "detected_at_s": 5.6850428,
+      "trigger_scenario": "nomad_pending_sync_replay_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000000000",
+        "source_total": "1"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_nonce_per_source",
+      "detected_at_s": 5.685045,
+      "trigger_scenario": "nomad_pending_sync_replay_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000000000",
+        "source_total": "1"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_replay_protection_root",
+      "detected_at_s": 5.6850473,
+      "trigger_scenario": "nomad_pending_sync_replay_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000000000",
+        "source_total": "1"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_no_duplicate_mint",
+      "detected_at_s": 5.6850521,
+      "trigger_scenario": "nomad_pending_sync_replay_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "source_total": "1",
+        "dest_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_refund_after_timeout",
+      "detected_at_s": 5.6850541,
+      "trigger_scenario": "nomad_pending_sync_replay_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000000000",
+        "source_total": "1"
+      }
+    },
+    {
+      "invariant_id": "timeliness_message_must_be_processed_before_expiry",
+      "detected_at_s": 5.6850565,
+      "trigger_scenario": "nomad_pending_sync_replay_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000000000",
+        "source_total": "1"
+      }
+    },
+    {
+      "invariant_id": "timeliness_lock_reclaim_max_delay",
+      "detected_at_s": 5.6850584,
+      "trigger_scenario": "nomad_pending_sync_replay_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "source_total": "1",
+        "dest_total": "1000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_hashlock_expiration",
+      "detected_at_s": 5.6850602,
+      "trigger_scenario": "nomad_pending_sync_replay_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000000000",
+        "source_total": "1"
+      }
+    },
+    {
+      "invariant_id": "timeliness_fee_withdrawal_window",
+      "detected_at_s": 5.6850624,
+      "trigger_scenario": "nomad_pending_sync_replay_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000000000",
+        "source_total": "1"
+      }
+    },
+    {
+      "invariant_id": "timeliness_message_order_monotonic",
+      "detected_at_s": 5.6850645,
+      "trigger_scenario": "nomad_pending_sync_replay_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=92"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000000000",
+        "source_total": "1"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_total",
+      "detected_at_s": 6.3674736,
+      "trigger_scenario": "nomad_underflow_release_replay_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok",
+        "relay:5:ok"
+      ],
+      "state_diff": {
+        "source_total": "10000000000000000000",
+        "dest_total": "21000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_per_token",
+      "detected_at_s": 6.3674845,
+      "trigger_scenario": "nomad_underflow_release_replay_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok",
+        "relay:5:ok"
+      ],
+      "state_diff": {
+        "source_total": "10000000000000000000",
+        "dest_total": "21000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_no_negative",
+      "detected_at_s": 6.3674887,
+      "trigger_scenario": "nomad_underflow_release_replay_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok",
+        "relay:5:ok"
+      ],
+      "state_diff": {
+        "source_total": "10000000000000000000",
+        "dest_total": "21000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_pending_sync",
+      "detected_at_s": 6.3674934,
+      "trigger_scenario": "nomad_underflow_release_replay_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok",
+        "relay:5:ok"
+      ],
+      "state_diff": {
+        "source_total": "10000000000000000000",
+        "dest_total": "21000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "authorization_valid_signature",
+      "detected_at_s": 6.3675023,
+      "trigger_scenario": "nomad_underflow_release_replay_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok",
+        "relay:5:ok"
+      ],
+      "state_diff": {
+        "dest_total": "21000000000000000000",
+        "source_total": "10000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "authorization_proof_of_lock",
+      "detected_at_s": 6.3675061,
+      "trigger_scenario": "nomad_underflow_release_replay_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok",
+        "relay:5:ok"
+      ],
+      "state_diff": {
+        "source_total": "10000000000000000000",
+        "dest_total": "21000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "authorization_fee_collector",
+      "detected_at_s": 6.3675093,
+      "trigger_scenario": "nomad_underflow_release_replay_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok",
+        "relay:5:ok"
+      ],
+      "state_diff": {
+        "source_total": "10000000000000000000",
+        "dest_total": "21000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "authorization_owner_update_replica",
+      "detected_at_s": 6.3675125,
+      "trigger_scenario": "nomad_underflow_release_replay_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok",
+        "relay:5:ok"
+      ],
+      "state_diff": {
+        "dest_total": "21000000000000000000",
+        "source_total": "10000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_message_processed_once",
+      "detected_at_s": 6.3675159,
+      "trigger_scenario": "nomad_underflow_release_replay_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok",
+        "relay:5:ok"
+      ],
+      "state_diff": {
+        "source_total": "10000000000000000000",
+        "dest_total": "21000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_nonce_per_source",
+      "detected_at_s": 6.3675187,
+      "trigger_scenario": "nomad_underflow_release_replay_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok",
+        "relay:5:ok"
+      ],
+      "state_diff": {
+        "dest_total": "21000000000000000000",
+        "source_total": "10000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_replay_protection_root",
+      "detected_at_s": 6.3675214,
+      "trigger_scenario": "nomad_underflow_release_replay_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok",
+        "relay:5:ok"
+      ],
+      "state_diff": {
+        "source_total": "10000000000000000000",
+        "dest_total": "21000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_no_duplicate_mint",
+      "detected_at_s": 6.3675249,
+      "trigger_scenario": "nomad_underflow_release_replay_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok",
+        "relay:5:ok"
+      ],
+      "state_diff": {
+        "source_total": "10000000000000000000",
+        "dest_total": "21000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_refund_after_timeout",
+      "detected_at_s": 6.3675282,
+      "trigger_scenario": "nomad_underflow_release_replay_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok",
+        "relay:5:ok"
+      ],
+      "state_diff": {
+        "dest_total": "21000000000000000000",
+        "source_total": "10000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_message_must_be_processed_before_expiry",
+      "detected_at_s": 6.3675313,
+      "trigger_scenario": "nomad_underflow_release_replay_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok",
+        "relay:5:ok"
+      ],
+      "state_diff": {
+        "dest_total": "21000000000000000000",
+        "source_total": "10000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_lock_reclaim_max_delay",
+      "detected_at_s": 6.3675345,
+      "trigger_scenario": "nomad_underflow_release_replay_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok",
+        "relay:5:ok"
+      ],
+      "state_diff": {
+        "dest_total": "21000000000000000000",
+        "source_total": "10000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_hashlock_expiration",
+      "detected_at_s": 6.3675375,
+      "trigger_scenario": "nomad_underflow_release_replay_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok",
+        "relay:5:ok"
+      ],
+      "state_diff": {
+        "dest_total": "21000000000000000000",
+        "source_total": "10000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_fee_withdrawal_window",
+      "detected_at_s": 6.3675405,
+      "trigger_scenario": "nomad_underflow_release_replay_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok",
+        "relay:5:ok"
+      ],
+      "state_diff": {
+        "dest_total": "21000000000000000000",
+        "source_total": "10000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_message_order_monotonic",
+      "detected_at_s": 6.3675443,
+      "trigger_scenario": "nomad_underflow_release_replay_01",
+      "trigger_trace": [
+        "relay:1:queued_or_err",
+        "relay:2:ok",
+        "relay:4:ok",
+        "relay:5:ok"
+      ],
+      "state_diff": {
+        "source_total": "10000000000000000000",
+        "dest_total": "21000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_total",
+      "detected_at_s": 9.9473998,
+      "trigger_scenario": "nomad_double_process_2024_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:4:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_per_token",
+      "detected_at_s": 9.9474034,
+      "trigger_scenario": "nomad_double_process_2024_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:4:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_no_negative",
+      "detected_at_s": 9.9474052,
+      "trigger_scenario": "nomad_double_process_2024_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:4:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000001000",
+        "source_total": "1000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_pending_sync",
+      "detected_at_s": 9.9474065,
+      "trigger_scenario": "nomad_double_process_2024_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:4:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "authorization_valid_signature",
+      "detected_at_s": 9.9474297,
+      "trigger_scenario": "nomad_double_process_2024_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:4:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "authorization_proof_of_lock",
+      "detected_at_s": 9.9474315,
+      "trigger_scenario": "nomad_double_process_2024_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:4:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000001000",
+        "source_total": "1000"
+      }
+    },
+    {
+      "invariant_id": "authorization_fee_collector",
+      "detected_at_s": 9.947432599999999,
+      "trigger_scenario": "nomad_double_process_2024_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:4:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "authorization_owner_update_replica",
+      "detected_at_s": 9.9474339,
+      "trigger_scenario": "nomad_double_process_2024_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:4:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_message_processed_once",
+      "detected_at_s": 9.9474366,
+      "trigger_scenario": "nomad_double_process_2024_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:4:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000001000",
+        "source_total": "1000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_nonce_per_source",
+      "detected_at_s": 9.9474377,
+      "trigger_scenario": "nomad_double_process_2024_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:4:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_replay_protection_root",
+      "detected_at_s": 9.9474391,
+      "trigger_scenario": "nomad_double_process_2024_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:4:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000001000",
+        "source_total": "1000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_no_duplicate_mint",
+      "detected_at_s": 9.9474403,
+      "trigger_scenario": "nomad_double_process_2024_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:4:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_refund_after_timeout",
+      "detected_at_s": 9.9474421,
+      "trigger_scenario": "nomad_double_process_2024_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:4:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_message_must_be_processed_before_expiry",
+      "detected_at_s": 9.9474432,
+      "trigger_scenario": "nomad_double_process_2024_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:4:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_lock_reclaim_max_delay",
+      "detected_at_s": 9.9474447,
+      "trigger_scenario": "nomad_double_process_2024_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:4:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_hashlock_expiration",
+      "detected_at_s": 9.9474459,
+      "trigger_scenario": "nomad_double_process_2024_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:4:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_fee_withdrawal_window",
+      "detected_at_s": 9.947447,
+      "trigger_scenario": "nomad_double_process_2024_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:4:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_message_order_monotonic",
+      "detected_at_s": 9.9474482,
+      "trigger_scenario": "nomad_double_process_2024_01",
+      "trigger_trace": [
+        "tx:1:Replica:err(relay chain — not directly executed):cov=0",
+        "tx:4:Replica:err(relay chain — not directly executed):cov=0"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000001000",
+        "source_total": "1000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_total",
+      "detected_at_s": 10.955093,
+      "trigger_scenario": "nomad_replay_mint_attack_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=56",
+        "tx:4:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893",
+        "tx:6:Replica:err(execution reverted: 0x):cov=56"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000001000",
+        "source_total": "1000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_per_token",
+      "detected_at_s": 10.9551007,
+      "trigger_scenario": "nomad_replay_mint_attack_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=56",
+        "tx:4:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893",
+        "tx:6:Replica:err(execution reverted: 0x):cov=56"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000001000",
+        "source_total": "1000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_no_negative",
+      "detected_at_s": 10.955104500000001,
+      "trigger_scenario": "nomad_replay_mint_attack_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=56",
+        "tx:4:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893",
+        "tx:6:Replica:err(execution reverted: 0x):cov=56"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_pending_sync",
+      "detected_at_s": 10.9551152,
+      "trigger_scenario": "nomad_replay_mint_attack_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=56",
+        "tx:4:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893",
+        "tx:6:Replica:err(execution reverted: 0x):cov=56"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "authorization_valid_signature",
+      "detected_at_s": 10.9551185,
+      "trigger_scenario": "nomad_replay_mint_attack_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=56",
+        "tx:4:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893",
+        "tx:6:Replica:err(execution reverted: 0x):cov=56"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "authorization_proof_of_lock",
+      "detected_at_s": 10.9551236,
+      "trigger_scenario": "nomad_replay_mint_attack_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=56",
+        "tx:4:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893",
+        "tx:6:Replica:err(execution reverted: 0x):cov=56"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000001000",
+        "source_total": "1000"
+      }
+    },
+    {
+      "invariant_id": "authorization_fee_collector",
+      "detected_at_s": 10.9551269,
+      "trigger_scenario": "nomad_replay_mint_attack_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=56",
+        "tx:4:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893",
+        "tx:6:Replica:err(execution reverted: 0x):cov=56"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "authorization_owner_update_replica",
+      "detected_at_s": 10.9551307,
+      "trigger_scenario": "nomad_replay_mint_attack_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=56",
+        "tx:4:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893",
+        "tx:6:Replica:err(execution reverted: 0x):cov=56"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000001000",
+        "source_total": "1000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_message_processed_once",
+      "detected_at_s": 10.9551342,
+      "trigger_scenario": "nomad_replay_mint_attack_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=56",
+        "tx:4:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893",
+        "tx:6:Replica:err(execution reverted: 0x):cov=56"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_nonce_per_source",
+      "detected_at_s": 10.9551377,
+      "trigger_scenario": "nomad_replay_mint_attack_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=56",
+        "tx:4:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893",
+        "tx:6:Replica:err(execution reverted: 0x):cov=56"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000001000",
+        "source_total": "1000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_replay_protection_root",
+      "detected_at_s": 10.9551437,
+      "trigger_scenario": "nomad_replay_mint_attack_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=56",
+        "tx:4:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893",
+        "tx:6:Replica:err(execution reverted: 0x):cov=56"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000001000",
+        "source_total": "1000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_no_duplicate_mint",
+      "detected_at_s": 10.9551533,
+      "trigger_scenario": "nomad_replay_mint_attack_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=56",
+        "tx:4:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893",
+        "tx:6:Replica:err(execution reverted: 0x):cov=56"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000001000",
+        "source_total": "1000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_refund_after_timeout",
+      "detected_at_s": 10.9551564,
+      "trigger_scenario": "nomad_replay_mint_attack_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=56",
+        "tx:4:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893",
+        "tx:6:Replica:err(execution reverted: 0x):cov=56"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_message_must_be_processed_before_expiry",
+      "detected_at_s": 10.9551609,
+      "trigger_scenario": "nomad_replay_mint_attack_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=56",
+        "tx:4:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893",
+        "tx:6:Replica:err(execution reverted: 0x):cov=56"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_lock_reclaim_max_delay",
+      "detected_at_s": 10.9551639,
+      "trigger_scenario": "nomad_replay_mint_attack_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=56",
+        "tx:4:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893",
+        "tx:6:Replica:err(execution reverted: 0x):cov=56"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_hashlock_expiration",
+      "detected_at_s": 10.9551717,
+      "trigger_scenario": "nomad_replay_mint_attack_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=56",
+        "tx:4:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893",
+        "tx:6:Replica:err(execution reverted: 0x):cov=56"
+      ],
+      "state_diff": {
+        "dest_total": "1000000000000001000",
+        "source_total": "1000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_fee_withdrawal_window",
+      "detected_at_s": 10.9551747,
+      "trigger_scenario": "nomad_replay_mint_attack_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=56",
+        "tx:4:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893",
+        "tx:6:Replica:err(execution reverted: 0x):cov=56"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_message_order_monotonic",
+      "detected_at_s": 10.9551821,
+      "trigger_scenario": "nomad_replay_mint_attack_001",
+      "trigger_trace": [
+        "tx:1:Replica:err(execution reverted: 0x):cov=56",
+        "tx:4:Replica:err(execution reverted: 0x08c379a000000000000000000000000000000000000000000000000000):cov=893",
+        "tx:6:Replica:err(execution reverted: 0x):cov=56"
+      ],
+      "state_diff": {
+        "source_total": "1000",
+        "dest_total": "1000000000000001000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_total",
+      "detected_at_s": 14.4418604,
+      "trigger_scenario": "nomad_owner_update_replica_unauth_01",
+      "trigger_trace": [
+        "tx:4:Replica:err(execution reverted: 0x):cov=81"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "2000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_per_token",
+      "detected_at_s": 14.4418636,
+      "trigger_scenario": "nomad_owner_update_replica_unauth_01",
+      "trigger_trace": [
+        "tx:4:Replica:err(execution reverted: 0x):cov=81"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "2000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_no_negative",
+      "detected_at_s": 14.4418653,
+      "trigger_scenario": "nomad_owner_update_replica_unauth_01",
+      "trigger_trace": [
+        "tx:4:Replica:err(execution reverted: 0x):cov=81"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "2000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "asset_conservation_pending_sync",
+      "detected_at_s": 14.4418668,
+      "trigger_scenario": "nomad_owner_update_replica_unauth_01",
+      "trigger_trace": [
+        "tx:4:Replica:err(execution reverted: 0x):cov=81"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "2000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "authorization_valid_signature",
+      "detected_at_s": 14.4418681,
+      "trigger_scenario": "nomad_owner_update_replica_unauth_01",
+      "trigger_trace": [
+        "tx:4:Replica:err(execution reverted: 0x):cov=81"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "2000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "authorization_proof_of_lock",
+      "detected_at_s": 14.4418694,
+      "trigger_scenario": "nomad_owner_update_replica_unauth_01",
+      "trigger_trace": [
+        "tx:4:Replica:err(execution reverted: 0x):cov=81"
+      ],
+      "state_diff": {
+        "dest_total": "2000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "authorization_fee_collector",
+      "detected_at_s": 14.4418706,
+      "trigger_scenario": "nomad_owner_update_replica_unauth_01",
+      "trigger_trace": [
+        "tx:4:Replica:err(execution reverted: 0x):cov=81"
+      ],
+      "state_diff": {
+        "dest_total": "2000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "authorization_owner_update_replica",
+      "detected_at_s": 14.4418719,
+      "trigger_scenario": "nomad_owner_update_replica_unauth_01",
+      "trigger_trace": [
+        "tx:4:Replica:err(execution reverted: 0x):cov=81"
+      ],
+      "state_diff": {
+        "dest_total": "2000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_message_processed_once",
+      "detected_at_s": 14.441874,
+      "trigger_scenario": "nomad_owner_update_replica_unauth_01",
+      "trigger_trace": [
+        "tx:4:Replica:err(execution reverted: 0x):cov=81"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "2000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_nonce_per_source",
+      "detected_at_s": 14.4418755,
+      "trigger_scenario": "nomad_owner_update_replica_unauth_01",
+      "trigger_trace": [
+        "tx:4:Replica:err(execution reverted: 0x):cov=81"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "2000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_replay_protection_root",
+      "detected_at_s": 14.4418766,
+      "trigger_scenario": "nomad_owner_update_replica_unauth_01",
+      "trigger_trace": [
+        "tx:4:Replica:err(execution reverted: 0x):cov=81"
+      ],
+      "state_diff": {
+        "dest_total": "2000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "uniqueness_no_duplicate_mint",
+      "detected_at_s": 14.4418778,
+      "trigger_scenario": "nomad_owner_update_replica_unauth_01",
+      "trigger_trace": [
+        "tx:4:Replica:err(execution reverted: 0x):cov=81"
+      ],
+      "state_diff": {
+        "dest_total": "2000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "timeliness_refund_after_timeout",
+      "detected_at_s": 14.4418791,
+      "trigger_scenario": "nomad_owner_update_replica_unauth_01",
+      "trigger_trace": [
+        "tx:4:Replica:err(execution reverted: 0x):cov=81"
+      ],
+      "state_diff": {
+        "dest_total": "2000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "timeliness_message_must_be_processed_before_expiry",
+      "detected_at_s": 14.4418804,
+      "trigger_scenario": "nomad_owner_update_replica_unauth_01",
+      "trigger_trace": [
+        "tx:4:Replica:err(execution reverted: 0x):cov=81"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "2000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_lock_reclaim_max_delay",
+      "detected_at_s": 14.4418829,
+      "trigger_scenario": "nomad_owner_update_replica_unauth_01",
+      "trigger_trace": [
+        "tx:4:Replica:err(execution reverted: 0x):cov=81"
+      ],
+      "state_diff": {
+        "source_total": "0",
+        "dest_total": "2000000000000000000"
+      }
+    },
+    {
+      "invariant_id": "timeliness_hashlock_expiration",
+      "detected_at_s": 14.4418844,
+      "trigger_scenario": "nomad_owner_update_replica_unauth_01",
+      "trigger_trace": [
+        "tx:4:Replica:err(execution reverted: 0x):cov=81"
+      ],
+      "state_diff": {
+        "dest_total": "2000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "timeliness_fee_withdrawal_window",
+      "detected_at_s": 14.4418859,
+      "trigger_scenario": "nomad_owner_update_replica_unauth_01",
+      "trigger_trace": [
+        "tx:4:Replica:err(execution reverted: 0x):cov=81"
+      ],
+      "state_diff": {
+        "dest_total": "2000000000000000000",
+        "source_total": "0"
+      }
+    },
+    {
+      "invariant_id": "timeliness_message_order_monotonic",
+      "detected_at_s": 14.4418873,
+      "trigger_scenario": "nomad_owner_update_replica_unauth_01",
+      "trigger_trace": [
+        "tx:4:Replica:err(execution reverted: 0x):cov=81"
+      ],
+      "state_diff": {
+        "dest_total": "2000000000000000000",
+        "source_total": "0"
+      }
+    }
+  ],
+  "coverage": {
+    "xcc_atg": 1.0,
+    "basic_blocks_source": 997,
+    "basic_blocks_dest": 997
+  },
+  "stats": {
+    "total_iterations": 50732,
+    "snapshots_captured": 50733,
+    "mutations_applied": 50732,
+    "corpus_size": 256,
+    "snapshot_pool_peak": 64
+  }
+}

@@ -17,13 +17,13 @@ use revm::{
     primitives::{
         specification::SpecId,
         AccountInfo, Address, BlockEnv, Bytes, CfgEnv, CfgEnvWithHandlerCfg, EnvWithHandlerCfg,
-        ExecutionResult, HandlerCfg, Output, TransactTo, TxEnv, B256, KECCAK_EMPTY, U256,
+        ExecutionResult, HandlerCfg, Log, Output, TransactTo, TxEnv, B256, KECCAK_EMPTY, U256,
     },
-    Database, DatabaseRef, Evm,
+    Database, DatabaseRef, Evm, Inspector,
 };
 
-use crate::types::{ChainState, GlobalState, RelaySnapshot};
 use crate::coverage_tracker::CoverageTracker;
+use crate::types::{ChainState, GlobalState, RelaySnapshot};
 
 /// Default funded EOA used when executing calls from the fuzzer (unlimited balance in cache).
 pub fn default_caller() -> Address {
@@ -37,12 +37,16 @@ pub fn default_caller() -> Address {
 /// `20 bytes caller || 20 bytes contract || optional ABI calldata`.
 pub const EXECUTE_CALL_HEADER: usize = 40;
 
+/// CacheDB over an RPC-backed Ethers provider — one per fork. Type alias keeps
+/// inspector signatures readable.
+type ChainDb = CacheDB<EthersDB<Provider<Http>>>;
+
 /// One EVM fork (CacheDB over RPC-backed state).
 ///
 /// We rebuild [`Evm`] per transaction (clone [`CacheDB`]) so the struct stays owned and
 /// lifetime-free; acceptable for fuzzing-scale state.
 struct ChainVm {
-    db: CacheDB<EthersDB<Provider<Http>>>,
+    db: ChainDb,
     fork_block: BlockEnv,
     spec_id: SpecId,
     chain_id: u64,
@@ -103,26 +107,44 @@ impl ChainVm {
         Ok(res)
     }
 
-    fn run_tx_with_coverage(&mut self, tx: TxEnv) -> Result<(ExecutionResult, std::collections::HashSet<usize>), String> {
+    /// Variant of [`Self::run_tx`] that wires an [`Inspector`] (e.g.
+    /// [`CoverageTracker`]) so per-instruction callbacks fire during execution.
+    fn run_tx_with_inspector<I>(&mut self, tx: TxEnv, inspector: I) -> Result<ExecutionResult, String>
+    where
+        I: Inspector<ChainDb>,
+    {
         let mut cfg = CfgEnv::default();
         cfg.chain_id = self.chain_id;
         let cfg_wh = CfgEnvWithHandlerCfg::new(cfg, HandlerCfg::new(self.spec_id));
         let env = EnvWithHandlerCfg::new_with_cfg_env(cfg_wh, self.fork_block.clone(), tx);
 
         let mut evm = Evm::builder()
-            .with_external_context(CoverageTracker::default())
             .with_db(self.db.clone())
+            .with_external_context(inspector)
             .with_env_with_handler_cfg(env)
             .append_handler_register(inspector_handle_register)
             .build();
 
         let res = evm
             .transact_commit()
-            .map_err(|e| format!("EVM inspector error: {e:?}"))?;
-        let touched = std::mem::take(&mut evm.context.external).into_pcs();
+            .map_err(|e| format!("EVM error: {e:?}"))?;
         let (db, _) = evm.into_db_and_env_with_handler_cfg();
         self.db = db;
-        Ok((res, touched))
+        Ok(res)
+    }
+
+    /// Convenience wrapper around [`Self::run_tx_with_inspector`] that
+    /// returns the flat `HashSet<usize>` of touched PCs alongside the
+    /// `ExecutionResult`. Compatibility shim for the `*_with_coverage`
+    /// path that landed on `origin/main` while the inspector path was
+    /// in flight on the baselines branch — both call shapes coexist.
+    fn run_tx_with_coverage(
+        &mut self,
+        tx: TxEnv,
+    ) -> Result<(ExecutionResult, std::collections::HashSet<usize>), String> {
+        let mut tracker = CoverageTracker::default();
+        let res = self.run_tx_with_inspector(tx, &mut tracker)?;
+        Ok((res, tracker.into_pcs()))
     }
 
     fn execute_raw_call(
@@ -131,10 +153,60 @@ impl ChainVm {
         to: Address,
         data: Bytes,
     ) -> Result<Vec<u8>, String> {
+        let tx = self.build_call_tx(caller, to, data);
+        Self::map_call_result(self.run_tx(tx)?)
+    }
+
+    /// Variant of [`Self::execute_raw_call`] that funnels execution through an
+    /// [`Inspector`] so each opcode step triggers the inspector callbacks.
+    fn execute_raw_call_with_inspector<I>(
+        &mut self,
+        caller: Address,
+        to: Address,
+        data: Bytes,
+        inspector: I,
+    ) -> Result<Vec<u8>, String>
+    where
+        I: Inspector<ChainDb>,
+    {
+        let tx = self.build_call_tx(caller, to, data);
+        Self::map_call_result(self.run_tx_with_inspector(tx, inspector)?)
+    }
+
+    /// Same as [`Self::execute_raw_call_with_inspector`] but returns the
+    /// full [`TxOutcome`] including emitted log entries instead of just
+    /// the call output. Reverts and halts produce `success = false` but
+    /// still return Ok — the caller decides how to treat them.
+    fn execute_raw_call_with_inspector_full<I>(
+        &mut self,
+        caller: Address,
+        to: Address,
+        data: Bytes,
+        inspector: I,
+    ) -> Result<TxOutcome, String>
+    where
+        I: Inspector<ChainDb>,
+    {
+        let tx = self.build_call_tx(caller, to, data);
+        let result = self.run_tx_with_inspector(tx, inspector)?;
+        Ok(TxOutcome::from_execution_result(result))
+    }
+
+    fn build_call_tx(&mut self, caller: Address, to: Address, data: Bytes) -> TxEnv {
         let basefee = self.fork_block.basefee;
-        let tx = TxEnv {
+        // Use 95 % of the fork block's gas limit so the tx never trips
+        // revm's `CallerGasLimitMoreThanBlock` check on slightly-smaller
+        // blocks (block 15012700 was ~28.7M and 30M_000_000 was over the
+        // cap, which surfaced during the Harmony replay debug). Cap at
+        // 30M so post-London blocks behave the same as before.
+        let block_cap = as_u64_saturating(self.fork_block.gas_limit);
+        let tx_gas_limit = block_cap
+            .saturating_mul(95)
+            .saturating_div(100)
+            .min(30_000_000);
+        TxEnv {
             caller,
-            gas_limit: 30_000_000,
+            gas_limit: tx_gas_limit.max(1_000_000),
             gas_price: basefee.saturating_add(U256::from(1u8)),
             gas_priority_fee: None,
             transact_to: TransactTo::Call(to),
@@ -147,10 +219,10 @@ impl ChainVm {
             max_fee_per_blob_gas: None,
             eof_initcodes: Vec::new(),
             eof_initcodes_hashed: Default::default(),
-        };
+        }
+    }
 
-        let result = self.run_tx(tx)?;
-
+    fn map_call_result(result: ExecutionResult) -> Result<Vec<u8>, String> {
         match result {
             ExecutionResult::Success { output, .. } => Ok(output.into_data().to_vec()),
             ExecutionResult::Revert { output, .. } => Err(format!(
@@ -268,6 +340,81 @@ impl ChainVm {
     }
 }
 
+/// Result of a single transaction. Unlike `Result<Vec<u8>, String>` from
+/// [`DualEvm::execute_on_source`] this preserves the **emitted logs** and
+/// the success/revert/halt status, which the XScope baseline detector
+/// needs to reconstruct lock / unlock events.
+#[derive(Debug, Clone)]
+pub struct TxOutcome {
+    /// Whether the call ended in `ExecutionResult::Success`.
+    pub success: bool,
+    /// Output bytes (success → return data, revert → revert data, halt → empty).
+    pub output: Vec<u8>,
+    /// Event logs emitted before the (possibly successful) end of the call.
+    /// Reverts and halts produce an empty list — revm strips logs when the
+    /// call did not commit.
+    pub logs: Vec<Log>,
+    /// Gas consumed by the transaction.
+    pub gas_used: u64,
+    /// One-line human-readable status (used in trace strings).
+    pub status: String,
+}
+
+impl TxOutcome {
+    fn from_execution_result(result: ExecutionResult) -> Self {
+        match result {
+            ExecutionResult::Success { gas_used, logs, output, .. } => Self {
+                success: true,
+                output: output.into_data().to_vec(),
+                logs,
+                gas_used,
+                status: "ok".to_string(),
+            },
+            ExecutionResult::Revert { gas_used, output } => Self {
+                success: false,
+                output: output.to_vec(),
+                logs: Vec::new(),
+                gas_used,
+                status: format!("reverted: 0x{}", hex::encode(&output)),
+            },
+            ExecutionResult::Halt { gas_used, reason } => Self {
+                success: false,
+                output: Vec::new(),
+                logs: Vec::new(),
+                gas_used,
+                status: format!("halted: {reason:?}"),
+            },
+        }
+    }
+}
+
+/// Compute `now - baseline` as a saturating signed `i128`. Both inputs are
+/// 256-bit balances; we collapse to 128 bits with saturation since real
+/// token balances comfortably fit.
+fn u256_signed_delta(baseline: U256, now: U256) -> i128 {
+    if now >= baseline {
+        let diff = now - baseline;
+        u256_clip_to_u128(diff) as i128
+    } else {
+        let diff = baseline - now;
+        let clipped = u256_clip_to_u128(diff);
+        if clipped > i128::MAX as u128 {
+            i128::MIN
+        } else {
+            -(clipped as i128)
+        }
+    }
+}
+
+fn u256_clip_to_u128(v: U256) -> u128 {
+    let limbs = v.as_limbs();
+    if limbs.iter().skip(2).any(|l| *l != 0) {
+        u128::MAX
+    } else {
+        ((limbs[1] as u128) << 64) | (limbs[0] as u128)
+    }
+}
+
 /// Cloned chain VM state for synchronized dual-EVM snapshot/restore (full CacheDB copy).
 #[derive(Clone)]
 pub struct ChainVmSnapshot {
@@ -337,6 +484,19 @@ impl DualEvm {
         self.source.balance_of(who)
     }
 
+    /// Fund `who` on the source fork up to `balance` wei. Used by the
+    /// XScope replay-mode loader to ensure cached exploit-tx senders
+    /// can pay for gas regardless of what their on-chain balance was
+    /// at the historical fork block. Wraps the existing `ChainVm::fund`.
+    pub fn fund_source(&mut self, who: Address, balance: U256) {
+        self.source.fund(who, balance);
+    }
+
+    /// Destination-side counterpart of [`Self::fund_source`].
+    pub fn fund_dest(&mut self, who: Address, balance: U256) {
+        self.dest.fund(who, balance);
+    }
+
     /// Read ETH balance of an address on the destination fork.
     pub fn dest_balance(&mut self, who: Address) -> Result<U256, String> {
         self.dest.balance_of(who)
@@ -373,7 +533,71 @@ impl DualEvm {
         self.dest.execute_raw_call(caller, to, data)
     }
 
-    /// Execute on source with per-call bytecode coverage PCs.
+    /// Same as [`DualEvm::execute_on_source`] but feeds execution through a
+    /// [`CoverageTracker`] so each instruction's `(address, pc)` is recorded.
+    /// Returns the call's output bytes; coverage hits accumulate in `tracker`.
+    pub fn execute_on_source_with_inspector(
+        &mut self,
+        tx: &[u8],
+        tracker: &mut CoverageTracker,
+    ) -> Result<Vec<u8>, String> {
+        let (caller, to, data) = parse_execute_payload(tx)?;
+        self.source.execute_raw_call_with_inspector(caller, to, data, tracker)
+    }
+
+    /// Destination-side counterpart of [`DualEvm::execute_on_source_with_inspector`].
+    pub fn execute_on_dest_with_inspector(
+        &mut self,
+        tx: &[u8],
+        tracker: &mut CoverageTracker,
+    ) -> Result<Vec<u8>, String> {
+        let (caller, to, data) = parse_execute_payload(tx)?;
+        self.dest.execute_raw_call_with_inspector(caller, to, data, tracker)
+    }
+
+    /// Same as [`DualEvm::execute_on_source_with_inspector`] but returns
+    /// the full [`TxOutcome`] (output + logs + success flag) so callers
+    /// like the XScope baseline detector can scan emitted events. Wraps
+    /// reverts as `success = false` rather than `Err`.
+    ///
+    /// Generic over the [`Inspector`] type so callers can pass the
+    /// existing [`CoverageTracker`], the new
+    /// [`crate::storage_tracker::StorageTracker`], or composite
+    /// inspectors that delegate to several at once (the XScope baseline
+    /// uses the latter).
+    pub fn execute_on_source_with_inspector_full<I>(
+        &mut self,
+        tx: &[u8],
+        inspector: I,
+    ) -> Result<TxOutcome, String>
+    where
+        I: Inspector<ChainDb>,
+    {
+        let (caller, to, data) = parse_execute_payload(tx)?;
+        self.source
+            .execute_raw_call_with_inspector_full(caller, to, data, inspector)
+    }
+
+    /// Destination-side counterpart of
+    /// [`DualEvm::execute_on_source_with_inspector_full`].
+    pub fn execute_on_dest_with_inspector_full<I>(
+        &mut self,
+        tx: &[u8],
+        inspector: I,
+    ) -> Result<TxOutcome, String>
+    where
+        I: Inspector<ChainDb>,
+    {
+        let (caller, to, data) = parse_execute_payload(tx)?;
+        self.dest
+            .execute_raw_call_with_inspector_full(caller, to, data, inspector)
+    }
+
+    /// Execute on source with per-call bytecode coverage PCs (memB's
+    /// shape — a flat ``HashSet<usize>`` rather than the
+    /// ``(Address, usize)`` pairs the inspector path tracks). Kept as
+    /// a thin wrapper so existing call sites in fuzz_loop / scenario_sim
+    /// keep compiling without going through the inspector boilerplate.
     pub fn execute_on_source_with_coverage(
         &mut self,
         tx: &[u8],
@@ -382,13 +606,31 @@ impl DualEvm {
         self.source.execute_raw_call_with_coverage(caller, to, data)
     }
 
-    /// Execute on destination with per-call bytecode coverage PCs.
+    /// Destination-side counterpart of
+    /// [`Self::execute_on_source_with_coverage`].
     pub fn execute_on_dest_with_coverage(
         &mut self,
         tx: &[u8],
     ) -> Result<(Vec<u8>, std::collections::HashSet<usize>), String> {
         let (caller, to, data) = parse_execute_payload(tx)?;
         self.dest.execute_raw_call_with_coverage(caller, to, data)
+    }
+
+    /// Read the **token-level** balance change observed for `who` on the
+    /// source fork relative to a baseline value. Used by the XScope I-1
+    /// predicate to compare lock-event amount against real balance delta.
+    /// The baseline is whatever the caller captured before the call —
+    /// typically via [`Self::source_balance`].
+    pub fn source_balance_delta_since(&mut self, who: Address, baseline: U256) -> Result<i128, String> {
+        let now = self.source.balance_of(who)?;
+        Ok(u256_signed_delta(baseline, now))
+    }
+
+    /// Destination-side counterpart of
+    /// [`Self::source_balance_delta_since`].
+    pub fn dest_balance_delta_since(&mut self, who: Address, baseline: U256) -> Result<i128, String> {
+        let now = self.dest.balance_of(who)?;
+        Ok(u256_signed_delta(baseline, now))
     }
 
     /// Collect global state from both chains (balances for tracked addresses + block metadata).

@@ -5,7 +5,9 @@
   "incident_date_utc": "2022-02-02",
   "loss_usd_estimate": 326000000,
   "attack_type": "signature_forgery",
-  "vulnerability_classes": ["V1"],
+  "vulnerability_classes": [
+    "V1"
+  ],
   "attack_stage": "source_chain",
   "source_chain": {
     "name": "solana",
@@ -27,13 +29,13 @@
       "address": "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B",
       "chain": "destination",
       "etherscan_url": "https://etherscan.io/address/0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B",
-      "role": "Wormhole Core Bridge on Ethereum — verifies guardian-signed VAAs (parseAndVerifyVM). Modelled on EVM by contracts/WormholeCore.sol."
+      "role": "Wormhole Core Bridge on Ethereum \u2014 verifies guardian-signed VAAs (parseAndVerifyVM). Modelled on EVM by contracts/WormholeCore.sol."
     },
     "token_bridge_eth": {
       "address": "0x3ee18B2214AFF97000D974cf647E7C347E8fa585",
       "chain": "destination",
       "etherscan_url": "https://etherscan.io/address/0x3ee18B2214AFF97000D974cf647E7C347E8fa585",
-      "role": "Wormhole Token Bridge on Ethereum — burns/mints wrapped assets in response to verified VAAs. Used by attacker to bridge 93,750 wETH back from Solana to Ethereum after the forged mint."
+      "role": "Wormhole Token Bridge on Ethereum \u2014 burns/mints wrapped assets in response to verified VAAs. Used by attacker to bridge 93,750 wETH back from Solana to Ethereum after the forged mint."
     },
     "weth_ethereum": {
       "address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
@@ -43,7 +45,7 @@
     }
   },
   "non_evm_simulation": {
-    "reason": "The exploit primary chain (Solana) is non-EVM and cannot be replayed in revm. The reconstruction in contracts/ models the trust boundary that broke (verify_signatures accepting an unauthenticated Sysvar Instructions account) on EVM via WormholeCore.verifySignaturesLegacy. Full Solana-side reproduction would require an SVM harness — see paper Section 6.",
+    "reason": "The exploit primary chain (Solana) is non-EVM and cannot be replayed in revm. The reconstruction in contracts/ models the trust boundary that broke (verify_signatures accepting an unauthenticated Sysvar Instructions account) on EVM via WormholeCore.verifySignaturesLegacy. Full Solana-side reproduction would require an SVM harness \u2014 see paper Section 6.",
     "modelled_path": [
       "Solana verify_signatures (vulnerable) -> WormholeCore.verifySignaturesLegacy",
       "Solana complete_wrapped -> TokenBridge.completeTransfer",
@@ -71,11 +73,11 @@
   },
   "references": [
     {
-      "title": "Extropy IO — Solana Wormhole hack post-mortem analysis",
+      "title": "Extropy IO \u2014 Solana Wormhole hack post-mortem analysis",
       "url": "https://extropy-io.medium.com/solanas-wormhole-hack-post-mortem-analysis-3b68b9e88e13"
     },
     {
-      "title": "Rekt News — Wormhole Rekt",
+      "title": "Rekt News \u2014 Wormhole Rekt",
       "url": "https://rekt.news/wormhole-rekt/"
     },
     {
@@ -96,5 +98,14 @@
   "reporting": {
     "table_row": 2,
     "loss_usd_confidence": "estimate"
+  },
+  "address_aliases": {
+    "WormholeCore": "wormhole_core_eth",
+    "TokenBridge": "token_bridge_eth",
+    "WrappedAsset": "weth_ethereum"
+  },
+  "auth_witness": {
+    "kind": "mpc",
+    "contract_key": "wormhole_core_eth"
   }
 }

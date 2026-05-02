@@ -1,0 +1,32 @@
+{
+  "tool": "smartaxe",
+  "tool_type": "static_analysis",
+  "source": "Liao, Z., Nan, Y., Liang, H., Hao, S., Zhai, J., Wu, J., Zheng, Z. — \"SmartAxe: Detecting Cross-Chain Vulnerabilities in Bridge Smart Contracts via Fine-Grained Static Analysis\", FSE 2024 (Proc. ACM Softw. Eng., Vol. 1, FSE, Article 12).",
+  "doi_or_url": "https://doi.org/10.1145/3643738 (arXiv: https://arxiv.org/abs/2406.15999)",
+  "extraction_date": "2026-04-28",
+  "methodology_note": "Per SmartAxe paper §6 the manual eval set is '16 vulnerable cross-chain bridge applications (203 smart contracts) drawn from 20 real CCV attacks'. The paper reports aggregate metrics (precision 84.95%, recall 89.77%) but does not enumerate the 16 bridges in a single table within the publicly accessible HTML/PDF, and the figshare artifact is access-controlled (HTTP 403). Only PolyNetwork, ChainSwap and ThORChain are named explicitly as motivating examples. To avoid overclaiming we mark every per-bridge cell null with notes; if the artifact becomes accessible later the file can be updated. SmartAxe is static analysis — when populated, tte_seconds should hold per-contract analysis wall-clock, not fuzz-style time-to-find.",
+  "aggregate_metrics_from_paper": {
+    "precision": 0.8495,
+    "recall": 0.8977,
+    "ccvs_in_manual_dataset": 88,
+    "bridge_apps_in_manual_dataset": 16,
+    "smart_contracts_in_manual_dataset": 203
+  },
+  "results": {
+    "polynetwork": {"detected": null, "tte_seconds": null, "tte_std": null, "note": "Named in §1 of paper as a $600M access-control failure. Likely in the 16-bridge eval set, but per-bridge detection not published — leaving null until verified from artifact."},
+    "wormhole":    {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not enumerated in publicly accessible paper materials"},
+    "ronin":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not enumerated in publicly accessible paper materials"},
+    "nomad":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not enumerated in publicly accessible paper materials"},
+    "harmony":     {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not enumerated in publicly accessible paper materials"},
+    "multichain":  {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not enumerated in publicly accessible paper materials"},
+    "socket":      {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not enumerated in publicly accessible paper materials"},
+    "orbit":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not enumerated in publicly accessible paper materials"},
+    "gempad":      {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not enumerated in publicly accessible paper materials"},
+    "fegtoken":    {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not enumerated in publicly accessible paper materials"},
+    "pgala":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not enumerated in publicly accessible paper materials"},
+    "qubit":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not enumerated in publicly accessible paper materials"}
+  },
+  "_instructions_for_filling": [
+    "Filled 2026-04-28 from the publicly accessible HTML render of arXiv 2406.15999 + the SmartAxe FSE 2024 paper preprint at https://people.cs.umass.edu/~juanzhai/papers/fse24liao.pdf. The figshare artifact (https://figshare.com/articles/code/FSE24-SmartAxe_artifact/24218808) returned HTTP 403 to WebFetch, so the dataset's specific 16-bridge enumeration could not be cross-checked. Update individual cells when artifact access is restored or when the paper authors publish a per-bridge breakdown."
+  ]
+}

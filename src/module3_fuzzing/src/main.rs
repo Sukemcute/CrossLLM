@@ -5,6 +5,9 @@
 
 pub mod types;
 pub mod config;
+mod baselines;
+mod contract_loader;
+mod coverage_tracker;
 mod dual_evm;
 mod fuzz_loop;
 mod mock_relay;
@@ -12,8 +15,7 @@ mod snapshot;
 mod mutator;
 mod checker;
 mod scenario_sim;
-mod coverage_tracker;
-mod contract_loader;
+mod storage_tracker;
 
 use eyre::Context;
 

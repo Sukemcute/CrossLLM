@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smartaxe-reimpl"
+version = "0.1.0"
+description = "Re-implementation of SmartAxe (Liao et al. FSE 2024) for the BridgeSentry RQ1 baseline track"
+readme = "README.md"
+requires-python = ">=3.10,<3.15"
+authors = [{ name = "BridgeSentry team" }]
+license = { text = "MIT" }
+dependencies = [
+    "slither-analyzer>=0.10.0,<0.12",
+    "networkx>=3.1,<4",
+    "pydantic>=2.5,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+]
+
+[project.scripts]
+smartaxe-reimpl = "smartaxe_reimpl.__main__:main"
+
+[tool.setuptools]
+packages = ["smartaxe_reimpl"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q"

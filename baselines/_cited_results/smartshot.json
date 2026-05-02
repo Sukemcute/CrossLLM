@@ -1,0 +1,31 @@
+{
+  "tool": "smartshot",
+  "tool_type": "snapshot_fuzzer_mutable",
+  "source": "Liu, M. et al. — \"SmartShot: Hunt Hidden Vulnerabilities in Smart Contracts using Mutable Snapshots\", FSE 2025 (Proc. ACM Softw. Eng., Vol. 2, FSE).",
+  "doi_or_url": "https://doi.org/10.1145/3715714 (FSE 2025 program: https://conf.researchr.org/details/fse-2025/fse-2025-research-papers/11/SmartShot-Hunt-Hidden-Vulnerabilities-in-Smart-Contracts-using-Mutable-Snapshots)",
+  "extraction_date": "2026-04-28",
+  "methodology_note": "SmartShot is a snapshot fuzzer that targets broad DeFi vulnerability classes (reentrancy, access control, arithmetic, etc.) on a corpus of 42,738 real-world Ethereum smart contracts. Per the published abstract it identifies 2,150 vulnerable contracts (2.1×-13.7× more than ItyFuzz/Smartian) and 24 0-days in the latest 10,000 contracts. Its evaluation does not target the specific cross-chain bridge incidents in our 12-benchmark set — vulnerability classes are mismatched (DeFi protocol bugs vs cross-chain semantic invariants). Cells therefore stay null with a domain-mismatch note. The aggregate fuzzing-speedup figures are recorded separately in case they are useful as a sanity reference for the BridgeSentry vs ItyFuzz comparison.",
+  "aggregate_metrics_from_paper": {
+    "vulnerable_contracts_found": 2150,
+    "corpus_size": 42738,
+    "speedup_vs_state_of_the_art": "4.8x-20.2x",
+    "zero_days_in_latest_10k": 24
+  },
+  "results": {
+    "polynetwork": {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — SmartShot eval set is general DeFi contracts, not cross-chain bridge incidents"},
+    "wormhole":    {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — SmartShot eval set is general DeFi contracts"},
+    "ronin":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — SmartShot eval set is general DeFi contracts"},
+    "nomad":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — SmartShot eval set is general DeFi contracts"},
+    "harmony":     {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — SmartShot eval set is general DeFi contracts"},
+    "multichain":  {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — SmartShot eval set is general DeFi contracts"},
+    "socket":      {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — SmartShot eval set is general DeFi contracts"},
+    "orbit":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — SmartShot eval set is general DeFi contracts"},
+    "gempad":      {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — SmartShot eval set is general DeFi contracts"},
+    "fegtoken":    {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — SmartShot eval set is general DeFi contracts"},
+    "pgala":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — SmartShot eval set is general DeFi contracts"},
+    "qubit":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "domain mismatch — SmartShot eval set is general DeFi contracts"}
+  },
+  "_instructions_for_filling": [
+    "Filled 2026-04-28 from the FSE 2025 program page + ACM DOI 10.1145/3715714. SmartShot does not enumerate per-bridge results because its evaluation domain is general DeFi vulnerability discovery on 42,738 contracts — not the cross-chain bridge incident set we benchmark. Per-bridge cells therefore stay null with a 'domain mismatch' note. Update if a SmartShot follow-up evaluates on individual bridge incidents."
+  ]
+}

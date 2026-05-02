@@ -1,0 +1,53 @@
+{
+  "tool": "gptscan",
+  "tool_type": "llm_static",
+  "source": "Sun, Y., Wu, D., Xue, Y., Liu, H., Wang, H., Xu, Z., Xie, X., Liu, Y. — \"GPTScan: Detecting Logic Vulnerabilities in Smart Contracts by Combining GPT with Program Analysis\", ICSE 2024.",
+  "doi_or_url": "https://doi.org/10.1145/3597503.3639117 (arXiv: https://arxiv.org/abs/2308.03314)",
+  "extraction_date": "2026-04-28",
+  "methodology_note": "GPTScan is hybrid LLM + static analysis covering 10 logic-vulnerability scenarios (e.g. risky first deposit, wrong checkpoint order, unauthorised access). Original eval uses three datasets — Web3Bugs (DeFi audit findings), DefiHacks (13 incidents 2021-22, all non-bridge: PancakeBunny, OneRingFinance, InverseFinance, EGDFinance, etc.), and Top200 (top-200 DeFi tokens). None of the 12 cross-chain bridge incidents we benchmark appear in those datasets, so all 'detected' cells from the paper would be 'not tested'. We additionally have our own self-host smoke runs on Nomad + Qubit (see baselines/gptscan/INSTALL.md): both `detected: false` — GPTScan's 10 DeFi rules cover token/lending bugs, not bridge protocol semantic invariants like cross-chain replay or message-root forgery. This is consistent with GPTScan paper §5.3's observation that bridge-class bugs fall outside its rule set.",
+  "aggregate_metrics_from_paper": {
+    "precision_token_contracts": 0.90,
+    "precision_large_projects_web3bugs": 0.5714,
+    "recall_logic_vulns": ">0.70",
+    "new_vulnerabilities_found": 9,
+    "avg_scan_time_per_kloc_seconds": 14.39,
+    "avg_cost_per_kloc_usd": 0.01,
+    "datasets_in_paper": ["Web3Bugs", "DefiHacks (13 non-bridge incidents)", "Top200"]
+  },
+  "self_run_smoke": {
+    "completed_on": "2026-04-27",
+    "model_used": "NVIDIA NIM gpt-oss-120b (OpenAI-compatible endpoint)",
+    "benchmarks_run": ["nomad", "qubit"],
+    "outcome": "both detected=false — GPTScan's 10 DeFi rules don't match bridge-class bugs",
+    "matches_paper_expectation": true
+  },
+  "results": {
+    "polynetwork": {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not tested in original paper (DefiHacks dataset = 13 non-bridge incidents); BridgeSentry team smoke not yet run on this benchmark"},
+    "wormhole":    {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not tested in original paper; BridgeSentry team smoke not yet run"},
+    "ronin":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not tested in original paper; BridgeSentry team smoke not yet run"},
+    "nomad":       {"detected": false, "tte_seconds": null, "tte_std": null, "note": "BridgeSentry team self-host smoke 2026-04-27 (NVIDIA NIM gpt-oss-120b): GPTScan's 10 DeFi rules do not pattern-match the Nomad zero-root verification bypass — detected=false as expected per paper §5.3"},
+    "harmony":     {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not tested in original paper; BridgeSentry team smoke not yet run"},
+    "multichain":  {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not tested in original paper; BridgeSentry team smoke not yet run"},
+    "socket":      {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not tested in original paper; BridgeSentry team smoke not yet run"},
+    "orbit":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not tested in original paper; BridgeSentry team smoke not yet run"},
+    "gempad":      {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not tested in original paper; BridgeSentry team smoke not yet run"},
+    "fegtoken":    {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not tested in original paper; BridgeSentry team smoke not yet run"},
+    "pgala":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not tested in original paper; BridgeSentry team smoke not yet run"},
+    "qubit":       {"detected": false, "tte_seconds": null, "tte_std": null, "note": "BridgeSentry team self-host smoke 2026-04-27: GPTScan's 10 DeFi rules do not pattern-match the Qubit fake-deposit / native-path bypass — detected=false. Same expected outcome as Nomad."}
+  },
+  "_self_host_status": {
+    "completed_steps": [
+      "git clone GPTScan/GPTScan",
+      "pip install requirements (minus pysha3 / dbus-python / falcon-analyzer)",
+      "pip install --no-deps falcon-analyzer (avoid pysha3 conflict)",
+      "create sha3 shim using pycryptodome Keccak",
+      "pip install z3-solver antlr4-python3-runtime tiktoken",
+      "patch chatgpt_api.py for NIM endpoint + model env vars (script: baselines/gptscan/patch_chatgpt_api.py)",
+      "sudo apt install default-jre default-jdk python3.11-venv (Member A 2026-04-27)",
+      "smoke run on Nomad + Qubit — both detected=false (matches paper expectation)"
+    ],
+    "remaining_steps": [
+      "loop over remaining 10 benchmarks × 20 runs (~40h overnight; pending after Phase D1 BridgeSentry sweep)"
+    ]
+  }
+}

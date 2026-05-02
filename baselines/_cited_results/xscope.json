@@ -1,0 +1,25 @@
+{
+  "tool": "xscope",
+  "tool_type": "rule_based_detector",
+  "source": "Zhang, J., Gao, J., Li, Y., Chen, Z., Guan, Z., Chen, Z. — \"Xscope: Hunting for Cross-Chain Bridge Attacks\", ASE 2022.",
+  "doi_or_url": "https://doi.org/10.1145/3551349.3559520 (arXiv: https://arxiv.org/abs/2208.07119)",
+  "extraction_date": "2026-04-28",
+  "methodology_note": "XScope is a rule-based detector running on transaction streams — it ingests on-chain transactions and applies hand-written invariants (Inconsistent Event Parsing, Unauthorized Unlocking, Unrestricted Deposit Emitting). Its 'detection' metric is the count of suspicious transactions flagged, not a fuzz-style time-to-find. Original paper §5 evaluates on 4 bridges: THORChain, pNetwork, Anyswap, and Qubit Bridge (per https://github.com/xscope-tool/results). For our 12 benchmarks: only Qubit is a clean match. Multichain (in our benchmark) is the post-rebrand of Anyswap, but XScope's Anyswap evaluation covers earlier 'unauthorized unlocking' attacks — not the 2023 MPC-key compromise we benchmark — so we mark Multichain null with a note. THORChain + pNetwork are not in our benchmark set.",
+  "results": {
+    "polynetwork": {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not tested in original paper"},
+    "wormhole":    {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not tested in original paper"},
+    "ronin":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not tested in original paper"},
+    "nomad":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not tested in original paper"},
+    "harmony":     {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not tested in original paper"},
+    "multichain":  {"detected": null, "tte_seconds": null, "tte_std": null, "note": "XScope evaluated Anyswap (predecessor of Multichain) — 4 txs flagged for unauthorized unlocking on ETH/BSC/Fantom; that is a different incident from our 2023 MPC-key compromise benchmark, so not a like-for-like comparison."},
+    "socket":      {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not tested in original paper"},
+    "orbit":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not tested in original paper"},
+    "gempad":      {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not tested in original paper"},
+    "fegtoken":    {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not tested in original paper"},
+    "pgala":       {"detected": null, "tte_seconds": null, "tte_std": null, "note": "not tested in original paper"},
+    "qubit":       {"detected": true, "tte_seconds": null, "tte_std": null, "note": "XScope §5: 'Unrestricted Deposit Emitting' rule flagged 20 txs from the $80M Qubit Bridge attack (Jan 2022). Notably one suspicious tx detected 43 days before the major attack. TTE undefined — XScope is a per-tx classifier, not a fuzzer."}
+  },
+  "_instructions_for_filling": [
+    "Filled 2026-04-28 from the public XScope results repo: https://github.com/xscope-tool/results — README + folder structure list the 4 evaluated bridges (THORChain, pNetwork, Anyswap, Qubit) and the per-bridge transactions flagged. Original paper PDF (arXiv 2208.07119) was not directly readable via WebFetch (binary), so coverage was reconstructed from the artifact repo's structure rather than from a numeric Table N. Update if/when paper Tables are quoted directly."
+  ]
+}

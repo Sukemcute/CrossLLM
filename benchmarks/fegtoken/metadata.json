@@ -5,7 +5,10 @@
   "incident_date_utc": "2022-04-28",
   "loss_usd_estimate": 1300000,
   "attack_type": "flash_loan_role_compromise",
-  "vulnerability_classes": ["V2", "V4"],
+  "vulnerability_classes": [
+    "V2",
+    "V4"
+  ],
   "attack_stage": "source_chain",
   "source_chain": {
     "name": "bsc",
@@ -18,7 +21,7 @@
     "rpc_env": "ETH_RPC_URL"
   },
   "fork": {
-    "block_number": 17127537,
+    "block_number": 17832802,
     "first_exploit_block": 17127538,
     "repro_rpc_port": 8545
   },
@@ -27,13 +30,13 @@
       "address": "0x4b9be7e93f02d94c87c20cd71a90b6f5a3c3ca42",
       "chain": "source",
       "bscscan_url": "https://bscscan.com/address/0x4b9be7e93f02d94c87c20cd71a90b6f5a3c3ca42",
-      "role": "FEGSwap router on BSC. Held the user approvals that the migrator-role drain consumed. Modelled by FEGSwap.sol — `swapToSwap` only-migrator gate is the V4 surface."
+      "role": "FEGSwap router on BSC. Held the user approvals that the migrator-role drain consumed. Modelled by FEGSwap.sol \u2014 `swapToSwap` only-migrator gate is the V4 surface."
     },
     "feg_token_bsc": {
       "address": "0xacFC95585D80Ab62f67A14C566C1b7a49Fe91167",
       "chain": "source",
       "bscscan_url": "https://bscscan.com/address/0xacFC95585D80Ab62f67A14C566C1b7a49Fe91167",
-      "role": "FEG governance/utility token on BSC. The migrator role-grant primitive that the flash loan abused lives here. Modelled by FEGToken.sol — `claimMigrator` transient-balance gate is the V2 surface."
+      "role": "FEG governance/utility token on BSC. The migrator role-grant primitive that the flash loan abused lives here. Modelled by FEGToken.sol \u2014 `claimMigrator` transient-balance gate is the V2 surface."
     },
     "feg_swap_eth": {
       "address": "0x818E2013dD7D9bF4547aaabF6B617c1262578bc7",
@@ -45,7 +48,7 @@
       "address": "0x10ED43C718714eb63d5aA57B78B54704E256024E",
       "chain": "source",
       "bscscan_url": "https://bscscan.com/address/0x10ED43C718714eb63d5aA57B78B54704E256024E",
-      "role": "PancakeSwap V2 Router served as the flash-loan venue (via pair contract flash callback). Modelled in the benchmark by FlashLoanProvider.sol — itself not vulnerable; correctly enforces post-callback balance reconciliation."
+      "role": "PancakeSwap V2 Router served as the flash-loan venue (via pair contract flash callback). Modelled in the benchmark by FlashLoanProvider.sol \u2014 itself not vulnerable; correctly enforces post-callback balance reconciliation."
     },
     "attacker": {
       "address": "0x73B359D5da488eB2e97990619Fa17e7C18ad3D89",
@@ -58,8 +61,8 @@
     "vulnerable_pattern": "Two-stage chain. Stage 1: FEGToken.claimMigrator gates the migrator role on a transient balance threshold (>=10% of supply at the moment of the call). Stage 2: FEGSwap.swapToSwap gates pulling user approvals on `caller == migrator()`. Each individual gate looks reasonable in isolation; the composition is what breaks.",
     "verification_bypass": "Flash-loan amplification temporarily inflates the attacker's FEGToken balance for the duration of one transaction, satisfying claimMigrator's threshold gate. The migrator assignment persists after the flash loan repays. Inside the same callback the attacker calls swapToSwap with `from = victim, to = attacker, amount = victim_allowance`, draining unrelated users' approvals to FEGSwap.",
     "affected_logic": [
-      "FEGToken.claimMigrator (V2 surface — transient balance defeats the gate)",
-      "FEGSwap.swapToSwap (V4 surface — migrator role grants approval-pulling power)",
+      "FEGToken.claimMigrator (V2 surface \u2014 transient balance defeats the gate)",
+      "FEGSwap.swapToSwap (V4 surface \u2014 migrator role grants approval-pulling power)",
       "Flash-loan callback (precondition; the loan provider itself is not at fault)"
     ],
     "notes": "Classified V2+V4 because the exploit chains a replay-style flash loan (V2) into a privilege escalation (V4). Either gate alone would be defensible; the composition + the lack of a time-locked confirmation step on migrator-role changes is the architectural root cause."
@@ -71,11 +74,11 @@
   },
   "references": [
     {
-      "title": "PeckShield — FEGtoken Incident, April 2022",
+      "title": "PeckShield \u2014 FEGtoken Incident, April 2022",
       "url": "https://peckshield.medium.com/fegtoken-incident-april-2022-a26793a1a35e"
     },
     {
-      "title": "Rekt News — FEG Rekt",
+      "title": "Rekt News \u2014 FEG Rekt",
       "url": "https://rekt.news/feg-rekt/"
     },
     {
@@ -92,5 +95,33 @@
   "reporting": {
     "table_row": 10,
     "loss_usd_confidence": "estimate"
+  },
+  "address_aliases": {
+    "FEGSwap": "feg_swap_eth",
+    "FEGToken": "feg_token_bsc",
+    "MockToken": "feg_token_bsc",
+    "FlashLoanProvider": "flashloan_provider",
+    "AuthorizedRelayer": "feg_swap_bsc",
+    "BridgeContract": "feg_swap_bsc",
+    "BridgeFeeManager": "feg_swap_bsc",
+    "BridgeRelay": "feg_swap_bsc",
+    "MessageBridge": "feg_swap_bsc",
+    "Relay": "feg_swap_bsc",
+    "RelayHub": "feg_swap_bsc",
+    "RelayNode_Compromised": "feg_swap_bsc",
+    "RelayX": "feg_swap_bsc",
+    "SocketRelay": "feg_swap_bsc",
+    "AttackerContract": "attacker",
+    "AttackerRelayProxy": "attacker"
+  },
+  "auth_witness": {
+    "kind": "none",
+    "contract_key": "feg_token_bsc"
+  },
+  "exploit_replay": {
+    "rpc_env": "BSC_ARCHIVE_RPC_URL",
+    "tx_hashes": [
+      "0x77cf448ceaf8f66e06d1537ef83218725670d3a509583ea0d161533fda56c063"
+    ]
   }
 }

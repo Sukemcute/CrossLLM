@@ -5,7 +5,10 @@
   "incident_date_utc": "2023-07-06",
   "loss_usd_estimate": 126000000,
   "attack_type": "mpc_compromise",
-  "vulnerability_classes": ["V2", "V4"],
+  "vulnerability_classes": [
+    "V2",
+    "V4"
+  ],
   "attack_stage": "off_chain",
   "source_chain": {
     "name": "ethereum",
@@ -18,7 +21,7 @@
     "rpc_env": "FANTOM_RPC_URL"
   },
   "fork": {
-    "block_number": 17529623,
+    "block_number": 17664130,
     "first_exploit_block": 17529624,
     "repro_rpc_port": 8545
   },
@@ -39,31 +42,31 @@
       "address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
       "chain": "source",
       "etherscan_url": "https://etherscan.io/address/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-      "role": "WETH leg — ~$21M drained."
+      "role": "WETH leg \u2014 ~$21M drained."
     },
     "usdc_ethereum": {
       "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
       "chain": "source",
       "etherscan_url": "https://etherscan.io/address/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-      "role": "USDC — ~$53M drained, the largest single asset."
+      "role": "USDC \u2014 ~$53M drained, the largest single asset."
     },
     "usdt_ethereum": {
       "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
       "chain": "source",
       "etherscan_url": "https://etherscan.io/address/0xdAC17F958D2ee523a2206206994597C13D831ec7",
-      "role": "USDT — ~$6M drained."
+      "role": "USDT \u2014 ~$6M drained."
     },
     "wbtc_ethereum": {
       "address": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
       "chain": "source",
       "etherscan_url": "https://etherscan.io/address/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
-      "role": "WBTC — ~$8M drained."
+      "role": "WBTC \u2014 ~$8M drained."
     },
     "dai_ethereum": {
       "address": "0x6B175474E89094C44Da98b954EedeAC495271d0F",
       "chain": "source",
       "etherscan_url": "https://etherscan.io/address/0x6B175474E89094C44Da98b954EedeAC495271d0F",
-      "role": "DAI — ~$16M drained."
+      "role": "DAI \u2014 ~$16M drained."
     },
     "mpc_signer_address": {
       "address": "0x9d57b4eb6388d3f1ca7d9a4c4ef79e2bf01dd13c",
@@ -74,13 +77,13 @@
     "attacker": {
       "address": "0x0d043128146654C7683Fbf30ac98D7B2285DeD00",
       "chain": "source",
-      "role": "Placeholder for the attacker EOA cluster that received the 6 large drain transactions over ~24 hours. Real attribution is unconfirmed as of this writing — successor staff or coercion against the CEO's contacts are the leading hypotheses (see ChainArgos timeline).",
+      "role": "Placeholder for the attacker EOA cluster that received the 6 large drain transactions over ~24 hours. Real attribution is unconfirmed as of this writing \u2014 successor staff or coercion against the CEO's contacts are the leading hypotheses (see ChainArgos timeline).",
       "is_eoa": true
     }
   },
   "mpc_simulation": {
     "reason": "Multichain's cross-chain authorisation in production used a Threshold Signature Scheme (TSS) / Multi-Party Computation (MPC) ceremony among a federated set of nodes. The ceremony produced ONE aggregate ECDSA signature per cross-chain action; the on-chain contract verified that single aggregate signature without seeing the partial signatures or the participating set. Solidity cannot verify TSS partial-signature protocols faithfully, so this benchmark **degrades to a 1-of-1 multi-sig** in which the lone signer represents the post-MPC aggregate output.",
-    "implication": "The compromise model is 'the single administrator that controlled the MPC ceremony is now hostile' — equivalent to handing the lone signer's private key to the attacker. Module 1 should infer the same `validator_set_authority` invariant pattern as Ronin/Harmony (modulo N=1, K=1). Module 2's `mpc_compromise` / `key_compromise` scenarios violate the security argument by varying the off-chain administration dimension: who holds the post-aggregate key.",
+    "implication": "The compromise model is 'the single administrator that controlled the MPC ceremony is now hostile' \u2014 equivalent to handing the lone signer's private key to the attacker. Module 1 should infer the same `validator_set_authority` invariant pattern as Ronin/Harmony (modulo N=1, K=1). Module 2's `mpc_compromise` / `key_compromise` scenarios violate the security argument by varying the off-chain administration dimension: who holds the post-aggregate key.",
     "modelled_path": [
       "Production: federated MPC nodes -> TSS protocol -> aggregate ECDSA sig -> AnyCallV6Router.execute",
       "Benchmark: single trusted signer -> ECDSA sig -> MultichainAnyCallV6.execute",
@@ -97,9 +100,9 @@
     "affected_logic": [
       "MultichainAnyCallV6._validateSignatures (modelled by MockMultisig.execute with N=1, K=1)",
       "MultichainAnyCallV6.unlock (self-callable only via the multi-sig)",
-      "MPC ceremony administration (off-chain — not modelled in Solidity)"
+      "MPC ceremony administration (off-chain \u2014 not modelled in Solidity)"
     ],
-    "notes": "Classified V2+V4 because: (a) V4 — the on-chain authority was a single aggregate key whose administrative compromise is the proximate cause; (b) V2 — the ceremony itself is a replay-style invariant in the sense that a single attacker observing the aggregate signature can re-sign arbitrary withdraw-receipt digests, replaying the ceremony's authority across many fraud transactions. The CEO's prior unilateral control means the federated assumption was always degenerate; the 2023-07-06 drains made it observable on-chain."
+    "notes": "Classified V2+V4 because: (a) V4 \u2014 the on-chain authority was a single aggregate key whose administrative compromise is the proximate cause; (b) V2 \u2014 the ceremony itself is a replay-style invariant in the sense that a single attacker observing the aggregate signature can re-sign arbitrary withdraw-receipt digests, replaying the ceremony's authority across many fraud transactions. The CEO's prior unilateral control means the federated assumption was always degenerate; the 2023-07-06 drains made it observable on-chain."
   },
   "exploit_characteristics": {
     "style": "MPC ceremony collapse via off-chain administrative compromise",
@@ -122,11 +125,11 @@
   ],
   "references": [
     {
-      "title": "Fantom Foundation — Multichain Incident Statement",
+      "title": "Fantom Foundation \u2014 Multichain Incident Statement",
       "url": "https://twitter.com/FantomFDN/status/1676923210660429825"
     },
     {
-      "title": "ChainArgos — Multichain: The End",
+      "title": "ChainArgos \u2014 Multichain: The End",
       "url": "https://chainargos.com/2023/07/06/multichain-the-end/"
     },
     {
@@ -143,5 +146,18 @@
   "reporting": {
     "table_row": 6,
     "loss_usd_confidence": "estimate"
+  },
+  "address_aliases": {
+    "WrappedToken": "weth_ethereum"
+  },
+  "auth_witness": {
+    "kind": "mpc",
+    "contract_key": "multichain_router_eth"
+  },
+  "exploit_replay": {
+    "rpc_env": "ETH_RPC_URL",
+    "tx_hashes": [
+      "0x53ede4462d90978b992b0a88727de19afe4e96f0374aa1a221b8ff65fda5a6fe"
+    ]
   }
 }

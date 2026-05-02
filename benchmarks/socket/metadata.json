@@ -5,7 +5,9 @@
   "incident_date_utc": "2024-01-16",
   "loss_usd_estimate": 3300000,
   "attack_type": "missing_caller_authorization",
-  "vulnerability_classes": ["V5"],
+  "vulnerability_classes": [
+    "V5"
+  ],
   "attack_stage": "source_chain",
   "source_chain": {
     "name": "ethereum",
@@ -18,7 +20,7 @@
     "rpc_env": "ETH_RPC_URL"
   },
   "fork": {
-    "block_number": 19062800,
+    "block_number": 19021453,
     "first_exploit_block": 19062857,
     "repro_rpc_port": 8545
   },
@@ -46,7 +48,7 @@
     "verification_bypass": "Approval consent is mis-attributed: a user's prior approve(SocketGateway, X) is intended to authorize the user themselves to spend up to X via the gateway, but the gateway treats it as unconditional spending power that any caller can drive.",
     "affected_logic": [
       "SocketGateway.performAction (route #16 in production)",
-      "IERC20.transferFrom (downstream — unmodified, the bug is upstream caller-auth)"
+      "IERC20.transferFrom (downstream \u2014 unmodified, the bug is upstream caller-auth)"
     ],
     "notes": "Classified V5 (logic / business-rule bug). The pattern is the canonical 'forgot to check msg.sender' anti-pattern; what makes it expensive is the universe of pre-approved victim wallets."
   },
@@ -57,11 +59,11 @@
   },
   "references": [
     {
-      "title": "Socket Protocol — Post-Mortem",
+      "title": "Socket Protocol \u2014 Post-Mortem",
       "url": "https://socket.tech/blog/post-mortem-socket-incident-january-16-2024"
     },
     {
-      "title": "Quill Audits — Socket Hack Analysis",
+      "title": "Quill Audits \u2014 Socket Hack Analysis",
       "url": "https://www.quillaudits.com/blog/hack-analysis/socket-hack-analysis"
     },
     {
@@ -78,5 +80,21 @@
   "reporting": {
     "table_row": 7,
     "loss_usd_confidence": "estimate"
+  },
+  "address_aliases": {
+    "SocketGateway": "socket_gateway",
+    "SwapImplementationStub": "socket_gateway",
+    "MockToken": "socket_gateway"
+  },
+  "auth_witness": {
+    "kind": "none",
+    "contract_key": "socket_gateway"
+  },
+  "exploit_replay": {
+    "rpc_env": "ETH_RPC_URL",
+    "tx_hashes": [
+      "0xc6c3331fa8c2d30e1ef208424c08c039a89e510df2fb6ae31e5aa40722e28fd6",
+      "0x591d054a9db63f0976e533f447df482bed5f24d7429646570b2108a67e24ce54"
+    ]
   }
 }

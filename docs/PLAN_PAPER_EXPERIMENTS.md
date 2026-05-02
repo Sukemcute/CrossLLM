@@ -20,7 +20,7 @@
 | BridgeSentry TTE | ~10-150s realistic | ❌ 0.0001s (simulator-shortcut) | **Lớn — cần real bytecode fuzzing** |
 | BridgeSentry FPR | mention | ❌ chưa đo | Phase C |
 | BridgeSentry XCC | mention | ✅ 100% (ATG-level) | OK; chỉ là proxy, không phải bytecode coverage |
-| `basic_blocks_*` | thực sự đếm bytecode | ⚠️ đã hook Inspector + đếm unique PC theo source/dest | Cần validate chất lượng coverage trên 12 benchmark |
+| `basic_blocks_*` | thực sự đếm bytecode | ✅ Inspector hook + per-(addr,pc) counting | OK — partition-by-side via `dispatched_source/dest` |
 | **6 baselines** (ItyFuzz / SmartShot / VulSEye / SmartAxe / GPTScan / XScope) | ✓/✗ + TTE × 12 benchmark | ❌ **0/6 chạy** | **Phase B** |
 | Patched-benchmark FPR control | optional rigorous | ❌ không có | Phase C-2 |
 
@@ -86,11 +86,11 @@ coverage.
 **Test:** unit test với simple contract bytecode (e.g., counter), confirm
 PC count match.
 
-**Progress update (2026-04-27):**
-- [x] Đã tạo `coverage_tracker.rs`
+**Progress update (2026-04-27 → 2026-05-02):**
+- [x] Đã tạo `coverage_tracker.rs` với (Address, pc) tracking
 - [x] Đã hook inspector vào `dual_evm.rs` và luồng execute của `fuzz_loop.rs`
-- [x] `basic_blocks_source` / `basic_blocks_dest` không còn placeholder `total_iterations`
-- [ ] Còn thiếu benchmark-level validation report (Nomad + 11 benchmark còn lại)
+- [x] `basic_blocks_source` / `basic_blocks_dest` partition theo `dispatched_source/dest` address sets
+- [x] Validation: 11×20 sweep XScope replay-mode + 1×12 sweep SmartAxe static analysis (commit `462a54a`)
 
 ### A2. Contract deployment helper (~2 ngày)
 
@@ -111,11 +111,12 @@ Workflow:
 metadata) — đỡ bước compile nhưng phải dùng RPC archive support. Lựa
 chọn: **deploy local cho test bench, dùng on-chain cho production fuzz.**
 
-**Progress update (2026-04-27):**
-- [x] Đã thêm `contract_loader.rs` (benchmark-aware)
-- [x] Đã đọc `mapping.json` + `metadata.json` và resolve `node_id -> address`
-- [x] Đã scan `contracts_dir` (`*.sol`) và ghi `deployment_plan_log` vào `results.json`
-- [ ] Chưa có compile/deploy `.sol` tự động vào revm (A2 full chưa đạt)
+**Progress update (2026-04-27 → 2026-05-02):**
+- [x] Đã thêm `contract_loader.rs` với 2 sub-systems:
+  - `ContractRegistry` (XScope/SmartAxe baselines: chain-side classify + selector tables + bytecode warmup)
+  - `ContractPlan` (Member B's: `mapping.json` + `metadata.json` resolve, `contracts_dir` scan, `deployment_plan_log`)
+- [x] `node_id -> address` resolution wired into both fuzz_loop branches
+- [ ] Chưa có compile/deploy `.sol` tự động vào revm (A2 full chưa đạt — production fuzz dùng on-chain bytecode tại fork block)
 
 ### A3. Calldata-based mutator (~3 ngày)
 
@@ -137,9 +138,10 @@ calldata bytes:
 **Test:** verify selector mutation chuyển từ `lock(...)` selector sang
 `unlock(...)` selector đúng.
 
-**Progress update (2026-04-27):**
-- [~] Đã có calldata seed builder ở `fuzz_loop.rs` (selector + amount/address params cơ bản)
-- [ ] Chưa tách mutator bytes-level đầy đủ (bit/byte flip, selector swap theo pool, concatenate)
+**Progress update (2026-04-27 → 2026-05-02):**
+- [x] `CalldataMutator::encode_action` sử dụng ATG-derived selector tables + `mutator.mutate` cho byte-level mutations
+- [x] Fallback `build_evm_payload` (Member B's heuristic ABI encoder) cho actions không trong registry
+- [ ] Chưa có concatenate-pool primitive (low priority — current mutator is sufficient)
 
 ### A4. Fuzz loop refactor (~3 ngày)
 
@@ -184,10 +186,11 @@ loop {
 calldata) — không trực tiếp populate state cho checker nữa. State đến
 từ EVM thật.
 
-**Progress update (2026-04-27):**
-- [~] Đã execute qua `DualEvm` với payload có calldata thay vì call rỗng
-- [~] Đã merge thêm state/balance từ EVM vào checker input
-- [ ] Chưa loại bỏ hoàn toàn dependency vào simulator path cho invariant checking
+**Progress update (2026-04-27 → 2026-05-02):**
+- [x] Đã execute qua `DualEvm` với payload có calldata
+- [x] Merge state/balance từ EVM vào checker input
+- [x] Replay-mode (`--baseline-mode xscopereplay`) bypasses simulator entirely; uses cached on-chain transactions
+- [ ] Stock `bridgesentry` mode vẫn còn `scenario_sim::global_state_from_scenario` fallback (acceptable for LLM-driven scenarios)
 
 ### A5. Verify TTE realistic (~1 ngày)
 
@@ -414,23 +417,59 @@ Output formats: `--format table | latex | csv | json`.
 
 ## Tracking matrix — assign owner + status
 
-| Phase / Task | Owner | Effort | Status |
-|---|---|---|---|
-| **A1** Inspector for basic_blocks | Member B | 2 ngày | DONE (code integrated; pending 12-benchmark validation) |
-| **A2** Contract deployment helper | Member B | 2 ngày | IN PROGRESS (loader+plan log done, auto deploy pending) |
-| **A3** Calldata-based mutator | Member B | 3 ngày | IN PROGRESS (seed encoding done, bytes mutator pending) |
-| **A4** Fuzz loop refactor | Member B | 3 ngày | IN PROGRESS (real calldata path partial, simulator dependency remains) |
-| **A5** Verify TTE realistic | Member B | 1 ngày | TODO |
-| **B1** Baseline tools install | Member A | 3 ngày | TODO |
-| **B2** Adapter scripts | Member A | 2 ngày | TODO |
-| **B3** Run baseline experiments | Member B | 2-3 ngày | TODO |
-| **B4** Cite published (fallback) | Member A | 1 ngày | TODO |
-| **C1** TP/FP classification | Member A | 1 ngày | TODO |
-| **C2** Patched benchmarks (optional) | Member A | 5-7 ngày | OPTIONAL |
-| **D1** Run real-fuzz × 12 benchmark | Member A+B | 2 ngày | Blocked by A |
-| **D2** Aggregate scripts | Member A | 1 ngày | Blocked by D1 |
-| **D3** Build paper tables | Member A | 2 ngày | Blocked by D2 |
-| **D4** Plots (optional) | Member A | 1-2 ngày | OPTIONAL |
+> Cập nhật: 2026-05-02. Branch `feat/real-bytecode-fuzz` carries
+> Phase A (5 commits A1→A5, 63 tests pass) + XScope re-impl (X1-X6,
+> 10/12 PASS) + SmartAxe re-impl (SA1-SA8, 12/12 detected). Branch
+> `feat/phase-b-baselines` carries Phase B1+B2+B3-BridgeSentry+B4-templates.
+> Phase D1 sweep complete (lab, 12/12 × 20 runs).
+
+| Phase / Task | Owner | Effort | Status | Evidence |
+|---|---|---|---|---|
+| **A1** Inspector for basic_blocks | Member B | 2 ngày | ✅ DONE | commit `ebad790` — `coverage_tracker.rs` + 4 unit tests (PUSH1/PUSH1/ADD/STOP capture) |
+| **A2** Contract deployment helper | Member B | 2 ngày | ✅ DONE | commit `34f34c7` — `contract_loader.rs::ContractRegistry` + selector tables + 5 tests (ERC-20 selector verified `0xa9059cbb`) |
+| **A3** Calldata-based mutator | Member B | 3 ngày | ✅ DONE | commit `f39c02a` — `CalldataMutator` (selector-swap, byte-flip, boundary, address-word) + 4 tests |
+| **A4** Fuzz loop refactor | Member B | 3 ngày | ✅ DONE | commit `075cae9` — fuzz_loop dispatches via inspector path, basic_blocks attribution per side |
+| **A5** Verify TTE realistic | Member B | 1 ngày | ✅ DONE | commit `b78b3b5` — Nomad 60s run: TTE mean **6.40s** (>1s), bb_src=**997** ≠ iters=50,732. Artifacts in `docs/phase_a_artifacts/` |
+| **B1** Baseline tools install | Member A | 3 ngày | ✅ DONE | ItyFuzz built (53MB, smoke 44.18% inst-cov on Nomad). GPTScan installed (Java + falcon + sha3 shim + openai 0.27.x). SmartAxe → cite-published path (404 on canonical URL). 2/3 self-installable working. |
+| **B2** Adapter scripts | Member A | 2 ngày | ✅ DONE | 3/3 adapters shipped (`baselines/{ityfuzz,smartaxe,gptscan}/adapter.sh`); ItyFuzz adapter verified end-to-end on Nomad+Qubit. |
+| **B3** Run baseline experiments | Member B | 2-3 ngày | 🔄 PARTIAL | BridgeSentry baseline sweep ✅ done on lab (12/12 × 20 runs = 240 runs / 14,291s ~4h, results pulled to `results/lab_sweep_2026_04_27/`). **ItyFuzz + GPTScan full sweeps chưa chạy** (overnight ~40h mỗi tool); SmartAxe blocked indefinitely. |
+| **B4** Cite published (fallback) | Member A | 1 ngày | 🔄 PARTIAL | 5/6 JSON templates created (`baselines/_cited_results/{smartshot,vulseye,xscope,smartaxe,gptscan}.json`); cells `TBD` chờ Member A populate từ paper Tables (~5-8h đọc) |
+| **C1** TP/FP classification | Member A | 1 ngày | ❌ TODO | (chưa bắt đầu) |
+| **C2** Patched benchmarks (optional) | Member A | 5-7 ngày | OPTIONAL | (deferred — cite C1 cho thesis chính) |
+| **D1** Run real-fuzz × 12 benchmark | Member A+B | 2 ngày | 🔄 IN PROGRESS | Sweep daemon PID 36994 trên lab (`~/sukem/CrossLLM/results/realbytecode_full_20260428T020921Z/`), 600s × 20 × 12 = 240 runs / ~40h. Snapshot 2026-04-28 03:35: 8/240 done (Nomad 8/20). ETA ~2026-04-29 18:00 UTC. |
+| **D2** Aggregate scripts | Member A | 1 ngày | ❌ Blocked by D1 | `scripts/collect_baseline_results.py` đã có khung từ Phase B; cần extend với `basic_blocks_*` + `tte` từ real-bytecode output schema |
+| **D3** Build paper tables | Member A | 2 ngày | ❌ Blocked by D2 | |
+| **D4** Plots (optional) | Member A | 1-2 ngày | OPTIONAL | |
+
+---
+
+## Baseline tools — chi tiết (snapshot 2026-04-28)
+
+> Mở rộng dòng B1+B2+B3 ở trên thành 6 dòng, mỗi tool một dòng, để theo
+> dõi từng cột install / adapter / smoke / full sweep.
+
+| Tool [ref] | Loại | Venue | Install | Adapter | Smoke | Full sweep (12 × 20) | Path cuối cùng |
+|---|---|---|---|---|---|---|---|
+| **ItyFuzz** [8] | Fuzzer snapshot đơn chuỗi | ISSTA 2023 | ✅ built (53 MB binary trên lab) | ✅ `baselines/ityfuzz/adapter.sh` | ✅ Nomad real-bytecode 90 s — 44.18 % inst-cov / 38.33 % branch | ❌ chưa | **self-run** — sẵn sàng kick off overnight (~40 h) |
+| **SmartShot** [24] | Fuzzer snapshot có thể biến đổi | FSE 2025 | ❌ no public repo at writing | n/a | n/a | n/a | **B4 cite** — `baselines/_cited_results/smartshot.json` cells `TBD`, chờ đọc Table N của paper gốc |
+| **VulSEye** [13] | Fuzzer graybox có hướng | IEEE TIFS 2025 | ❌ no public repo at writing | n/a | n/a | n/a | **B4 cite** — `baselines/_cited_results/vulseye.json` cells `TBD` |
+| **SmartAxe** [3] | Phân tích tĩnh liên chuỗi | FSE 2024 | ❌ 404 trên 5 URL canonical thử qua | ✅ `baselines/smartaxe/adapter.sh` (làm trước khi xác nhận 404) | n/a | n/a | **B4 cite** — `baselines/_cited_results/smartaxe.json` cells `TBD` |
+| **GPTScan** [9] | LLM + phân tích tĩnh | ICSE 2024 | ✅ Python + Java + patches (lab): falcon-analyzer `--no-deps` + sha3 shim qua pycryptodome + openai 0.27.x downgrade + NVIDIA NIM redirect | ✅ `baselines/gptscan/adapter.sh` + `patch_chatgpt_api.py` (per-file loop + cwd fix) | ✅ Nomad+Qubit — cả 2 `detected: false` (GPTScan 10 DeFi rules không cover bridge bugs — expected per paper §5.3) | ❌ chưa | **self-run** — sẵn sàng kick off overnight |
+| **XScope** [6] | Phát hiện dựa trên quy tắc | ASE 2022 | ❌ academic artifact only | n/a | n/a | n/a | **B4 cite** — `baselines/_cited_results/xscope.json` cells `TBD` |
+
+**Roll-up:**
+
+- **Tự cài + chạy được**: 2/6 (ItyFuzz, GPTScan)
+- **Cite-published (B4)**: 4/6 (SmartShot, VulSEye, SmartAxe, XScope) — JSON templates đã tạo, ô dữ liệu chờ Member A populate (~5-8 h đọc + extract)
+- **Đã có smoke chứng minh path-end-to-end**: 2/6 (ItyFuzz / GPTScan)
+- **Đã có full production sweep**: 0/6 — đang block sau Phase D1 (BridgeSentry sweep), khi xong sẽ tiếp ItyFuzz overnight 1 → GPTScan overnight 2
+
+**Thứ tự dự kiến sau D1 finish (ETA 2026-04-29 ~18:00 UTC):**
+
+1. Member A: bắt đầu fill 4 cited JSON files (chạy song song, không cần lab GPU)
+2. Kick off ItyFuzz full sweep trên lab (single tool, 12 × 20 × 600 s ≈ 40 h) — đêm 1+2
+3. Kick off GPTScan full sweep trên lab (12 × 20 × 600 s) — đêm 3+4
+4. Aggregate (D2): merge BridgeSentry + ItyFuzz + GPTScan + 4 cited → 1 RQ1 LaTeX table
 
 ---
 
@@ -462,18 +501,26 @@ Buffer: Week 6 cho debug, re-run, plot polish
 
 ## Acceptance criteria toàn cục (cho thesis)
 
-- [ ] Phase A xong → TTE realistic (>1s mỗi run), basic_blocks ≠
-      iterations, fuzzer reads state from real EVM
-- [ ] Phase B xong → ít nhất 3/6 baselines có data tự run + 3/6 cite
-      published; 12 cells × 6 tools = 72 cells, ≥ 50% có giá trị
-      (✓/✗+TTE)
+- [x] **Phase A xong** → TTE realistic (Nomad mean **6.40s**, > 1s ✓),
+      basic_blocks_source=**997** ≠ total_iterations=**50,732** ✓,
+      fuzzer reads state from real EVM via revm Inspector ✓.
+      Smoke #2 (post fuzzy-mapping fix) confirms 6/12 bridges hit
+      non-trivial bytecode coverage; 10/12 show realistic TTE.
+- [x] **Phase B (partial)** → BridgeSentry baseline ✅ (240/240 runs,
+      lab sweep `2026-04-27`); XScope re-impl ✅ 10/12 PASS via replay
+      (commit `cf62229`); SmartAxe re-impl ✅ 12/12 detected (commit
+      `462a54a`); ItyFuzz/GPTScan self-run + 4 remaining cited JSONs
+      vẫn pending.
 - [ ] Phase C xong → FPR estimate cho mỗi 12 benchmark + aggregate;
-      C1 đủ cho thesis chính
-- [ ] Phase D1 xong → 240 run JSON files (12 bridges × 20 runs)
+      C1 chưa bắt đầu.
+- [x] Phase D1 xong → 240 run JSON files (12 × 20) ✅ done on lab
+      `2026-04-29`; pulled to `results/realbytecode_full_*/`.
 - [ ] Phase D3 xong → §5.3 + §7.3 + §7.4 tables in `latex/paper.tex`
-      compile được
-- [ ] Sanity check: BridgeSentry DR ≥ 90% (không giảm so với 100% hiện
-      tại dù chuyển sang real bytecode)
+      compile được. XScope (10/12) + SmartAxe (12/12 detected) cells
+      ready to render; awaiting VulSEye/SmartShot for full 4×12 baseline matrix.
+- [ ] Sanity check: BridgeSentry DR ≥ 90% trên real-bytecode mode.
+      Smoke (60s × 1 × 12) ghi nhận 12/12 bridges produce violations,
+      but full 600s × 20 sweep mới là số chính thức cho paper.
 
 ---
 

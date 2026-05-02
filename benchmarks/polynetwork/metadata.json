@@ -5,7 +5,10 @@
   "incident_date_utc": "2021-08-10",
   "loss_usd_estimate": 611000000,
   "attack_type": "key_compromise",
-  "vulnerability_classes": ["V3", "V4"],
+  "vulnerability_classes": [
+    "V3",
+    "V4"
+  ],
   "attack_stage": "source_chain",
   "source_chain": {
     "name": "ethereum",
@@ -39,7 +42,7 @@
       "address": "0x250e76987d838a75310c34bf422ea9f1AC4Cc906",
       "chain": "source",
       "etherscan_url": "https://etherscan.io/address/0x250e76987d838a75310c34bf422ea9f1AC4Cc906",
-      "role": "Source-chain lock proxy on Ethereum; held WETH / DAI / WBTC / SHIB / FEI before the drain. (Same as manager in this incident — manager itself custodied funds.)"
+      "role": "Source-chain lock proxy on Ethereum; held WETH / DAI / WBTC / SHIB / FEI before the drain. (Same as manager in this incident \u2014 manager itself custodied funds.)"
     }
   },
   "secondary_chains": [
@@ -64,7 +67,7 @@
       "EthCrossChainData.putCurEpochConPubKeyBytes",
       "Cross-chain proof acceptance (post-rotation it admits any attacker-signed proof)"
     ],
-    "notes": "Although classified as V4 (key compromise), the underlying mechanism is a target-whitelist failure (V3 / state desync) — the keeper key was rotated *via* the protocol's own privileged path."
+    "notes": "Although classified as V4 (key compromise), the underlying mechanism is a target-whitelist failure (V3 / state desync) \u2014 the keeper key was rotated *via* the protocol's own privileged path."
   },
   "exploit_characteristics": {
     "style": "manager-forwarded keeper hijack",
@@ -73,11 +76,11 @@
   },
   "references": [
     {
-      "title": "BlockSec — The Further Analysis of the Poly Network Attack",
+      "title": "BlockSec \u2014 The Further Analysis of the Poly Network Attack",
       "url": "https://blocksecteam.medium.com/the-further-analysis-of-the-poly-network-attack-6c459199c057"
     },
     {
-      "title": "Rekt News — Poly Network Rekt",
+      "title": "Rekt News \u2014 Poly Network Rekt",
       "url": "https://rekt.news/polynetwork-rekt/"
     },
     {
@@ -94,5 +97,19 @@
   "reporting": {
     "table_row": 1,
     "loss_usd_confidence": "estimate"
+  },
+  "address_aliases": {
+    "EthCrossChainData": "eth_cross_chain_data",
+    "EthCrossChainManager": "eth_cross_chain_manager"
+  },
+  "auth_witness": {
+    "kind": "mpc",
+    "contract_key": "eth_cross_chain_manager"
+  },
+  "exploit_replay": {
+    "rpc_env": "ETH_RPC_URL",
+    "tx_hashes": [
+      "0xb1f70464bd95b774c6ce60fc706eb5f9e35cb5f06e6cfe7c17dcda46ffd59581"
+    ]
   }
 }

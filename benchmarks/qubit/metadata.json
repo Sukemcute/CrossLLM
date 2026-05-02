@@ -5,7 +5,9 @@
   "incident_date_utc": "2022-01-27",
   "loss_usd_estimate": 80000000,
   "attack_type": "verification_bypass",
-  "vulnerability_classes": ["V1"],
+  "vulnerability_classes": [
+    "V1"
+  ],
   "attack_stage": "destination_chain",
   "source_chain": {
     "name": "ethereum",
@@ -18,7 +20,7 @@
     "rpc_env": "BSC_RPC_URL"
   },
   "fork": {
-    "block_number": 14180000,
+    "block_number": 14742532,
     "first_exploit_block": 14180001,
     "repro_rpc_port": 8545
   },
@@ -27,7 +29,7 @@
       "address": "0xc78248d676deBB4597e88071D3d889eCA70E5469",
       "chain": "destination",
       "bscscan_url": "https://bscscan.com/token/0xc78248d676deBB4597e88071D3d889eCA70E5469",
-      "role": "qXETH (xETH wrapped) on BSC — the destination-chain token minted in the exploit. Used as collateral to drain Qubit lending pool."
+      "role": "qXETH (xETH wrapped) on BSC \u2014 the destination-chain token minted in the exploit. Used as collateral to drain Qubit lending pool."
     }
   },
   "root_cause_summary": {
@@ -46,11 +48,11 @@
   },
   "references": [
     {
-      "title": "Qubit Finance — Protocol Exploit Report",
+      "title": "Qubit Finance \u2014 Protocol Exploit Report",
       "url": "https://medium.com/@QubitFin/protocol-exploit-report-305c34540fa3"
     },
     {
-      "title": "Rekt News — Qubit Rekt",
+      "title": "Rekt News \u2014 Qubit Rekt",
       "url": "https://rekt.news/qubit-rekt/"
     },
     {
@@ -67,5 +69,29 @@
   "reporting": {
     "table_row": 12,
     "loss_usd_confidence": "estimate"
+  },
+  "address_aliases": {
+    "QBridgeETH": "exploit_minted_token",
+    "QBridgeBSC": "exploit_minted_token",
+    "xQubit": "exploit_minted_token",
+    "MockToken": "exploit_minted_token",
+    "xQUBIT": "exploit_minted_token",
+    "MaliciousLock": "exploit_minted_token",
+    "QBridgeRelay": "exploit_minted_token",
+    "QubitRelay": "exploit_minted_token",
+    "RelayBSC": "exploit_minted_token",
+    "RelayNode": "exploit_minted_token",
+    "RelayOracle": "exploit_minted_token"
+  },
+  "auth_witness": {
+    "kind": "none",
+    "contract_key": "exploit_minted_token"
+  },
+  "exploit_replay": {
+    "rpc_env": "BSC_ARCHIVE_RPC_URL",
+    "tx_hashes": [
+      "0x33628dcc2ca6cd89a96d241bdf17cdc8785cf4322dcaf2c79766c990579aea02"
+    ],
+    "synthesize_unauth_lock": true
   }
 }
