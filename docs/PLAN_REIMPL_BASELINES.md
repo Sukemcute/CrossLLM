@@ -143,7 +143,7 @@ Core method §4:
 | **SA3** Implement single-contract CFG/DFG via Slither's IR | 3 ngày | `cfg_builder.py` + tests | **SPEC §2.1** (`CfgNode` dataclass), **§3** (Slither substitution for SmartDagger) | ✅ DONE — 16/16 tests pass, 8 Nomad contracts parsed end-to-end |
 | **SA4** Implement xCFG + xDFG construction (emitting/informing edges + propagation rules) | 5 ngày | `xcfg_builder.py` + `xdfg_builder.py` + tests trên Nomad | **SPEC §2.2-2.3** (Algorithm 1 build_xcfg + propagation rules), **§3** (event-signature table from `metadata.json`) | ✅ DONE — 39/39 tests; Nomad e2e: 106 BB + 87 Ef edges |
 | **SA5** Implement security check model + probabilistic pattern inference | 5 ngày | `security_checks.py` + `pattern_inference.py` + tests | **SPEC §2.4** (Table 1 SC1..SC6 + R1..R4 verbatim), **§2.5** (Table 2 P1..P5 + max-score formula), **§2.6** (detect_ccv with threshold 0.5) | ✅ DONE — 64/64 tests; Nomad e2e: 2 omissions detected, run_001.json written |
-| **SA6** Validate: reproduce PolyNetwork SC3 omission case from paper §1 | 3 ngày | reproduction report | **SPEC §8** (validation plan against polynetwork/eth-contracts@d16252b2) |
+| **SA6** Validate: reproduce PolyNetwork SC3 omission case from paper §1 | 3 ngày | reproduction report | **SPEC §8** (validation plan against polynetwork/eth-contracts@d16252b2) | ✅ DONE — `predicate_match=true`; report at [`docs/REIMPL_SMARTAXE_SA6_REPORT.md`](REIMPL_SMARTAXE_SA6_REPORT.md) |
 | **SA7** Run trên 12 benchmarks; verify per-bridge predicted detection map | ~3-4h (static) | `results/baselines/smartaxe/<bridge>/run_001.json` | **SPEC §4** (per-bridge expected SC violation map), **§7** (acceptance commands) |
 | **SA8** Update `baselines/_cited_results/smartaxe.json` → self-run version | 0.5 ngày | JSON updated | giữ schema hiện tại, replace cells |
 
@@ -238,7 +238,7 @@ ta nhận thiếu sót thành thật.
 | Phase / Sub-task | Owner | Effort | Status |
 |---|---|---|---|
 | **X1-X6** XScope re-impl + sweep | Member B | 2 tuần | ✅ DONE — 10/12 PASS, `cf62229` |
-| **SA1-SA8** SmartAxe re-impl + sweep | Member A (Python) | 4 tuần | 🔄 SA1..SA5 done — SA6-SA8 TODO |
+| **SA1-SA8** SmartAxe re-impl + sweep | Member A (Python) | 4 tuần | 🔄 SA1..SA6 done — SA7+SA8 TODO |
 | **VS1-VS7** VulSEye re-impl + sweep | Member B | 3 tuần | ⏸ SPEC done (VS1) — VS2-VS7 TODO |
 | **SS1-SS7** SmartShot re-impl + sweep | Member B (or Member A nếu B kẹt) | 3 tuần | ⏸ SPEC done (SS1) — SS2-SS7 TODO |
 | **D1** BridgeSentry sweep | (đang chạy) | ~40h | 🔄 IN PROGRESS |

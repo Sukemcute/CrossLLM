@@ -84,7 +84,7 @@ def detect_ccv(
                 violations.append(
                     Violation(
                         kind="omission",
-                        sc_id=_predict_sc_for_resource(r),
+                        sc_id=_predict_sc_for_resource(r, node),
                         location=node.location,
                         resource_name=r.name,
                         resource_kind=r.kind.value,
@@ -204,27 +204,39 @@ def _short(text: str, n: int = 60) -> str:
     return text if len(text) <= n else text[: n - 3] + "..."
 
 
-def _predict_sc_for_resource(r: Resource) -> Optional[str]:
+def _predict_sc_for_resource(r: Resource, host_node: Optional[CfgNode] = None) -> Optional[str]:
     """Best-effort guess of which SC *should* guard this resource —
     used to fill the ``sc_id`` field on omission violations so the
     SA6 / SA7 verifier can match against per-bridge expected SC maps.
 
-    Heuristic: R3 external calls → SC1 (deposit) or SC4 (withdraw)
-    depending on naming hints; R4 event emits → SC2 (input
-    validation) by default. Refined as we add bridge-specific
-    knowledge.
+    Heuristic split (R3 external calls → SC1/SC3/SC4/SC6, R4 emits →
+    SC2/SC5) consults both the resource name and (optionally) the
+    enclosing function name. Low-level forwarding calls land as SC3
+    (cross-chain-router correctness — the PolyNetwork pattern),
+    high-level transferFrom/release/verify call into the
+    deposit/withdraw paths.
     """
 
     name_lower = r.name.lower()
+    fn_lower = (host_node.function.lower() if host_node else "")
     if r.kind == ResourceKind.R3_EXTERNAL_CALL:
+        # Cross-chain router forwarding — `target.call(call_)` on the
+        # manager contract. The PolyNetwork SC3 omission lives here.
+        if "low_level_call" in name_lower:
+            return "SC3"
+        if (
+            "executecrosschain" in name_lower
+            or "verifyheader" in fn_lower
+            or "executetx" in fn_lower
+            or "router" in name_lower
+        ):
+            return "SC3"
         if "transferfrom" in name_lower:
             return "SC1"
         if "release" in name_lower or "withdraw" in name_lower:
             return "SC6"
         if "verify" in name_lower or "signature" in name_lower or "sig" in name_lower:
             return "SC4"
-        if "executecrosschain" in name_lower or "router" in name_lower:
-            return "SC3"
         return "SC4"  # default for external mutators on bridge surfaces
     if r.kind == ResourceKind.R4_EVENT_EMIT:
         if "deposit" in name_lower or "lock" in name_lower:

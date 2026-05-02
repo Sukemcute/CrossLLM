@@ -158,17 +158,40 @@ def _matches_p4(check: Check, resource: Resource) -> bool:
     """Semantic correlation — the check's expression and the
     resource's name share at least one non-trivial identifier.
 
-    "Non-trivial" = an alphanumeric token longer than 2 chars and
-    not in a stop-list of generic Solidity tokens.
+    "Non-trivial" = an alphanumeric token longer than 3 chars,
+    not a Solidity primitive type, and not a SlithIR-repr noise
+    token. Without this filtering Slither's
+    ``require(bool,string)(condition, msg)`` would always overlap
+    with low-level-call resource names like
+    ``TUPLE_0(bool,bytes) = LOW_LEVEL_CALL`` via the ``bool`` token.
     """
 
-    stop = {"address", "uint", "bytes", "true", "false", "the", "and"}
+    stop = {
+        # Generic English / Solidity stop words
+        "true", "false", "the", "and", "for",
+        # Solidity primitive types (avoid type-name overlap masquerading
+        # as semantic correlation)
+        "bool", "bytes", "string", "int", "uint", "address",
+        "mapping", "struct", "enum", "void",
+        # Common parametric width annotations
+        "bytes32", "bytes16", "bytes8", "bytes4",
+        "uint8", "uint16", "uint32", "uint64", "uint128", "uint256",
+        "int8", "int16", "int32", "int64", "int128", "int256",
+        # SlithIR / Slither expression-repr noise tokens
+        "require", "assert", "revert",
+        "tuple", "tuple_", "tmp", "ref",
+        "low_level_call", "high_level_call", "internal_call",
+        "function", "dest", "arguments", "msg",
+    }
     expr_tokens = {t.lower() for t in re.findall(r"[A-Za-z_]\w+", check.expression or "")}
     res_tokens = {t.lower() for t in re.findall(r"[A-Za-z_]\w+", resource.name or "")}
+    # Strip indexed-name suffixes Slither uses (TUPLE_0 → tuple, TMP_15 → tmp)
+    expr_tokens = {t.split("_", 1)[0] if t[:5] in {"tuple", "tmp_1", "tmp_2", "tmp_3"} else t for t in expr_tokens}
+    res_tokens = {t.split("_", 1)[0] if t[:5] in {"tuple", "tmp_1", "tmp_2", "tmp_3"} else t for t in res_tokens}
     expr_tokens -= stop
     res_tokens -= stop
-    expr_tokens = {t for t in expr_tokens if len(t) > 2}
-    res_tokens = {t for t in res_tokens if len(t) > 2}
+    expr_tokens = {t for t in expr_tokens if len(t) > 3}
+    res_tokens = {t for t in res_tokens if len(t) > 3}
     return bool(expr_tokens & res_tokens)
 
 

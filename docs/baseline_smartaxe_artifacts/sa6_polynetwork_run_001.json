@@ -1,0 +1,66 @@
+{
+  "tool": "smartaxe-reimpl",
+  "schema_version": 1,
+  "bridge_id": "polynetwork",
+  "run_id": 1,
+  "analysis_seconds": 1.681,
+  "contracts_parsed": 3,
+  "contract_names": [
+    "EthCrossChainData",
+    "EthCrossChainManager"
+  ],
+  "summary": {
+    "detected": true,
+    "n_violations": 4,
+    "fired_sc": [
+      "SC2",
+      "SC3"
+    ],
+    "expected_sc": [
+      "SC3"
+    ],
+    "predicate_match": true
+  },
+  "violations": [
+    {
+      "kind": "omission",
+      "sc_id": "SC2",
+      "location": "EthCrossChainData.putCurEpochConPubKeyBytes(bytes):1",
+      "resource_name": "KeeperRotated(?,?)",
+      "resource_kind": "R4",
+      "max_score": 0.0,
+      "description": "resource R4 'KeeperRotated(?,?)' reached at EthCrossChainData.putCurEpochConPubKeyBytes(bytes):1 with no guard above threshold 0.50 (best=0.00)",
+      "guarding_checks": []
+    },
+    {
+      "kind": "omission",
+      "sc_id": "SC2",
+      "location": "EthCrossChainData.putCurEpochConPubKeyBytes(bytes):1",
+      "resource_name": "KeeperRotated(?,?)",
+      "resource_kind": "R4",
+      "max_score": 0.0,
+      "description": "resource R4 'KeeperRotated(?,?)' reached at EthCrossChainData.putCurEpochConPubKeyBytes(bytes):1 with no guard above threshold 0.50 (best=0.00)",
+      "guarding_checks": []
+    },
+    {
+      "kind": "omission",
+      "sc_id": "SC3",
+      "location": "EthCrossChainManager.verifyHeaderAndExecuteTx(address,bytes):3",
+      "resource_name": "TUPLE_0(bool,bytes) = LOW_LEVEL_CALL, dest:target, function:call, arguments:['call_']  ",
+      "resource_kind": "R3",
+      "max_score": 0.0,
+      "description": "resource R3 \"TUPLE_0(bool,bytes) = LOW_LEVEL_CALL, dest:target, function:call, arguments:['call_']  \" reached at EthCrossChainManager.verifyHeaderAndExecuteTx(address,bytes):3 with no guard above threshold 0.50 (best=0.00)",
+      "guarding_checks": []
+    },
+    {
+      "kind": "omission",
+      "sc_id": "SC2",
+      "location": "EthCrossChainManager.verifyHeaderAndExecuteTx(address,bytes):4",
+      "resource_name": "CrossChainExecuted(?,?,?)",
+      "resource_kind": "R4",
+      "max_score": 0.0,
+      "description": "resource R4 'CrossChainExecuted(?,?,?)' reached at EthCrossChainManager.verifyHeaderAndExecuteTx(address,bytes):4 with no guard above threshold 0.50 (best=0.00)",
+      "guarding_checks": []
+    }
+  ]
+}

@@ -61,6 +61,6 @@ Per [spec §5](../../docs/REIMPL_SMARTAXE_SPEC.md#5-out-of-scope-deliberately-no
 | SA3 cfg_builder | ✅ done |
 | SA4 xCFG / xDFG | ✅ done — 39/39 tests; Nomad e2e |
 | SA5 security checks + inference | ✅ done — 64/64 tests; Nomad e2e: 2 omissions |
-| SA6 PolyNetwork validation | ⏳ |
+| SA6 PolyNetwork validation | ✅ done — `predicate_match=true`; 70/70 tests |
 | SA7 12-benchmark sweep | ⏳ |
 | SA8 self-run cited JSON | ⏳ |
