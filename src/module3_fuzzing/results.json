@@ -1,0 +1,35 @@
+{
+  "bridge_name": "nomad",
+  "run_id": 0,
+  "time_budget_s": 60,
+  "violations": [],
+  "coverage": {
+    "xcc_atg": 1.0,
+    "basic_blocks_source": 0,
+    "basic_blocks_dest": 0
+  },
+  "stats": {
+    "total_iterations": 2157716,
+    "snapshots_captured": 0,
+    "mutations_applied": 2157716,
+    "corpus_size": 256,
+    "snapshot_pool_peak": 0,
+    "contracts_scanned": 4,
+    "deployment_plan_log": [
+      "benchmark_dir=../../benchmarks/nomad",
+      "contracts_dir=../../benchmarks/nomad\\contracts",
+      "contracts_scan: 4 .sol files",
+      "source=BridgeRouter.sol",
+      "source=Message.sol",
+      "source=MockToken.sol",
+      "source=Replica.sol",
+      "node=BridgeRouter unresolved_address",
+      "node=Replica unresolved_address",
+      "node=MockToken target=0x0",
+      "node=NomadMessage unresolved_address",
+      "node=MockToken target=0x0",
+      "node=Replica unresolved_address",
+      "deploy_helper_status=planned_only (compile/deploy hook pending)"
+    ]
+  }
+}

@@ -593,6 +593,21 @@ impl DualEvm {
             .execute_raw_call_with_inspector_full(caller, to, data, inspector)
     }
 
+    /// Returns the bytecode of a contract on the source or dest chain.
+    pub fn get_code(&mut self, addr: Address) -> Result<Vec<u8>, String> {
+        if let Ok(Some(info)) = self.source.db.basic(addr) {
+            if let Some(code) = info.code {
+                return Ok(code.bytecode().to_vec());
+            }
+        }
+        if let Ok(Some(info)) = self.dest.db.basic(addr) {
+            if let Some(code) = info.code {
+                return Ok(code.bytecode().to_vec());
+            }
+        }
+        Ok(Vec::new())
+    }
+
     /// Execute on source with per-call bytecode coverage PCs (memB's
     /// shape — a flat ``HashSet<usize>`` rather than the
     /// ``(Address, usize)`` pairs the inspector path tracks). Kept as

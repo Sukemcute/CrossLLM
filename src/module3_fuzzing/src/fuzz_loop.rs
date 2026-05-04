@@ -147,10 +147,8 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     match ctx.baseline_mode {
         BaselineMode::Xscope => return run_xscope(ctx),
         BaselineMode::XscopeReplay => return run_xscope_replay(ctx),
-        // VulSEye directed fuzz loop will be wired here in VS4.
-        // For now, fall through to the default BridgeSentry loop so the
-        // binary compiles and pattern-scan unit tests can run.
-        BaselineMode::Vulseye | BaselineMode::Bridgesentry => {}
+        BaselineMode::Vulseye => return crate::baselines::vulseye::fuzz_loop_vulseye::run_vulseye(ctx),
+        BaselineMode::Bridgesentry => {}
     }
     let mutator = Mutator::with_atg(&ctx.atg);
     let mut registry = ContractRegistry::from_atg(&ctx.atg);
@@ -423,7 +421,7 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn execute_scenario(
+pub(crate) fn execute_scenario(
     scenario: &Scenario,
     ctx: &RuntimeContext,
     dual: &mut Option<DualEvm>,
@@ -582,7 +580,7 @@ fn execute_scenario(
 /// can match `lock(uint256, address)` against `lock(address,uint256)` etc.
 /// Mirrors `scenario_sim::extract_op` semantics; kept inline here to avoid
 /// exposing that function publicly outside `scenario_sim`.
-fn bare_op_lower(raw: &str) -> String {
+pub(crate) fn bare_op_lower(raw: &str) -> String {
     raw.trim()
         .split('(')
         .next()
@@ -601,7 +599,7 @@ fn bare_op_lower(raw: &str) -> String {
 // only carry a function name + a `params` JSON blob.
 // ---------------------------------------------------------------------------
 
-fn build_evm_payload(action: &crate::types::Action, to: Address) -> Vec<u8> {
+pub(crate) fn build_evm_payload(action: &crate::types::Action, to: Address) -> Vec<u8> {
     let mut payload = Vec::with_capacity(4 + 40 + 96);
     payload.extend_from_slice(default_caller().as_slice());
     payload.extend_from_slice(to.as_slice());
@@ -667,7 +665,7 @@ fn json_to_u128(v: &serde_json::Value) -> Option<u128> {
     }
 }
 
-fn merge_balances(dst: &mut HashMap<String, String>, src: HashMap<String, String>) {
+pub(crate) fn merge_balances(dst: &mut HashMap<String, String>, src: HashMap<String, String>) {
     for (k, v) in src {
         dst.entry(k).or_insert(v);
     }
@@ -675,7 +673,7 @@ fn merge_balances(dst: &mut HashMap<String, String>, src: HashMap<String, String
 
 /// Build a `caller (20) || to (20) || calldata` payload — the wire format
 /// expected by [`DualEvm::execute_on_source`] and friends.
-fn build_payload(caller: Address, to: Address, calldata: &[u8]) -> Vec<u8> {
+pub(crate) fn build_payload(caller: Address, to: Address, calldata: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(40 + calldata.len());
     out.extend_from_slice(caller.as_slice());
     out.extend_from_slice(to.as_slice());
@@ -683,7 +681,7 @@ fn build_payload(caller: Address, to: Address, calldata: &[u8]) -> Vec<u8> {
     out
 }
 
-fn total_chain_balance(chain: &ChainState) -> u128 {
+pub(crate) fn total_chain_balance(chain: &ChainState) -> u128 {
     chain
         .balances
         .values()
