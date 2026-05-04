@@ -47,6 +47,11 @@ pub enum BaselineMode {
     /// Faithfully reproduces incident behaviour so the I-5 / I-6
     /// predicates fire on real on-chain SSTORE / log patterns.
     XscopeReplay,
+    /// VulSEye re-implementation: stateful directed graybox fuzzer.
+    /// Uses code-target + state-target directed fitness (Eq. 3/5/8)
+    /// instead of BridgeSentry's invariant checker.
+    /// See `docs/REIMPL_VULSEYE_SPEC.md`.
+    Vulseye,
 }
 
 impl Default for BaselineMode {

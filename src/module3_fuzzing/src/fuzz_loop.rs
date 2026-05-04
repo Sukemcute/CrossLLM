@@ -147,7 +147,10 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     match ctx.baseline_mode {
         BaselineMode::Xscope => return run_xscope(ctx),
         BaselineMode::XscopeReplay => return run_xscope_replay(ctx),
-        BaselineMode::Bridgesentry => {}
+        // VulSEye directed fuzz loop will be wired here in VS4.
+        // For now, fall through to the default BridgeSentry loop so the
+        // binary compiles and pattern-scan unit tests can run.
+        BaselineMode::Vulseye | BaselineMode::Bridgesentry => {}
     }
     let mutator = Mutator::with_atg(&ctx.atg);
     let mut registry = ContractRegistry::from_atg(&ctx.atg);

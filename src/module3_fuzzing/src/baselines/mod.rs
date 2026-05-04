@@ -10,6 +10,8 @@
 //!
 //! Currently shipped:
 //! * [`xscope`] — six rule-based invariant predicates (X2 milestone).
+//! * [`vulseye`] — directed graybox fuzzer with code/state targets (VS2 milestone).
 
 pub mod xscope;
 pub mod xscope_adapter;
+pub mod vulseye;
