@@ -537,27 +537,14 @@ impl ContractPlan {
             benchmarks_root.to_string_lossy()
         );
 
-        let mut cmd = std::process::Command::new("solc");
-        cmd.arg("--optimize")
-            .arg("--combined-json")
-            .arg("abi,bin")
-            .arg("--base-path")
-            .arg(&workspace)
-            .arg("--allow-paths")
-            .arg(&allow);
-        for p in &sol_inputs {
-            cmd.arg(p);
-        }
-
-        let out = cmd
-            .output()
-            .map_err(|e| format!("Failed to run solc: {}", e))?;
-        if !out.status.success() {
-            return Err(format!(
-                "solc failed (--combined-json): {}",
-                String::from_utf8_lossy(&out.stderr)
-            ));
-        }
+        let out = run_solc_combined_json(&workspace, &allow, &sol_inputs, false)
+            .or_else(|first_err| {
+                if first_err.contains("Stack too deep") {
+                    run_solc_combined_json(&workspace, &allow, &sol_inputs, true)
+                } else {
+                    Err(first_err)
+                }
+            })?;
 
         let v: serde_json::Value =
             serde_json::from_slice(&out.stdout).map_err(|e| format!("solc JSON parse: {e}"))?;
@@ -704,6 +691,43 @@ fn collect_sol_files_recursive(dir: &Path) -> Vec<PathBuf> {
     }
     out.sort();
     out
+}
+
+fn run_solc_combined_json(
+    workspace: &Path,
+    allow_paths: &str,
+    sol_inputs: &[PathBuf],
+    via_ir: bool,
+) -> Result<std::process::Output, String> {
+    let mut cmd = std::process::Command::new("solc");
+    cmd.arg("--optimize")
+        .arg("--evm-version")
+        .arg("london")
+        .arg("--combined-json")
+        .arg("abi,bin")
+        .arg("--base-path")
+        .arg(workspace)
+        .arg("--allow-paths")
+        .arg(allow_paths);
+    if via_ir {
+        cmd.arg("--via-ir");
+    }
+    for p in sol_inputs {
+        cmd.arg(p);
+    }
+
+    let out = cmd
+        .output()
+        .map_err(|e| format!("Failed to run solc: {e}"))?;
+    if out.status.success() {
+        Ok(out)
+    } else {
+        Err(format!(
+            "solc failed (--combined-json{}): {}",
+            if via_ir { " --via-ir" } else { "" },
+            String::from_utf8_lossy(&out.stderr)
+        ))
+    }
 }
 
 fn decode_hex_runtime(bin_hex: &str) -> Result<Vec<u8>, String> {

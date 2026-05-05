@@ -315,11 +315,15 @@ impl ChainVm {
             EthU256::from(nonce),
         );
         let basefee = self.fork_block.basefee;
+        // Some historical fork blocks have gas limits below 30M. Keep CREATE
+        // safely under the block cap to avoid `CallerGasLimitMoreThanBlock`.
+        let block_cap = u256_to_u64_saturating(self.fork_block.gas_limit);
+        let gas_limit = 30_000_000u64.min(block_cap.saturating_sub(1).max(1_000_000));
         let tx = TxEnv {
             caller,
-            // Benchmark reconstructions can be large; keep headroom so CREATE
-            // does not fail with an out-of-gas style revert on big bytecode.
-            gas_limit: 30_000_000,
+            // Benchmark reconstructions can be large, but still must respect
+            // per-block gas limits from the historical fork block.
+            gas_limit,
             gas_price: basefee.saturating_add(U256::from(1u8)),
             gas_priority_fee: None,
             transact_to: TransactTo::Create,
@@ -452,6 +456,15 @@ fn u256_clip_to_u128(v: U256) -> u128 {
         u128::MAX
     } else {
         ((limbs[1] as u128) << 64) | (limbs[0] as u128)
+    }
+}
+
+fn u256_to_u64_saturating(v: U256) -> u64 {
+    let limbs = v.as_limbs();
+    if limbs.iter().skip(1).any(|l| *l != 0) {
+        u64::MAX
+    } else {
+        limbs[0]
     }
 }
 
