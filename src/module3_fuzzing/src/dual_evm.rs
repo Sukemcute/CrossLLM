@@ -9,7 +9,8 @@
 use std::str::FromStr;
 use std::sync::{Arc, OnceLock};
 
-use ethers_core::types::{BlockId as EthBlockId, H256 as EthH256};
+use ethers_core::types::{Address as EthAddress, BlockId as EthBlockId, H256 as EthH256, U256 as EthU256};
+use ethers_core::utils::get_contract_address;
 use ethers_providers::{Http, Middleware, Provider};
 use revm::db::{CacheDB, EthersDB};
 use revm::{
@@ -30,6 +31,16 @@ pub fn default_caller() -> Address {
     static C: OnceLock<Address> = OnceLock::new();
     *C.get_or_init(|| {
         Address::from_str("0x0000000000000000000000000000000000000001").expect("valid address")
+    })
+}
+
+/// Dedicated CREATE deployer for benchmark fixture contracts.
+/// Kept separate from [`default_caller`] so historical nonce drift on forks
+/// cannot break deterministic deployment.
+fn default_deployer() -> Address {
+    static D: OnceLock<Address> = OnceLock::new();
+    *D.get_or_init(|| {
+        Address::from_str("0x000000000000000000000000000000000000dEAD").expect("valid address")
     })
 }
 
@@ -86,6 +97,25 @@ impl ChainVm {
 
     fn fund(&mut self, addr: Address, balance: U256) {
         fund_account(&mut self.db, addr, balance);
+    }
+
+    fn prepare_deployer(&mut self, addr: Address, balance: U256) {
+        let mut info = self
+            .db
+            .basic(addr)
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| AccountInfo {
+                balance: U256::ZERO,
+                nonce: 0,
+                code_hash: KECCAK_EMPTY,
+                code: None,
+            });
+        info.balance = balance;
+        info.nonce = 0;
+        info.code_hash = KECCAK_EMPTY;
+        info.code = None;
+        self.db.insert_account_info(addr, info);
     }
 
     fn run_tx(&mut self, tx: TxEnv) -> Result<ExecutionResult, String> {
@@ -279,16 +309,23 @@ impl ChainVm {
     }
 
     fn deploy(&mut self, caller: Address, bytecode: Bytes) -> Result<Address, String> {
+        let nonce = self.nonce_hint(caller);
+        let predicted = get_contract_address(
+            EthAddress::from_slice(caller.as_slice()),
+            EthU256::from(nonce),
+        );
         let basefee = self.fork_block.basefee;
         let tx = TxEnv {
             caller,
-            gas_limit: 5_000_000,
+            // Benchmark reconstructions can be large; keep headroom so CREATE
+            // does not fail with an out-of-gas style revert on big bytecode.
+            gas_limit: 30_000_000,
             gas_price: basefee.saturating_add(U256::from(1u8)),
             gas_priority_fee: None,
             transact_to: TransactTo::Create,
             value: U256::ZERO,
             data: bytecode,
-            nonce: Some(self.nonce_hint(caller)),
+            nonce: Some(nonce),
             chain_id: Some(self.chain_id),
             access_list: Vec::new(),
             blob_hashes: Vec::new(),
@@ -306,10 +343,13 @@ impl ChainVm {
                 Output::Call(_) => Err("unexpected CALL output for CREATE".into()),
             },
             ExecutionResult::Revert { output, .. } => Err(format!(
-                "deploy reverted: 0x{}",
+                "deploy reverted: caller={caller:?} nonce={nonce} predicted={:?} revert=0x{}",
+                predicted,
                 hex::encode(output)
             )),
-            ExecutionResult::Halt { reason, .. } => Err(format!("deploy halted: {reason:?}")),
+            ExecutionResult::Halt { reason, .. } => Err(format!(
+                "deploy halted: caller={caller:?} nonce={nonce} predicted={predicted:?} reason={reason:?}"
+            )),
         }
     }
 
@@ -502,20 +542,59 @@ impl DualEvm {
         self.dest.balance_of(who)
     }
 
+    /// Reset benchmark deployer account on both forks before a fresh
+    /// compile-and-deploy batch.
+    pub fn reset_benchmark_deployer(&mut self) {
+        let bal = U256::MAX / U256::from(2u8);
+        self.source.prepare_deployer(default_deployer(), bal);
+        self.dest.prepare_deployer(default_deployer(), bal);
+    }
+
     /// Deploy contract bytecode on the **source** fork. Returns the created address.
     pub fn deploy_mock_on_source(&mut self, bytecode: &[u8]) -> Result<Address, String> {
         self.source
-            .fund(default_caller(), U256::MAX / U256::from(2u8));
+            .fund(default_deployer(), U256::MAX / U256::from(2u8));
         self.source
-            .deploy(default_caller(), Bytes::copy_from_slice(bytecode))
+            .deploy(default_deployer(), Bytes::copy_from_slice(bytecode))
     }
 
     /// Deploy contract bytecode on the **destination** fork.
     pub fn deploy_mock_on_dest(&mut self, bytecode: &[u8]) -> Result<Address, String> {
         self.dest
-            .fund(default_caller(), U256::MAX / U256::from(2u8));
+            .fund(default_deployer(), U256::MAX / U256::from(2u8));
         self.dest
-            .deploy(default_caller(), Bytes::copy_from_slice(bytecode))
+            .deploy(default_deployer(), Bytes::copy_from_slice(bytecode))
+    }
+
+    /// Next contract address that would be produced by a `CREATE` from
+    /// benchmark deployer on the **source** fork (EIP-161 nonce rules).
+    pub fn peek_next_create_address_source(&mut self) -> Result<EthAddress, String> {
+        Self::predict_next_create_address(&mut self.source, default_deployer())
+    }
+
+    /// Same as [`Self::peek_next_create_address_source`] on the **destination** fork.
+    pub fn peek_next_create_address_dest(&mut self) -> Result<EthAddress, String> {
+        Self::predict_next_create_address(&mut self.dest, default_deployer())
+    }
+
+    /// Deploy identical init bytecode on **both** forks using [`default_caller`].
+    /// Keeps CREATE address alignment when both forks start from the same
+    /// historical nonce for the deployer EOA.
+    pub fn deploy_mock_on_both(&mut self, bytecode: &[u8]) -> Result<Address, String> {
+        let src = self.deploy_mock_on_source(bytecode)?;
+        let dst = self.deploy_mock_on_dest(bytecode)?;
+        if src != dst {
+            return Err(format!(
+                "dual deploy address mismatch: source={src:?} dest={dst:?} (deployer nonces diverged?)"
+            ));
+        }
+        Ok(src)
+    }
+
+    fn predict_next_create_address(vm: &mut ChainVm, caller: Address) -> Result<EthAddress, String> {
+        let n = vm.nonce_hint(caller);
+        let eth_caller = EthAddress::from_slice(caller.as_slice());
+        Ok(get_contract_address(eth_caller, EthU256::from(n)))
     }
 
     /// Execute a transaction on the source chain.
