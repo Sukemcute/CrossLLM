@@ -515,12 +515,58 @@ impl ContractPlan {
         out
     }
 
+    pub fn compile_and_deploy(&self, dual: &mut crate::dual_evm::DualEvm) -> Result<Vec<(String, revm::primitives::Address)>, String> {
+        let sol_files = self.scan_sol_files();
+        let mut deployed = Vec::new();
+
+        for sol_path in sol_files {
+            let out = std::process::Command::new("solc")
+                .arg("--bin")
+                .arg(&sol_path)
+                .output()
+                .map_err(|e| format!("Failed to run solc: {}", e))?;
+
+            if !out.status.success() {
+                return Err(format!("solc failed for {}: {}", sol_path.display(), String::from_utf8_lossy(&out.stderr)));
+            }
+
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            let mut current_contract = String::new();
+            
+            let lines: Vec<&str> = stdout.lines().collect();
+            for i in 0..lines.len() {
+                if lines[i].starts_with("=======") && lines[i].contains(":") {
+                    let parts: Vec<&str> = lines[i].split(':').collect();
+                    if parts.len() > 1 {
+                        let name_part = parts[1].split(' ').next().unwrap_or("").trim();
+                        // name_part might be something like "ContractName" or "ContractName ======="
+                        let clean_name = name_part.trim_end_matches('=').trim();
+                        if !clean_name.is_empty() {
+                            current_contract = clean_name.to_string();
+                        }
+                    }
+                } else if lines[i].trim() == "Binary:" && i + 1 < lines.len() {
+                    let bin = lines[i+1].trim();
+                    if !bin.is_empty() && bin.len() > 10 {
+                        if let Ok(bytes) = hex::decode(bin) {
+                            let addr_src = dual.deploy_mock_on_source(&bytes)?;
+                            let _addr_dst = dual.deploy_mock_on_dest(&bytes)?;
+                            deployed.push((current_contract.clone(), addr_src));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(deployed)
+    }
+
     /// Build a human-readable deployment plan/log for current benchmark bundle.
     ///
     /// This is an A2 stepping stone before full compile+deploy helper:
     /// it records which `.sol` sources were discovered and which ATG nodes already
     /// map to concrete addresses.
-    pub fn deployment_plan_log(&self, atg: &AtgGraph) -> Vec<String> {
+    pub fn deployment_plan_log(&self, atg: &AtgGraph, is_deployed: bool) -> Vec<String> {
         let mut log = Vec::new();
         match &self.benchmark_dir {
             Some(dir) => log.push(format!("benchmark_dir={}", dir.display())),
@@ -552,7 +598,11 @@ impl ContractPlan {
             }
         }
 
-        log.push("deploy_helper_status=planned_only (compile/deploy hook pending)".to_string());
+        if is_deployed {
+            log.push("deploy_helper_status=deployed".to_string());
+        } else {
+            log.push("deploy_helper_status=planned_only (compile/deploy hook pending)".to_string());
+        }
         log
     }
 }

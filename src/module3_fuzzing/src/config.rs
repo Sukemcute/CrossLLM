@@ -52,6 +52,13 @@ pub enum BaselineMode {
     /// instead of BridgeSentry's invariant checker.
     /// See `docs/REIMPL_VULSEYE_SPEC.md`.
     Vulseye,
+    /// SmartShot re-implementation: mutable-snapshot fuzzer with taint-guided
+    /// storage mutations. Captures EVM storage snapshots at 4 opcode triggers
+    /// (SSTORE-before-JUMPI, TIMESTAMP, NUMBER, CALL), mutates tainted slots
+    /// with boundary values, and injects snapshot-based individuals into the GA
+    /// population each generation.
+    /// See `docs/REIMPL_SMARTSHOT_SPEC.md` and <https://github.com/SCFuzzing/SmartShot>.
+    Smartshot,
 }
 
 impl Default for BaselineMode {

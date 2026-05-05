@@ -83,7 +83,7 @@ pub fn init_dual_evm(ctx: &RuntimeContext) -> Option<DualEvm> {
     // Pick the EVM spec: metadata.fork.spec_id wins (needed for replays
     // of post-Cancun blocks like Gempad 44946195 which uses MCOPY); else
     // default LONDON, which covers the original 6 PASS bridges' fork
-    // blocks (12.9M ETH … 19.0M ETH, all pre-Cancun).
+    // blocks (12.9M ETH â€¦ 19.0M ETH, all pre-Cancun).
     let dual_result = if let Some(spec_str) = ctx.fork_spec_id.as_deref() {
         match parse_spec_id(spec_str) {
             Some(spec) => DualEvm::new_with_spec(
@@ -148,6 +148,7 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         BaselineMode::Xscope => return run_xscope(ctx),
         BaselineMode::XscopeReplay => return run_xscope_replay(ctx),
         BaselineMode::Vulseye => return crate::baselines::vulseye::fuzz_loop_vulseye::run_vulseye(ctx),
+        BaselineMode::Smartshot => return crate::baselines::smartshot::fuzz_loop_smartshot::run_smartshot(ctx),
         BaselineMode::Bridgesentry => {}
     }
     let mutator = Mutator::with_atg(&ctx.atg);
@@ -172,10 +173,20 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     let mut relay = MockRelay::new(RelayMode::Faithful);
     let mut dual = init_dual_evm(ctx);
 
-    // Pre-warm bytecode caches and register tracked addresses with the fork.
-    // Errors here are non-fatal (e.g. RPC throttling); we just continue and
-    // pay the latency lazily on the first fuzz tx.
+    let mut is_deployed = false;
     if let Some(d) = dual.as_mut() {
+        if !ctx.contract_plan.scan_sol_files().is_empty() {
+            match ctx.contract_plan.compile_and_deploy(d) {
+                Ok(new_addrs) => {
+                    let overrides: Vec<(String, String)> = new_addrs.into_iter().map(|(k, v)| (k, format!("{:?}", v))).collect();
+                    registry.merge_address_overrides(overrides.iter().map(|(k, v)| (k.as_str(), v.as_str())));
+                    is_deployed = true;
+                }
+                Err(e) => {
+                    panic!("Deployment validation failed: {}", e);
+                }
+            }
+        }
         let _ = registry.warmup_bytecode(d);
         let tracked = registry.all_addresses();
         if !tracked.is_empty() {
@@ -186,7 +197,7 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     // Aggregate bytecode coverage across the entire fuzzing campaign.
     let mut campaign_coverage = CoverageTracker::default();
     // Track which addresses we actually dispatched to per side. We can't
-    // rely on `registry.addresses_on(side)` alone because LLM-produced ATGs
+    // rely on egistry.addresses_on(side)` alone because LLM-produced ATGs
     // sometimes carry duplicate `node_id`s with conflicting chains, which
     // collapses chain_of_node to whatever side was inserted last. The
     // partition-by-side logic below uses these sets for accurate basic-block
@@ -235,7 +246,7 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     let mut snapshots_captured_count: u64 = pool.len() as u64;
     let mut pool_peak = pool.len() as u64;
     let contracts_scanned = ctx.contract_plan.scan_sol_files().len() as u64;
-    let deployment_plan_log = ctx.contract_plan.deployment_plan_log(&ctx.atg);
+    let deployment_plan_log = ctx.contract_plan.deployment_plan_log(&ctx.atg, is_deployed);
 
     let mut iter_checkpoint = 0u64;
     let mut edges_at_checkpoint = 0usize;
@@ -366,8 +377,8 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     // ran with a fork attached, `campaign_coverage` holds every (addr, pc)
     // pair the interpreter visited; we count hits whose address belongs to
     // each side per the registry. On no-fork runs (synthetic state only),
-    // both counts remain 0 — distinct from `total_iterations`, which is the
-    // intent (basic_blocks ≠ iterations is the paper §7.3 acceptance).
+    // both counts remain 0 â€” distinct from `total_iterations`, which is the
+    // intent (basic_blocks â‰  iterations is the paper Â§7.3 acceptance).
     // Combine dispatched-target tracking with the registry's static chain
     // assignments so we still partition correctly when a node's chain is
     // unambiguous in the ATG.
@@ -395,7 +406,7 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         // basic_blocks_source / _dest are computed above by partitioning
         // `campaign_coverage.touched` (the (Address, pc) inspector
         // accumulator) against the dispatched_source / dispatched_dest
-        // address sets — strictly more accurate than origin/main's flat
+        // address sets â€” strictly more accurate than origin/main's flat
         // `touched_source_pcs.len()` count, which loses the address
         // dimension when the same PC is hit on both sides.
         basic_blocks_source,
@@ -472,7 +483,7 @@ pub(crate) fn execute_scenario(
             // Real-bytecode path: encode action to calldata, apply one
             // mutation operator, dispatch through revm with the coverage
             // inspector attached. This is what generates real wall-clock TTE
-            // and basic-block coverage (paper §7.3).
+            // and basic-block coverage (paper Â§7.3).
             if let Some(seed) = calldata_mutator.encode_action(action, registry) {
                 let mutated = calldata_mutator.mutate(&seed.calldata, rng);
                 let payload = build_payload(default_caller(), seed.target, &mutated);
@@ -486,7 +497,7 @@ pub(crate) fn execute_scenario(
                         dispatched_dest.insert(seed.target);
                         dual_env.execute_on_dest_with_inspector(&payload, &mut iter_cov)
                     }
-                    ChainSide::Relay => Err("relay chain — not directly executed".to_string()),
+                    ChainSide::Relay => Err("relay chain â€” not directly executed".to_string()),
                 };
                 campaign_coverage.merge(&iter_cov);
                 let status = match &exec {
@@ -504,7 +515,7 @@ pub(crate) fn execute_scenario(
                     iter_cov.unique_pc_count()
                 ));
             } else if let Some(contract_node_id) = action.contract.as_deref() {
-                // Encode failed — fall back to ABI-encoded calldata via
+                // Encode failed â€” fall back to ABI-encoded calldata via
                 // `build_evm_payload` (Member B's helper from origin/main)
                 // and resolve the target address via `contract_plan` so
                 // mapping.json overrides take effect when the ATG's
@@ -542,10 +553,10 @@ pub(crate) fn execute_scenario(
         // Mark ATG edges as touched. Two complementary paths so both mock
         // fixtures and real LLM scenarios produce meaningful XCC.
         //
-        // 1. Contract-id match — mock fixtures populate `action.contract`
-        //    with a node_id (e.g. `replica`) that equals an ATG edge's src
+        // 1. Contract-id match â€” mock fixtures populate `action.contract`
+        //    with a node_id (e.g. eplica`) that equals an ATG edge's src
         //    or dst. Direct match.
-        // 2. Function-signature op match — Module 2 LLM scenarios leave
+        // 2. Function-signature op match â€” Module 2 LLM scenarios leave
         //    `action.contract` as None and put the full Solidity signature
         //    in `action.function`. We extract the bare op name from both
         //    `action.function` and `edge.function_signature`; if they
@@ -592,7 +603,7 @@ pub(crate) fn bare_op_lower(raw: &str) -> String {
 }
 
 // ---------------------------------------------------------------------------
-// `build_evm_payload` family — Member B's heuristic ABI encoder for the
+// `build_evm_payload` family â€” Member B's heuristic ABI encoder for the
 // fallback path when the registry doesn't know how to encode the action.
 // Lower-fidelity than `CalldataMutator::encode_action` (which uses ATG-derived
 // selectors + per-bridge type tables) but works on bare LLM scenarios that
@@ -671,7 +682,7 @@ pub(crate) fn merge_balances(dst: &mut HashMap<String, String>, src: HashMap<Str
     }
 }
 
-/// Build a `caller (20) || to (20) || calldata` payload — the wire format
+/// Build a `caller (20) || to (20) || calldata` payload â€” the wire format
 /// expected by [`DualEvm::execute_on_source`] and friends.
 pub(crate) fn build_payload(caller: Address, to: Address, calldata: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(40 + calldata.len());
@@ -696,7 +707,7 @@ pub(crate) fn total_chain_balance(chain: &ChainState) -> u128 {
 /// Run BridgeSentry as an XScope-style detector. Differences vs the
 /// default loop:
 ///
-/// * Each scenario runs **as-is** — no calldata mutation. The XScope
+/// * Each scenario runs **as-is** â€” no calldata mutation. The XScope
 ///   paper assays raw transaction streams; we mirror that by feeding
 ///   each Module-2 scenario action verbatim through `DualEvm`.
 /// * After every action, we capture the emitted logs via the new
@@ -704,10 +715,10 @@ pub(crate) fn total_chain_balance(chain: &ChainState) -> u128 {
 ///   relay's `parsed_log()` and per-side balance deltas, into the
 ///   [`XScopeBuilder`]. The X2 predicates I-1..I-6 then run.
 /// * Detected `XScopeViolation`s are mapped to project [`Violation`]s
-///   so the `results.json` schema is unchanged.
+///   so the esults.json` schema is unchanged.
 fn run_xscope(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     let mut registry = ContractRegistry::from_atg(&ctx.atg);
-    // Apply explicit aliases FIRST (X3-polish C2 — direct ATG node →
+    // Apply explicit aliases FIRST (X3-polish C2 â€” direct ATG node â†’
     // contracts.<key> mapping). The fuzzy substring `merge_address_overrides`
     // below only fills in addresses that are still missing, so the
     // alias-driven entries take precedence as intended.
@@ -857,7 +868,7 @@ fn run_xscope(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                 }
             }
 
-            // Recipe-driven auth witness (X3-polish C3) — replaces the
+            // Recipe-driven auth witness (X3-polish C3) â€” replaces the
             // earlier mode-only heuristic. The recipe lives in
             // metadata.auth_witness; the trace lives in scenario_storage
             // (the StorageTracker accumulated across the scenario's txs).
@@ -964,14 +975,14 @@ fn run_xscope(ctx: &RuntimeContext) -> Result<FuzzingResults> {
 }
 
 // ============================================================================
-// XScope-replay mode (X3-polish A3) — replays cached on-chain exploit txs.
+// XScope-replay mode (X3-polish A3) â€” replays cached on-chain exploit txs.
 // ============================================================================
 
 /// Replay-mode XScope detector. Reads cached exploit transactions from
 /// `<metadata_dir>/exploit_replay/cache/*.json`, dispatches each one
 /// through `dual.execute_on_source_with_inspector_full`, captures logs
 /// + storage writes, and runs all six XScope predicates against the
-/// resulting view. The intent is faithful incident reproduction —
+/// resulting view. The intent is faithful incident reproduction â€”
 /// this is what the original XScope paper does (transaction-stream
 /// detection on real on-chain history) and the only path that
 /// reliably fires I-5 / I-6 on storage / log patterns the
@@ -1004,7 +1015,7 @@ fn run_xscope_replay(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     let txs = load_replay_txs(cache_dir)?;
     if txs.is_empty() {
         return Err(eyre!(
-            "xscope-replay: no cached txs at {} — run scripts/fetch_exploit_txs.py first",
+            "xscope-replay: no cached txs at {} â€” run scripts/fetch_exploit_txs.py first",
             cache_dir.display()
         ));
     }
@@ -1054,7 +1065,7 @@ fn run_xscope_replay(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         // exploiters drain their gas wallet right after the exploit
         // and re-funded later; replaying at fork_block - 1 may catch
         // them with 0 ETH and trigger Halt::OutOfFund (no opcodes
-        // execute → bb=0). Fund unconditionally to MAX/2 wei.
+        // execute â†’ bb=0). Fund unconditionally to MAX/2 wei.
         dual.fund_source(caller, revm::primitives::U256::MAX / revm::primitives::U256::from(2u8));
 
         let mut iter_cov = CoverageTracker::default();
@@ -1064,7 +1075,7 @@ fn run_xscope_replay(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                 coverage: &mut iter_cov,
                 storage: &mut iter_storage,
             };
-            // Replay always runs on the source fork — that is where
+            // Replay always runs on the source fork â€” that is where
             // the incident transactions were originally mined. If a
             // bridge has dest-side incidents we'd add a parallel dest
             // pass; none of our 12 benchmarks need that today.
@@ -1075,12 +1086,12 @@ fn run_xscope_replay(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                 campaign_coverage.merge(&iter_cov);
                 campaign_storage.merge(&iter_storage);
 
-                // Run predicates once per tx — short scenarios so
+                // Run predicates once per tx â€” short scenarios so
                 // per-tx attribution is informative. Replay mode uses
                 // the dedicated `ingest_replay_logs_as_unlocks` path:
                 // every emitted log is recorded as an unlock-side
                 // observation, lock_events stays empty by design (the
-                // exploit tx is itself the unauth-unlock — there is no
+                // exploit tx is itself the unauth-unlock â€” there is no
                 // matching legitimate source-side lock to capture).
                 // I-5 fires for the missing ancestor, I-6 evaluates
                 // against the recipe-driven auth witness.
@@ -1093,7 +1104,7 @@ fn run_xscope_replay(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                 // because the prior submitTransaction wasn't replayed),
                 // synthesise an unlock-attempt event so I-5 / I-6 can
                 // still evaluate. The attacker's *intent* to unlock is
-                // detectable on its own and matches the spec §4
+                // detectable on its own and matches the spec Â§4
                 // expected predicate map.
                 if tx_outcome.logs.is_empty() {
                     if let Some(recipe) = ctx.auth_witness.as_ref() {
@@ -1112,7 +1123,7 @@ fn run_xscope_replay(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                 // executed against a known bridge handler, register a
                 // synthetic LockEvent with recipient=0x0 so predicate
                 // I-2 ("unrestricted_deposit_emitting") fires. The
-                // attacker's tx IS the unrestricted-emit evidence —
+                // attacker's tx IS the unrestricted-emit evidence â€”
                 // there is no real source-side lock to capture
                 // because the deposit it claims to process never
                 // existed (Qubit voteProposal is the canonical case).
@@ -1294,21 +1305,21 @@ fn decode_hex(s: &str) -> std::result::Result<Vec<u8>, String> {
 /// [`crate::baselines::xscope`] I-6 predicate consumes.
 ///
 /// Pragmatic semantics (matched against the per-bridge expected map in
-/// `docs/REIMPL_XSCOPE_SPEC.md` §4):
+/// `docs/REIMPL_XSCOPE_SPEC.md` Â§4):
 ///
-/// * **`zero_root`** (Nomad) — any SSTORE on the contract during the
+/// * **`zero_root`** (Nomad) â€” any SSTORE on the contract during the
 ///   iteration with `value = 0` AND on a slot whose first write came
 ///   from this iteration counts as a "zero-root acceptance" footprint.
 ///   Falls back to "any SSTORE on the contract" if no zero-valued
 ///   write is seen, which mirrors the Replica-style attack pattern.
-/// * **`multisig`** (Ronin / Harmony / Orbit / pgala) — count writes
+/// * **`multisig`** (Ronin / Harmony / Orbit / pgala) â€” count writes
 ///   on the contract; report `Multisig { signatures, threshold }`.
 ///   When the configured threshold is N, I-6 violates whenever
-///   observed signatures < N (Ronin's 5-of-9 forgery → 4 < 5).
-/// * **`mpc`** (Wormhole / Multichain / PolyNetwork / pgala) — any
+///   observed signatures < N (Ronin's 5-of-9 forgery â†’ 4 < 5).
+/// * **`mpc`** (Wormhole / Multichain / PolyNetwork / pgala) â€” any
 ///   SSTORE on the contract is treated as a non-canonical key write;
-///   report `Mpc { matches_canonical: false }`. Zero writes → canonical.
-/// * **anything else / no recipe** — return `AcceptableRoot` so I-6
+///   report `Mpc { matches_canonical: false }`. Zero writes â†’ canonical.
+/// * **anything else / no recipe** â€” return `AcceptableRoot` so I-6
 ///   holds. The other predicates (I-1 / I-2 / I-5) still fire on
 ///   their own evidence.
 fn derive_auth_witness(
@@ -1334,7 +1345,7 @@ fn derive_auth_witness(
         "zero_root" => {
             // Look for a write whose value=0; this matches
             // `acceptableRoot[bytes32(0)] = 1` mapping-slot semantics
-            // when the attacker-controlled message uses root=0x0 — the
+            // when the attacker-controlled message uses root=0x0 â€” the
             // mapping look-up writes the zero slot. If we see *any*
             // write on the contract we fire ZeroRoot conservatively
             // (Nomad's bug surfaces during initialize / process).
@@ -1369,7 +1380,7 @@ fn derive_auth_witness(
         // with legitimate-looking signatures). Forces I-6 to fire
         // by declaring the witness compromised. pGala (pNetwork
         // node misconfig leaking the admin key) is the canonical
-        // case — the bug isn't in the BSC contract trace, it's in
+        // case â€” the bug isn't in the BSC contract trace, it's in
         // the upstream signature pipeline.
         "compromised" => AuthWitness::Mpc {
             matches_canonical: false,
@@ -1396,7 +1407,7 @@ mod tests {
 
     #[test]
     fn bare_op_lower_matches_solidity_signatures() {
-        // Same op, different param formatting — should compare equal.
+        // Same op, different param formatting â€” should compare equal.
         assert_eq!(
             bare_op_lower("lock(uint256 amount, address token, address recipient)"),
             bare_op_lower("lock(address,uint256)")
@@ -1412,3 +1423,4 @@ mod tests {
         assert_eq!(bare_op_lower("   "), "");
     }
 }
+

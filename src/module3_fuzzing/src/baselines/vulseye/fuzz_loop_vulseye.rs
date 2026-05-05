@@ -52,7 +52,20 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     let mut all_code_targets = Vec::new();
     let mut code_distance_maps = HashMap::new();
 
+    let mut is_deployed = false;
     if let Some(d) = dual_env_opt.as_mut() {
+        if !ctx.contract_plan.scan_sol_files().is_empty() {
+            match ctx.contract_plan.compile_and_deploy(d) {
+                Ok(new_addrs) => {
+                    let overrides: Vec<(String, String)> = new_addrs.into_iter().map(|(k, v)| (k, format!("{:?}", v))).collect();
+                    registry.merge_address_overrides(overrides.iter().map(|(k, v)| (k.as_str(), v.as_str())));
+                    is_deployed = true;
+                }
+                Err(e) => {
+                    panic!("Deployment validation failed: {}", e);
+                }
+            }
+        }
         let _ = registry.warmup_bytecode(d);
         let tracked = registry.all_addresses();
         if !tracked.is_empty() {
@@ -322,7 +335,7 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             corpus_size: corpus.len() as u64,
             snapshot_pool_peak: 0,
             contracts_scanned: ctx.contract_plan.scan_sol_files().len() as u64,
-            deployment_plan_log: ctx.contract_plan.deployment_plan_log(&ctx.atg),
+            deployment_plan_log: ctx.contract_plan.deployment_plan_log(&ctx.atg, is_deployed),
         },
     })
 }

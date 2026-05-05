@@ -15,3 +15,4 @@
 pub mod xscope;
 pub mod xscope_adapter;
 pub mod vulseye;
+pub mod smartshot;
