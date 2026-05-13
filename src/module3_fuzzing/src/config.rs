@@ -27,8 +27,8 @@ use clap::{Parser, ValueEnum};
 use eyre::{Context, Result};
 use std::path::{Path, PathBuf};
 
-use crate::types::{AtgGraph, FuzzerConfig, HypothesesFile};
 use crate::contract_loader::{load_contract_plan, ContractPlan};
+use crate::types::{AtgGraph, FuzzerConfig, HypothesesFile};
 
 /// Which detection algorithm the fuzzer drives. Default is BridgeSentry's
 /// invariant checker; the other variants run re-implementations of
@@ -80,10 +80,12 @@ impl Default for BaselineMode {
 #[command(name = "bridgesentry-fuzzer")]
 #[command(version = "0.1.0")]
 #[command(about = "Cross-chain bridge vulnerability fuzzer")]
-#[command(long_about = "BridgeSentry Fuzzing Engine: Takes ATG and attack hypotheses \
+#[command(
+    long_about = "BridgeSentry Fuzzing Engine: Takes ATG and attack hypotheses \
     from semantic analysis (Module 1) and RAG scenario generation (Module 2), \
     then runs synchronized dual-EVM fuzzing with ATG-aware mutations to discover \
-    invariant violations in cross-chain bridge protocols.")]
+    invariant violations in cross-chain bridge protocols."
+)]
 pub struct CliArgs {
     /// Path to ATG JSON file (output from Module 1)
     #[arg(long, short = 'a', value_name = "FILE")]
@@ -484,14 +486,8 @@ fn resolve_config(cli: &CliArgs, base: Option<FuzzerConfig>) -> Result<FuzzerCon
         scenarios_path: cli.scenarios.to_string_lossy().to_string(),
         output_path: cli.output.to_string_lossy().to_string(),
         time_budget_s: cli.budget,
-        source_rpc: cli
-            .source_rpc
-            .clone()
-            .unwrap_or(base.source_rpc),
-        dest_rpc: cli
-            .dest_rpc
-            .clone()
-            .unwrap_or(base.dest_rpc),
+        source_rpc: cli.source_rpc.clone().unwrap_or(base.source_rpc),
+        dest_rpc: cli.dest_rpc.clone().unwrap_or(base.dest_rpc),
         source_block: cli.source_block.unwrap_or(base.source_block),
         dest_block: cli.dest_block.unwrap_or(base.dest_block),
         runs: cli.runs,
@@ -519,13 +515,22 @@ pub fn load_atg(path: &Path) -> Result<AtgGraph> {
         .wrap_err_with(|| format!("Failed to parse ATG JSON: {}", path.display()))?;
 
     if atg.nodes.is_empty() {
-        eyre::bail!("ATG has no nodes — file may be empty or malformed: {}", path.display());
+        eyre::bail!(
+            "ATG has no nodes — file may be empty or malformed: {}",
+            path.display()
+        );
     }
     if atg.edges.is_empty() {
-        eyre::bail!("ATG has no edges — file may be empty or malformed: {}", path.display());
+        eyre::bail!(
+            "ATG has no edges — file may be empty or malformed: {}",
+            path.display()
+        );
     }
     if atg.invariants.is_empty() {
-        eyre::bail!("ATG has no invariants — nothing to check: {}", path.display());
+        eyre::bail!(
+            "ATG has no invariants — nothing to check: {}",
+            path.display()
+        );
     }
 
     Ok(atg)
@@ -583,9 +588,7 @@ fn validate_context(
             eprintln!(
                 "WARNING: Scenario '{}' targets invariant '{}' which is not in the ATG. \
                  Available invariants: {:?}",
-                scenario.scenario_id,
-                scenario.target_invariant,
-                invariant_ids
+                scenario.scenario_id, scenario.target_invariant, invariant_ids
             );
             // Warning only, not fatal — the scenario might still find bugs
         }
@@ -620,31 +623,16 @@ impl RuntimeContext {
         println!("║ Scenarios:       {:<43}║", self.config.scenarios_path);
         println!("║ Output:          {:<43}║", self.config.output_path);
         println!("╠══════════════════════════════════════════════════════════════╣");
-        println!(
-            "║ ATG Nodes:       {:<43}║",
-            self.atg.nodes.len()
-        );
-        println!(
-            "║ ATG Edges:       {:<43}║",
-            self.atg.edges.len()
-        );
-        println!(
-            "║ Invariants:      {:<43}║",
-            self.atg.invariants.len()
-        );
+        println!("║ ATG Nodes:       {:<43}║", self.atg.nodes.len());
+        println!("║ ATG Edges:       {:<43}║", self.atg.edges.len());
+        println!("║ Invariants:      {:<43}║", self.atg.invariants.len());
         println!(
             "║ Scenarios:       {:<43}║",
             self.hypotheses.scenarios.len()
         );
         println!("╠══════════════════════════════════════════════════════════════╣");
-        println!(
-            "║ Time Budget:     {:<40}s  ║",
-            self.config.time_budget_s
-        );
-        println!(
-            "║ Runs:            {:<43}║",
-            self.config.runs
-        );
+        println!("║ Time Budget:     {:<40}s  ║", self.config.time_budget_s);
+        println!("║ Runs:            {:<43}║", self.config.runs);
         println!(
             "║ Reward Weights:  α={:.1} β={:.1} γ={:.1}{:<27}║",
             self.config.alpha, self.config.beta, self.config.gamma, ""
@@ -653,18 +641,9 @@ impl RuntimeContext {
             "║ R-threshold:     {:<43}║",
             format!("{:.3}", self.config.r_threshold)
         );
-        println!(
-            "║ Max corpus:      {:<43}║",
-            self.config.max_corpus
-        );
-        println!(
-            "║ Max snapshots:   {:<43}║",
-            self.config.max_snapshots
-        );
-        println!(
-            "║ Dynamic snaps:   {:<43}║",
-            self.config.dynamic_snapshots
-        );
+        println!("║ Max corpus:      {:<43}║", self.config.max_corpus);
+        println!("║ Max snapshots:   {:<43}║", self.config.max_snapshots);
+        println!("║ Dynamic snaps:   {:<43}║", self.config.dynamic_snapshots);
         if let Some(seed) = self.config.random_seed {
             println!("║ Random Seed:     {:<43}║", seed);
         }
@@ -758,7 +737,10 @@ mod tests {
 
         // Should succeed — mock fixtures have matching invariant IDs
         let result = validate_context(&config, &atg, &hypo);
-        assert!(result.is_ok(), "Validation should pass for matching fixtures");
+        assert!(
+            result.is_ok(),
+            "Validation should pass for matching fixtures"
+        );
     }
 
     #[test]
@@ -828,8 +810,8 @@ mod tests {
             output: PathBuf::from("new_results.json"),
             budget: 600, // CLI overrides JSON's 1200
             config: None,
-            source_rpc: None, // Falls back to JSON config
-            dest_rpc: None,   // Falls back to JSON config
+            source_rpc: None,             // Falls back to JSON config
+            dest_rpc: None,               // Falls back to JSON config
             source_block: Some(15259100), // CLI overrides JSON
             dest_block: None,             // Falls back to JSON
             runs: 1,
@@ -971,8 +953,14 @@ mod tests {
         assert_eq!(
             sorted,
             vec![
-                ("BridgeRouter".to_string(), "0x88A69B4E698A4B090DF6CF5BD7B2D47325AD30A3".to_string()),
-                ("Replica".to_string(), "0xB923336759618F55bd0F8313bd843604592E27bd8".to_string()),
+                (
+                    "BridgeRouter".to_string(),
+                    "0x88A69B4E698A4B090DF6CF5BD7B2D47325AD30A3".to_string()
+                ),
+                (
+                    "Replica".to_string(),
+                    "0xB923336759618F55bd0F8313bd843604592E27bd8".to_string()
+                ),
             ]
         );
     }

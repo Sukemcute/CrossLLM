@@ -65,8 +65,12 @@ fn has_access_control(cfg: &Cfg, bb_id: usize) -> bool {
 // ============================================================================
 struct Gp1LockEther;
 impl VulPattern for Gp1LockEther {
-    fn id(&self) -> &str { "GP1" }
-    fn description(&self) -> &str { "Lock Ether: payable without fund-sending opcode" }
+    fn id(&self) -> &str {
+        "GP1"
+    }
+    fn description(&self) -> &str {
+        "Lock Ether: payable without fund-sending opcode"
+    }
     fn scan(&self, cfg: &Cfg) -> Vec<CodeTarget> {
         let has_callvalue = cfg.contains_opcode(op::CALLVALUE);
         let has_send = cfg.contains_opcode(op::CALL)
@@ -91,8 +95,12 @@ impl VulPattern for Gp1LockEther {
 // ============================================================================
 struct Gp2ControlledDelegatecall;
 impl VulPattern for Gp2ControlledDelegatecall {
-    fn id(&self) -> &str { "GP2" }
-    fn description(&self) -> &str { "Controlled Delegatecall: address from msg.data" }
+    fn id(&self) -> &str {
+        "GP2"
+    }
+    fn description(&self) -> &str {
+        "Controlled Delegatecall: address from msg.data"
+    }
     fn scan(&self, cfg: &Cfg) -> Vec<CodeTarget> {
         let mut out = Vec::new();
         for bb in &cfg.blocks {
@@ -102,10 +110,16 @@ impl VulPattern for Gp2ControlledDelegatecall {
             // Heuristic: CALLDATALOAD in same block or a predecessor.
             let has_cd = bb.contains_opcode(op::CALLDATALOAD)
                 || cfg.predecessors(bb.id).iter().any(|&p| {
-                    cfg.blocks.get(p).map_or(false, |b| b.contains_opcode(op::CALLDATALOAD))
+                    cfg.blocks
+                        .get(p)
+                        .map_or(false, |b| b.contains_opcode(op::CALLDATALOAD))
                 });
             if has_cd {
-                let pc = bb.iter_opcode(op::DELEGATECALL).next().map(|(_, i)| i.pc).unwrap();
+                let pc = bb
+                    .iter_opcode(op::DELEGATECALL)
+                    .next()
+                    .map(|(_, i)| i.pc)
+                    .unwrap();
                 out.push(target_at(cfg, bb, pc, "GP2"));
             }
         }
@@ -118,8 +132,12 @@ impl VulPattern for Gp2ControlledDelegatecall {
 // ============================================================================
 struct Gp3DangerousDelegatecall;
 impl VulPattern for Gp3DangerousDelegatecall {
-    fn id(&self) -> &str { "GP3" }
-    fn description(&self) -> &str { "Dangerous Delegatecall: arguments from msg.data" }
+    fn id(&self) -> &str {
+        "GP3"
+    }
+    fn description(&self) -> &str {
+        "Dangerous Delegatecall: arguments from msg.data"
+    }
     fn scan(&self, cfg: &Cfg) -> Vec<CodeTarget> {
         let mut out = Vec::new();
         for bb in &cfg.blocks {
@@ -128,10 +146,16 @@ impl VulPattern for Gp3DangerousDelegatecall {
             }
             let has_cdcopy = bb.contains_opcode(op::CALLDATACOPY)
                 || cfg.predecessors(bb.id).iter().any(|&p| {
-                    cfg.blocks.get(p).map_or(false, |b| b.contains_opcode(op::CALLDATACOPY))
+                    cfg.blocks
+                        .get(p)
+                        .map_or(false, |b| b.contains_opcode(op::CALLDATACOPY))
                 });
             if has_cdcopy {
-                let pc = bb.iter_opcode(op::DELEGATECALL).next().map(|(_, i)| i.pc).unwrap();
+                let pc = bb
+                    .iter_opcode(op::DELEGATECALL)
+                    .next()
+                    .map(|(_, i)| i.pc)
+                    .unwrap();
                 out.push(target_at(cfg, bb, pc, "GP3"));
             }
         }
@@ -144,8 +168,12 @@ impl VulPattern for Gp3DangerousDelegatecall {
 // ============================================================================
 struct Gp4BlockDependency;
 impl VulPattern for Gp4BlockDependency {
-    fn id(&self) -> &str { "GP4" }
-    fn description(&self) -> &str { "Block Dependency: block info feeds JUMPI before CALL" }
+    fn id(&self) -> &str {
+        "GP4"
+    }
+    fn description(&self) -> &str {
+        "Block Dependency: block info feeds JUMPI before CALL"
+    }
     fn scan(&self, cfg: &Cfg) -> Vec<CodeTarget> {
         let block_ops = [op::BLOCKHASH, op::TIMESTAMP, op::NUMBER];
         let mut out = Vec::new();
@@ -156,10 +184,14 @@ impl VulPattern for Gp4BlockDependency {
             // Check if any successor contains a CALL.
             let succs = cfg.successors(bb.id);
             let call_after = succs.iter().any(|&s| {
-                cfg.blocks.get(s).map_or(false, |b| b.contains_any(&[op::CALL, op::CALLCODE]))
+                cfg.blocks
+                    .get(s)
+                    .map_or(false, |b| b.contains_any(&[op::CALL, op::CALLCODE]))
             });
             if call_after {
-                let pc = bb.instructions.iter()
+                let pc = bb
+                    .instructions
+                    .iter()
                     .find(|i| block_ops.contains(&i.opcode))
                     .map(|i| i.pc)
                     .unwrap();
@@ -175,8 +207,12 @@ impl VulPattern for Gp4BlockDependency {
 // ============================================================================
 struct Gp5Reentrancy;
 impl VulPattern for Gp5Reentrancy {
-    fn id(&self) -> &str { "GP5" }
-    fn description(&self) -> &str { "Reentrancy: SLOAD → CALL → SSTORE ordering" }
+    fn id(&self) -> &str {
+        "GP5"
+    }
+    fn description(&self) -> &str {
+        "Reentrancy: SLOAD → CALL → SSTORE ordering"
+    }
     fn scan(&self, cfg: &Cfg) -> Vec<CodeTarget> {
         let mut out = Vec::new();
         // Whole-contract scan: look for SLOAD before CALL before SSTORE.
@@ -199,12 +235,7 @@ impl VulPattern for Gp5Reentrancy {
                     }
                     op::SSTORE => {
                         if saw_call_after_sload {
-                            out.push(target_at(
-                                cfg,
-                                &cfg.blocks[sload_bb],
-                                sload_pc,
-                                "GP5",
-                            ));
+                            out.push(target_at(cfg, &cfg.blocks[sload_bb], sload_pc, "GP5"));
                             saw_sload = false;
                             saw_call_after_sload = false;
                         }
@@ -222,16 +253,20 @@ impl VulPattern for Gp5Reentrancy {
 // ============================================================================
 struct Gp6ArbitrarySendEther;
 impl VulPattern for Gp6ArbitrarySendEther {
-    fn id(&self) -> &str { "GP6" }
-    fn description(&self) -> &str { "Arbitrary Send Ether: unprotected CALL with value" }
+    fn id(&self) -> &str {
+        "GP6"
+    }
+    fn description(&self) -> &str {
+        "Arbitrary Send Ether: unprotected CALL with value"
+    }
     fn scan(&self, cfg: &Cfg) -> Vec<CodeTarget> {
         let mut out = Vec::new();
         for bb in &cfg.blocks {
             if !bb.contains_opcode(op::CALL) {
                 continue;
             }
-            let has_value_source = bb.contains_opcode(op::CALLVALUE)
-                || bb.contains_opcode(op::CALLDATALOAD);
+            let has_value_source =
+                bb.contains_opcode(op::CALLVALUE) || bb.contains_opcode(op::CALLDATALOAD);
             if has_value_source && !has_access_control(cfg, bb.id) {
                 let pc = bb.iter_opcode(op::CALL).next().map(|(_, i)| i.pc).unwrap();
                 out.push(target_at(cfg, bb, pc, "GP6"));
@@ -246,8 +281,12 @@ impl VulPattern for Gp6ArbitrarySendEther {
 // ============================================================================
 struct Gp7Suicidal;
 impl VulPattern for Gp7Suicidal {
-    fn id(&self) -> &str { "GP7" }
-    fn description(&self) -> &str { "Suicidal: unprotected SELFDESTRUCT" }
+    fn id(&self) -> &str {
+        "GP7"
+    }
+    fn description(&self) -> &str {
+        "Suicidal: unprotected SELFDESTRUCT"
+    }
     fn scan(&self, cfg: &Cfg) -> Vec<CodeTarget> {
         let mut out = Vec::new();
         for bb in &cfg.blocks {
@@ -255,7 +294,11 @@ impl VulPattern for Gp7Suicidal {
                 continue;
             }
             if !has_access_control(cfg, bb.id) {
-                let pc = bb.iter_opcode(op::SELFDESTRUCT).next().map(|(_, i)| i.pc).unwrap();
+                let pc = bb
+                    .iter_opcode(op::SELFDESTRUCT)
+                    .next()
+                    .map(|(_, i)| i.pc)
+                    .unwrap();
                 out.push(target_at(cfg, bb, pc, "GP7"));
             }
         }
@@ -268,8 +311,12 @@ impl VulPattern for Gp7Suicidal {
 // ============================================================================
 struct Bp1MintWithoutLock;
 impl VulPattern for Bp1MintWithoutLock {
-    fn id(&self) -> &str { "BP1" }
-    fn description(&self) -> &str { "Mint without lock: LOG event without preceding lock" }
+    fn id(&self) -> &str {
+        "BP1"
+    }
+    fn description(&self) -> &str {
+        "Mint without lock: LOG event without preceding lock"
+    }
     fn scan(&self, cfg: &Cfg) -> Vec<CodeTarget> {
         // Heuristic: LOG3 (Transfer event shape) exists but no SLOAD → SSTORE
         // guard pattern (i.e. no balance bookkeeping before the log).
@@ -299,8 +346,12 @@ impl VulPattern for Bp1MintWithoutLock {
 // ============================================================================
 struct Bp2ZeroRootAcceptance;
 impl VulPattern for Bp2ZeroRootAcceptance {
-    fn id(&self) -> &str { "BP2" }
-    fn description(&self) -> &str { "Zero-root acceptance: SSTORE + unchecked SLOAD/JUMPI" }
+    fn id(&self) -> &str {
+        "BP2"
+    }
+    fn description(&self) -> &str {
+        "Zero-root acceptance: SSTORE + unchecked SLOAD/JUMPI"
+    }
     fn scan(&self, cfg: &Cfg) -> Vec<CodeTarget> {
         // Heuristic: block with SSTORE followed (in successors) by
         // SLOAD + ISZERO + JUMPI — the loaded value is checked for zero
@@ -317,7 +368,11 @@ impl VulPattern for Bp2ZeroRootAcceptance {
                     let has_iszero = ops.contains(&op::ISZERO);
                     let has_jumpi = ops.contains(&op::JUMPI);
                     if has_sload && has_iszero && has_jumpi {
-                        let pc = bb.iter_opcode(op::SSTORE).next().map(|(_, i)| i.pc).unwrap();
+                        let pc = bb
+                            .iter_opcode(op::SSTORE)
+                            .next()
+                            .map(|(_, i)| i.pc)
+                            .unwrap();
                         out.push(target_at(cfg, bb, pc, "BP2"));
                     }
                 }
@@ -332,8 +387,12 @@ impl VulPattern for Bp2ZeroRootAcceptance {
 // ============================================================================
 struct Bp3MultisigUnderThreshold;
 impl VulPattern for Bp3MultisigUnderThreshold {
-    fn id(&self) -> &str { "BP3" }
-    fn description(&self) -> &str { "Multisig under threshold: SLOAD + LT/GT + JUMPI" }
+    fn id(&self) -> &str {
+        "BP3"
+    }
+    fn description(&self) -> &str {
+        "Multisig under threshold: SLOAD + LT/GT + JUMPI"
+    }
     fn scan(&self, cfg: &Cfg) -> Vec<CodeTarget> {
         // Heuristic: SLOAD (load signer count) → LT or GT (compare to
         // threshold) → JUMPI in same or adjacent block.
@@ -352,7 +411,9 @@ impl VulPattern for Bp3MultisigUnderThreshold {
             // Also check predecessor for SLOAD, this block for CMP+JUMPI.
             if has_cmp && !has_sload {
                 let pred_has_sload = cfg.predecessors(bb.id).iter().any(|&p| {
-                    cfg.blocks.get(p).map_or(false, |b| b.contains_opcode(op::SLOAD))
+                    cfg.blocks
+                        .get(p)
+                        .map_or(false, |b| b.contains_opcode(op::SLOAD))
                 });
                 if pred_has_sload {
                     let pc = bb.iter_opcode(op::JUMPI).next().map(|(_, i)| i.pc).unwrap();
@@ -369,8 +430,12 @@ impl VulPattern for Bp3MultisigUnderThreshold {
 // ============================================================================
 struct Bp4ReplayAccepted;
 impl VulPattern for Bp4ReplayAccepted {
-    fn id(&self) -> &str { "BP4" }
-    fn description(&self) -> &str { "Replay accepted: CALL before SSTORE to processed mapping" }
+    fn id(&self) -> &str {
+        "BP4"
+    }
+    fn description(&self) -> &str {
+        "Replay accepted: CALL before SSTORE to processed mapping"
+    }
     fn scan(&self, cfg: &Cfg) -> Vec<CodeTarget> {
         // Heuristic: CALL (state-changing) appears before an SSTORE that
         // writes to a mapping (SHA3 in same/predecessor block — typical for
@@ -391,7 +456,9 @@ impl VulPattern for Bp4ReplayAccepted {
                     // a predecessor — signals `mapping[key] = value`.
                     let has_sha3 = bb.contains_opcode(op::SHA3)
                         || cfg.predecessors(bb.id).iter().any(|&p| {
-                            cfg.blocks.get(p).map_or(false, |b| b.contains_opcode(op::SHA3))
+                            cfg.blocks
+                                .get(p)
+                                .map_or(false, |b| b.contains_opcode(op::SHA3))
                         });
                     if has_sha3 {
                         found_mapping_sstore_after = true;
@@ -415,8 +482,12 @@ impl VulPattern for Bp4ReplayAccepted {
 // ============================================================================
 struct Bp5AuthorizationBypass;
 impl VulPattern for Bp5AuthorizationBypass {
-    fn id(&self) -> &str { "BP5" }
-    fn description(&self) -> &str { "Authorization bypass: CALL without CALLER check" }
+    fn id(&self) -> &str {
+        "BP5"
+    }
+    fn description(&self) -> &str {
+        "Authorization bypass: CALL without CALLER check"
+    }
     fn scan(&self, cfg: &Cfg) -> Vec<CodeTarget> {
         let mut out = Vec::new();
         for bb in &cfg.blocks {
@@ -425,7 +496,9 @@ impl VulPattern for Bp5AuthorizationBypass {
                 continue;
             }
             if !has_access_control(cfg, bb.id) {
-                let pc = bb.instructions.iter()
+                let pc = bb
+                    .instructions
+                    .iter()
                     .find(|i| i.opcode == op::CALL || i.opcode == op::CALLCODE)
                     .map(|i| i.pc)
                     .unwrap();
@@ -441,8 +514,12 @@ impl VulPattern for Bp5AuthorizationBypass {
 // ============================================================================
 struct Bp6RecipientZero;
 impl VulPattern for Bp6RecipientZero {
-    fn id(&self) -> &str { "BP6" }
-    fn description(&self) -> &str { "Recipient zero: CALL/LOG with potential 0x0 recipient" }
+    fn id(&self) -> &str {
+        "BP6"
+    }
+    fn description(&self) -> &str {
+        "Recipient zero: CALL/LOG with potential 0x0 recipient"
+    }
     fn scan(&self, cfg: &Cfg) -> Vec<CodeTarget> {
         // Heuristic: ISZERO check on an address-like value feeding into
         // a CALL or LOG, but the JUMPI branch allows the zero case through
@@ -450,8 +527,8 @@ impl VulPattern for Bp6RecipientZero {
         // without a REVERT in the ISZERO-true branch.
         let mut out = Vec::new();
         for bb in &cfg.blocks {
-            let has_call_or_log = bb.contains_any(&[op::CALL, op::CALLCODE])
-                || bb.contains_opcode(op::LOG3);
+            let has_call_or_log =
+                bb.contains_any(&[op::CALL, op::CALLCODE]) || bb.contains_opcode(op::LOG3);
             if !has_call_or_log {
                 continue;
             }
@@ -464,7 +541,9 @@ impl VulPattern for Bp6RecipientZero {
                     })
                 });
             if !has_zero_guard {
-                let pc = bb.instructions.iter()
+                let pc = bb
+                    .instructions
+                    .iter()
                     .find(|i| op::is_call_family(i.opcode) || op::is_log(i.opcode))
                     .map(|i| i.pc)
                     .unwrap();
@@ -500,7 +579,9 @@ mod tests {
     fn gp1_no_hit_when_call_present() {
         // CALLVALUE POP PUSH1 0 PUSH1 0 PUSH1 0 PUSH1 0 PUSH1 0 PUSH1 0 PUSH1 0 CALL STOP
         let mut bc = vec![op::CALLVALUE, 0x50];
-        for _ in 0..7 { bc.extend_from_slice(&[0x60, 0x00]); }
+        for _ in 0..7 {
+            bc.extend_from_slice(&[0x60, 0x00]);
+        }
         bc.push(op::CALL);
         bc.push(op::STOP);
         let hits = scan_bytes(&Gp1LockEther, &bc);
@@ -511,7 +592,9 @@ mod tests {
     fn gp5_reentrancy_pattern() {
         // SLOAD PUSH1 0 PUSH1 0 PUSH1 0 PUSH1 0 PUSH1 0 PUSH1 0 PUSH1 0 CALL SSTORE STOP
         let mut bc = vec![op::SLOAD];
-        for _ in 0..7 { bc.extend_from_slice(&[0x60, 0x00]); }
+        for _ in 0..7 {
+            bc.extend_from_slice(&[0x60, 0x00]);
+        }
         bc.extend_from_slice(&[op::CALL, op::SSTORE, op::STOP]);
         let hits = scan_bytes(&Gp5Reentrancy, &bc);
         assert_eq!(hits.len(), 1, "GP5 should detect SLOAD→CALL→SSTORE");
@@ -530,9 +613,14 @@ mod tests {
     fn bp3_multisig_threshold() {
         // SLOAD LT PUSH1 0x08 JUMPI STOP JUMPDEST STOP
         let bc = vec![
-            op::SLOAD, op::LT, 0x60, 0x08, op::JUMPI,
+            op::SLOAD,
+            op::LT,
+            0x60,
+            0x08,
+            op::JUMPI,
             op::STOP,
-            op::JUMPDEST, op::STOP,
+            op::JUMPDEST,
+            op::STOP,
         ];
         let hits = scan_bytes(&Bp3MultisigUnderThreshold, &bc);
         assert!(!hits.is_empty(), "BP3 should detect SLOAD+LT+JUMPI");
@@ -542,7 +630,9 @@ mod tests {
     fn bp5_unprotected_call() {
         // PUSH1 0 (×7) CALL STOP — no CALLER check.
         let mut bc = Vec::new();
-        for _ in 0..7 { bc.extend_from_slice(&[0x60, 0x00]); }
+        for _ in 0..7 {
+            bc.extend_from_slice(&[0x60, 0x00]);
+        }
         bc.extend_from_slice(&[op::CALL, op::STOP]);
         let hits = scan_bytes(&Bp5AuthorizationBypass, &bc);
         assert!(!hits.is_empty(), "BP5 should detect CALL without CALLER");

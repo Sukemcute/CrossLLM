@@ -165,13 +165,13 @@ impl CalldataSeed {
 
 /// Boundary words used by the integer-boundary mutator — aligned to 32 bytes.
 const BOUNDARY_U256: &[[u8; 32]] = &[
-    [0u8; 32],                           // 0
+    [0u8; 32], // 0
     {
         let mut x = [0u8; 32];
         x[31] = 1;
         x
     }, // 1
-    [0xff; 32],                          // 2^256-1 (MAX_UINT)
+    [0xff; 32], // 2^256-1 (MAX_UINT)
     {
         let mut x = [0xff; 32];
         x[0] = 0x7f;
@@ -468,7 +468,8 @@ mod tests {
         let mutator = Mutator::new();
         let mutated = mutator.mutate(&seed);
 
-        let parsed: Scenario = serde_json::from_slice(&mutated).expect("mutated scenario parseable");
+        let parsed: Scenario =
+            serde_json::from_slice(&mutated).expect("mutated scenario parseable");
         assert!(!parsed.actions.is_empty());
         assert_ne!(mutated, seed, "mutator should produce different output");
         assert_eq!(parsed.actions[0].step, 1);
@@ -520,9 +521,8 @@ mod tests {
 
         // ATG fixture has 4 distinct edge signatures (e1, e3, e4, e5; e2 is empty).
         assert_eq!(mutator.known_selectors().len(), 4);
-        let dispatch_sel = crate::contract_loader::function_selector(
-            "dispatch(uint32,bytes32,uint256,bytes)",
-        );
+        let dispatch_sel =
+            crate::contract_loader::function_selector("dispatch(uint32,bytes32,uint256,bytes)");
         assert!(mutator.known_selectors().contains(&dispatch_sel));
     }
 
@@ -536,9 +536,8 @@ mod tests {
         let reg = ContractRegistry::from_atg(&atg);
         let mutator = CalldataMutator::from_registry(&reg, &atg);
 
-        let dispatch_sel = crate::contract_loader::function_selector(
-            "dispatch(uint32,bytes32,uint256,bytes)",
-        );
+        let dispatch_sel =
+            crate::contract_loader::function_selector("dispatch(uint32,bytes32,uint256,bytes)");
         let mut seed = Vec::with_capacity(36);
         seed.extend_from_slice(&dispatch_sel);
         seed.extend_from_slice(&[0u8; 32]);
@@ -580,8 +579,7 @@ mod tests {
         // At least one of the two 32-byte param words must be a boundary.
         let w1 = &mutated[4..36];
         let w2 = &mutated[36..68];
-        let is_boundary =
-            |w: &[u8]| BOUNDARY_U256.iter().any(|b| b.as_slice() == w);
+        let is_boundary = |w: &[u8]| BOUNDARY_U256.iter().any(|b| b.as_slice() == w);
         assert!(
             is_boundary(w1) || is_boundary(w2),
             "at least one word should be a boundary value"
@@ -611,9 +609,8 @@ mod tests {
             .encode_action(&action, &reg)
             .expect("encode succeeds");
         assert_eq!(seed.calldata.len(), 4 + 32);
-        let want_sel = crate::contract_loader::function_selector(
-            "proveAndProcess(bytes,bytes,uint256)",
-        );
+        let want_sel =
+            crate::contract_loader::function_selector("proveAndProcess(bytes,bytes,uint256)");
         assert_eq!(&seed.calldata[..4], &want_sel);
         // amount=1000 sits at the bottom of the right-aligned u64 slot.
         let mut expected_word = [0u8; 32];
@@ -624,8 +621,8 @@ mod tests {
 
     #[test]
     fn atg_adjacency_inserts_followup_action() {
-        let atg_text = std::fs::read_to_string(fixture_path("atg_mock.json"))
-            .expect("read atg fixture");
+        let atg_text =
+            std::fs::read_to_string(fixture_path("atg_mock.json")).expect("read atg fixture");
         let atg: AtgGraph = serde_json::from_str(&atg_text).expect("parse atg fixture");
 
         let scenario = Scenario {
@@ -651,6 +648,9 @@ mod tests {
         let mutated = mutator.mutate(&raw);
         let parsed: Scenario = serde_json::from_slice(&mutated).expect("parse mutated");
 
-        assert!(parsed.actions.len() >= 2, "expected adjacent action insertion");
+        assert!(
+            parsed.actions.len() >= 2,
+            "expected adjacent action insertion"
+        );
     }
 }

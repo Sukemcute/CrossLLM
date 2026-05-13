@@ -359,7 +359,9 @@ mod tests {
     fn faithful_mode_relays_same_message() {
         let mut relay = MockRelay::new(RelayMode::Faithful);
         let msg = b"bridge-message";
-        let out = relay.relay_message(msg).expect("faithful relay should succeed");
+        let out = relay
+            .relay_message(msg)
+            .expect("faithful relay should succeed");
         assert_eq!(out, msg);
     }
 
@@ -379,7 +381,9 @@ mod tests {
     fn tampered_mode_modifies_payload() {
         let mut relay = MockRelay::new(RelayMode::Tampered);
         let msg = b"abc";
-        let out = relay.relay_message(msg).expect("tampered relay should succeed");
+        let out = relay
+            .relay_message(msg)
+            .expect("tampered relay should succeed");
         assert_ne!(out, msg);
         assert_eq!(out.len(), msg.len());
     }
@@ -401,7 +405,9 @@ mod tests {
         let mut relay = MockRelay::new(RelayMode::Faithful);
         relay.relay_message(b"a").unwrap();
         relay.reset();
-        relay.relay_message(b"a").expect("same payload allowed after reset");
+        relay
+            .relay_message(b"a")
+            .expect("same payload allowed after reset");
     }
 
     #[test]

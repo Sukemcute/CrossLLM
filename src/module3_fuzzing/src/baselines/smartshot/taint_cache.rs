@@ -55,7 +55,10 @@ impl TaintCache {
 
     /// Collect all unique `(addr, slot)` pairs across all cached functions.
     pub fn all_slots(&self) -> ReadSet {
-        self.inner.values().flat_map(|rs| rs.iter().copied()).collect()
+        self.inner
+            .values()
+            .flat_map(|rs| rs.iter().copied())
+            .collect()
     }
 }
 
@@ -96,7 +99,6 @@ pub fn collect_read_set(dual: &mut DualEvm, addr: Address, selector: [u8; 4]) ->
 /// Inner helper that runs the call through an `SLoadInspector` and extracts
 /// the read set directly from the inspector after execution.
 fn collect_read_set_inner(_dual: &mut DualEvm, payload: &[u8]) -> ReadSet {
-
     // Parse payload to get to-address
     if payload.len() < 40 {
         return ReadSet::new();

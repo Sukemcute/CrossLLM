@@ -115,8 +115,10 @@ mod tests {
 
         // The SLOAD on slot 0 should have been recorded.
         assert!(
-            insp.observed_sloads
-                .contains(&(address!("0000000000000000000000000000000000000000"), B256::ZERO)),
+            insp.observed_sloads.contains(&(
+                address!("0000000000000000000000000000000000000000"),
+                B256::ZERO
+            )),
             "expected slot 0x00 to be recorded; got {:?}",
             insp.observed_sloads
         );

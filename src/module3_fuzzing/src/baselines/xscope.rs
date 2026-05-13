@@ -283,8 +283,13 @@ pub fn predicate_i6_authorization_witness(
 ) -> Option<XScopeViolation> {
     match auth {
         AuthWitness::AcceptableRoot => None,
-        AuthWitness::Multisig { signatures, threshold } if signatures >= threshold => None,
-        AuthWitness::Mpc { matches_canonical: true } => None,
+        AuthWitness::Multisig {
+            signatures,
+            threshold,
+        } if signatures >= threshold => None,
+        AuthWitness::Mpc {
+            matches_canonical: true,
+        } => None,
 
         AuthWitness::None => Some(XScopeViolation::build(
             "C3.no_authorization_witness",
@@ -300,7 +305,10 @@ pub fn predicate_i6_authorization_witness(
             Some(unlock.address),
             "replica accepted root=0x0 (Nomad pattern)".to_string(),
         )),
-        AuthWitness::Multisig { signatures, threshold } => Some(XScopeViolation::build(
+        AuthWitness::Multisig {
+            signatures,
+            threshold,
+        } => Some(XScopeViolation::build(
             "C3.multisig_under_threshold",
             "I-6",
             Some(unlock.message_hash),
@@ -310,7 +318,9 @@ pub fn predicate_i6_authorization_witness(
                 signatures, threshold
             ),
         )),
-        AuthWitness::Mpc { matches_canonical: false } => Some(XScopeViolation::build(
+        AuthWitness::Mpc {
+            matches_canonical: false,
+        } => Some(XScopeViolation::build(
             "C3.no_authorization_witness",
             "I-6",
             Some(unlock.message_hash),
@@ -331,13 +341,19 @@ pub fn check_all(view: &XScopeView<'_>) -> Vec<XScopeViolation> {
 
     // Lock-side predicates: I-1 (balance), I-2 (recipient), I-3 / I-4 (relay roundtrip).
     for ev in view.lock_events {
-        if let Some(v) = predicate_i1_lock_matches_balance(ev, view.balance_deltas, view.fee_tolerance_ppm) {
+        if let Some(v) =
+            predicate_i1_lock_matches_balance(ev, view.balance_deltas, view.fee_tolerance_ppm)
+        {
             out.push(v);
         }
         if let Some(v) = predicate_i2_recipient_nonzero(ev) {
             out.push(v);
         }
-        if let Some(rly) = view.relay_log.iter().find(|r| r.message_hash == ev.message_hash) {
+        if let Some(rly) = view
+            .relay_log
+            .iter()
+            .find(|r| r.message_hash == ev.message_hash)
+        {
             if let Some(v) = predicate_i3_amount_roundtrips(ev, rly) {
                 out.push(v);
             }
@@ -458,8 +474,7 @@ mod tests {
     fn i1_violates_when_no_balance_change_at_all() {
         let evt = lock(U256::from(1_000_000u64), addr(0x10), hash(0x01));
         let deltas = HashMap::new();
-        let v = predicate_i1_lock_matches_balance(&evt, &deltas, 10_000)
-            .expect("should violate");
+        let v = predicate_i1_lock_matches_balance(&evt, &deltas, 10_000).expect("should violate");
         assert_eq!(v.predicate_id, "I-1");
         assert_eq!(v.class, "C1.deposit_event_no_balance_change");
     }
@@ -470,8 +485,7 @@ mod tests {
         let evt = lock(U256::from(1_000_000u64), addr(0x10), hash(0x01));
         let mut deltas = HashMap::new();
         deltas.insert(addr(0xAA), 500_000_i128);
-        let v = predicate_i1_lock_matches_balance(&evt, &deltas, 10_000)
-            .expect("should violate");
+        let v = predicate_i1_lock_matches_balance(&evt, &deltas, 10_000).expect("should violate");
         assert_eq!(v.predicate_id, "I-1");
     }
 
@@ -561,22 +575,27 @@ mod tests {
     #[test]
     fn i6_holds_for_quorum_multisig() {
         let u = unlock(hash(0x06));
-        let auth = AuthWitness::Multisig { signatures: 5, threshold: 5 };
+        let auth = AuthWitness::Multisig {
+            signatures: 5,
+            threshold: 5,
+        };
         assert!(predicate_i6_authorization_witness(&u, &auth).is_none());
     }
 
     #[test]
     fn i6_holds_for_canonical_mpc() {
         let u = unlock(hash(0x06));
-        let auth = AuthWitness::Mpc { matches_canonical: true };
+        let auth = AuthWitness::Mpc {
+            matches_canonical: true,
+        };
         assert!(predicate_i6_authorization_witness(&u, &auth).is_none());
     }
 
     #[test]
     fn i6_violates_zero_root_nomad_style() {
         let u = unlock(hash(0x06));
-        let v = predicate_i6_authorization_witness(&u, &AuthWitness::ZeroRoot)
-            .expect("should violate");
+        let v =
+            predicate_i6_authorization_witness(&u, &AuthWitness::ZeroRoot).expect("should violate");
         assert_eq!(v.predicate_id, "I-6");
         assert_eq!(v.class, "C3.zero_root_accepted");
     }
@@ -584,7 +603,10 @@ mod tests {
     #[test]
     fn i6_violates_multisig_under_threshold_ronin_style() {
         let u = unlock(hash(0x06));
-        let auth = AuthWitness::Multisig { signatures: 4, threshold: 5 };
+        let auth = AuthWitness::Multisig {
+            signatures: 4,
+            threshold: 5,
+        };
         let v = predicate_i6_authorization_witness(&u, &auth).expect("should violate");
         assert_eq!(v.predicate_id, "I-6");
         assert_eq!(v.class, "C3.multisig_under_threshold");
@@ -593,7 +615,9 @@ mod tests {
     #[test]
     fn i6_violates_mpc_key_mismatch_multichain_style() {
         let u = unlock(hash(0x06));
-        let auth = AuthWitness::Mpc { matches_canonical: false };
+        let auth = AuthWitness::Mpc {
+            matches_canonical: false,
+        };
         let v = predicate_i6_authorization_witness(&u, &auth).expect("should violate");
         assert_eq!(v.predicate_id, "I-6");
     }
@@ -601,8 +625,7 @@ mod tests {
     #[test]
     fn i6_violates_when_no_witness_present() {
         let u = unlock(hash(0x06));
-        let v = predicate_i6_authorization_witness(&u, &AuthWitness::None)
-            .expect("should violate");
+        let v = predicate_i6_authorization_witness(&u, &AuthWitness::None).expect("should violate");
         assert_eq!(v.predicate_id, "I-6");
         assert_eq!(v.class, "C3.no_authorization_witness");
     }
@@ -662,7 +685,10 @@ mod tests {
         let mut auth = HashMap::new();
         auth.insert(
             hash(0xB1),
-            AuthWitness::Multisig { signatures: 4, threshold: 5 },
+            AuthWitness::Multisig {
+                signatures: 4,
+                threshold: 5,
+            },
         );
         // Add a matching lock so I-5 holds and I-6 is the only violation.
         let locks = vec![lock(U256::from(1u64), addr(0x10), hash(0xB1))];

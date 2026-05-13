@@ -23,41 +23,41 @@ use crate::types::{Action, ChainState, GlobalState, RelaySnapshot, Scenario, Way
 /// Bare op names recognised on the source-chain side. Triggers
 /// `__locked__` accumulation + `saw_dispatch` flag.
 const SOURCE_OPS: &[&str] = &[
-    "dispatch",         // mock fixture canonical
-    "lock",             // real-LLM (most bridges)
-    "deposit",          // qubit / fegtoken
-    "submitmessage",    // real-LLM (nomad / wormhole)
-    "submitlockproof",  // real-LLM (ronin)
-    "claim",            // real-LLM (gempad / fegtoken)
-    "claimmigrator",    // fegtoken V2+V4 chain
-    "approve",          // socket / fegtoken precondition
-    "transferfrom",     // socket pull-drain
-    "performaction",    // socket V5
-    "execute",          // mock-multisig pattern (ronin/harmony/orbit/multichain)
-    "registertoken",    // ronin precondition
-    "signdeposit",      // qubit / pgala
-    "signmessage",      // generic relay
+    "dispatch",              // mock fixture canonical
+    "lock",                  // real-LLM (most bridges)
+    "deposit",               // qubit / fegtoken
+    "submitmessage",         // real-LLM (nomad / wormhole)
+    "submitlockproof",       // real-LLM (ronin)
+    "claim",                 // real-LLM (gempad / fegtoken)
+    "claimmigrator",         // fegtoken V2+V4 chain
+    "approve",               // socket / fegtoken precondition
+    "transferfrom",          // socket pull-drain
+    "performaction",         // socket V5
+    "execute",               // mock-multisig pattern (ronin/harmony/orbit/multichain)
+    "registertoken",         // ronin precondition
+    "signdeposit",           // qubit / pgala
+    "signmessage",           // generic relay
     "transferlockownership", // gempad V1
 ];
 
 /// Bare op names recognised on the destination-chain side. Triggers
 /// `__minted__` accumulation.
 const DEST_OPS: &[&str] = &[
-    "process",            // mock fixture canonical
-    "handle",             // mock fixture canonical
-    "proveandprocess",    // mock fixture canonical
-    "processandrelease",  // real-LLM (nomad)
-    "mint",               // real-LLM (most bridges)
-    "unlock",             // real-LLM (multi-sig family)
-    "release",            // harmony / orbit / multichain
-    "complete",           // wormhole
-    "completetransfer",   // wormhole
-    "completewrapped",    // wormhole solana side
-    "redeem",             // generic
-    "withdraw",           // ronin / gempad / generic
-    "swap",               // socket / fegtoken
-    "swaptoswap",         // fegtoken V4
-    "transfer",           // gempad
+    "process",           // mock fixture canonical
+    "handle",            // mock fixture canonical
+    "proveandprocess",   // mock fixture canonical
+    "processandrelease", // real-LLM (nomad)
+    "mint",              // real-LLM (most bridges)
+    "unlock",            // real-LLM (multi-sig family)
+    "release",           // harmony / orbit / multichain
+    "complete",          // wormhole
+    "completetransfer",  // wormhole
+    "completewrapped",   // wormhole solana side
+    "redeem",            // generic
+    "withdraw",          // ronin / gempad / generic
+    "swap",              // socket / fegtoken
+    "swaptoswap",        // fegtoken V4
+    "transfer",          // gempad
 ];
 
 /// View / pure functions — no state mutation. Recognised so we skip them
@@ -119,12 +119,7 @@ pub fn global_state_from_scenario(scenario: &Scenario) -> GlobalState {
                 if let Some(msg) = action.params.get("message") {
                     if let Some(s) = msg.as_str() {
                         if is_all_zero_hex_message(s) {
-                            insert_slot(
-                                &mut dest_storage,
-                                "replica",
-                                "zero_root_accepted",
-                                "true",
-                            );
+                            insert_slot(&mut dest_storage, "replica", "zero_root_accepted", "true");
                         }
                     }
                 }
@@ -134,12 +129,7 @@ pub fn global_state_from_scenario(scenario: &Scenario) -> GlobalState {
             // signature_bypass set the same flag so the root-validation
             // checker fires.
             if scenario_is_attack && action_indicates_forgery(action) {
-                insert_slot(
-                    &mut dest_storage,
-                    "replica",
-                    "zero_root_accepted",
-                    "true",
-                );
+                insert_slot(&mut dest_storage, "replica", "zero_root_accepted", "true");
             }
 
             let action_amount = amount_from_action(action);
@@ -162,7 +152,9 @@ pub fn global_state_from_scenario(scenario: &Scenario) -> GlobalState {
         // Off-chain / relay-only actions like `relayMessage` — just record
         // that a dispatch happened so the meta flag is set.
         let chain_lc = action.chain.to_ascii_lowercase();
-        if op == "relaymessage" || chain_lc == "relay" || chain_lc == "off_chain"
+        if op == "relaymessage"
+            || chain_lc == "relay"
+            || chain_lc == "off_chain"
             || chain_lc == "offchain"
         {
             saw_dispatch = true;
@@ -295,7 +287,11 @@ fn waypoint_predicate_holds(state: &GlobalState, scenario: &Scenario, wp: &Waypo
 fn extract_op(raw: &str) -> String {
     let trimmed = raw.trim();
     let before_paren = trimmed.split('(').next().unwrap_or(trimmed);
-    before_paren.split_whitespace().next().unwrap_or("").to_string()
+    before_paren
+        .split_whitespace()
+        .next()
+        .unwrap_or("")
+        .to_string()
 }
 
 /// True if scenario looks like an attack — used to enable mint-without-lock
@@ -540,7 +536,10 @@ mod tests {
     #[test]
     fn extract_op_strips_solidity_signature() {
         assert_eq!(extract_op("lock(uint256 amount, address token)"), "lock");
-        assert_eq!(extract_op("processAndRelease(NomadMessage.Body)"), "processAndRelease");
+        assert_eq!(
+            extract_op("processAndRelease(NomadMessage.Body)"),
+            "processAndRelease"
+        );
         assert_eq!(extract_op("totalLocked() view"), "totalLocked");
         assert_eq!(extract_op("process"), "process");
         assert_eq!(extract_op(""), "");
@@ -549,7 +548,10 @@ mod tests {
     #[test]
     fn json_to_u128_handles_scientific_notation() {
         assert_eq!(json_to_u128(&serde_json::json!("1000")), 1000);
-        assert_eq!(json_to_u128(&serde_json::json!("1000e18")), 1000_000_000_000_000_000_000);
+        assert_eq!(
+            json_to_u128(&serde_json::json!("1000e18")),
+            1000_000_000_000_000_000_000
+        );
         assert_eq!(json_to_u128(&serde_json::json!("1.5e3")), 1500);
         assert_eq!(json_to_u128(&serde_json::json!(42)), 42);
         assert_eq!(json_to_u128(&serde_json::json!("victim_balance")), 0);
@@ -590,7 +592,10 @@ mod tests {
         let locked = u128_balance(&g.source_state, "__locked__");
         let minted = u128_balance(&g.dest_state, "__minted__");
         assert_eq!(locked, 1_000_000_000_000_000_000_000, "1000e18 parsed");
-        assert!(minted >= 2 * locked, "two `process` calls -> 2x mint replay");
+        assert!(
+            minted >= 2 * locked,
+            "two `process` calls -> 2x mint replay"
+        );
 
         let w = evaluate_waypoints(&g, &scenario);
         assert!(w.contains(&"w1".to_string()));

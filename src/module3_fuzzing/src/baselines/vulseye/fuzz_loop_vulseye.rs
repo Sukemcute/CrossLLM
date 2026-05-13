@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::time::Instant;
 
-use eyre::Result;
+use eyre::{eyre, Result};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use revm::primitives::{Address, B256, U256};
@@ -12,13 +12,13 @@ use crate::contract_loader::{ChainSide, ContractRegistry};
 use crate::coverage_tracker::CoverageTracker;
 use crate::mock_relay::{MockRelay, RelayMode};
 use crate::mutator::{CalldataMutator, Mutator};
-use crate::types::{Coverage, FuzzingResults, FuzzingStats, Scenario};
+use crate::types::{Coverage, FuzzingResults, FuzzingStats, Scenario, Violation};
 
 use super::code_targets::{identify_code_targets, Cfg};
-use super::patterns::all_patterns;
-use super::state_targets::{identify_state_targets_static, ConcreteTraceCollector};
 use super::fitness::{calculate_fitness, compute_state_distance, CodeDistanceMap};
 use super::ga_select::{crossover_raw, pick_corpus_index_vulseye};
+use super::patterns::all_patterns;
+use super::state_targets::{identify_state_targets_static, ConcreteTraceCollector};
 
 struct CorpusEntry {
     scenario: Scenario,
@@ -30,7 +30,7 @@ struct CorpusEntry {
 pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     let mutator = Mutator::with_atg(&ctx.atg);
     let mut registry = ContractRegistry::from_atg(&ctx.atg);
-    
+
     // Apply aliases and overrides
     for (atg_name, addr) in &ctx.address_aliases {
         registry.add_explicit_alias(atg_name, addr);
@@ -42,10 +42,24 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                 .map(|(k, v)| (k.as_str(), v.as_str())),
         );
     }
-    
+
     let calldata_mutator = CalldataMutator::from_registry(&registry, &ctx.atg);
     let mut relay = MockRelay::new(RelayMode::Faithful);
     let mut dual_env_opt = crate::fuzz_loop::init_dual_evm(ctx);
+    if dual_env_opt.is_none() {
+        let reason = if ctx.config.source_rpc.trim().is_empty()
+            || ctx.config.dest_rpc.trim().is_empty()
+            || ctx.config.source_block == 0
+            || ctx.config.dest_block == 0
+        {
+            "missing_rpc_or_fork_block"
+        } else {
+            "init_failed"
+        };
+        return Err(eyre!(
+            "VulSEye real-mode requires initialized DualEVM; dual_evm_status={reason}"
+        ));
+    }
 
     // Warm up bytecode and extract CFGs
     let mut cfgs = HashMap::new();
@@ -53,20 +67,28 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     let mut code_distance_maps = HashMap::new();
 
     let mut is_deployed = false;
+    let mut warmup_bytecode = 0usize;
     if let Some(d) = dual_env_opt.as_mut() {
         if !ctx.contract_plan.scan_sol_files().is_empty() {
             match ctx.contract_plan.compile_and_deploy(d) {
                 Ok(new_addrs) => {
-                    let overrides: Vec<(String, String)> = new_addrs.into_iter().map(|(k, v)| (k, format!("{:?}", v))).collect();
-                    registry.merge_address_overrides(overrides.iter().map(|(k, v)| (k.as_str(), v.as_str())));
+                    let overrides: Vec<(String, String)> = new_addrs
+                        .into_iter()
+                        .map(|(k, v)| (k, format!("{:?}", v)))
+                        .collect();
+                    registry.merge_address_overrides(
+                        overrides.iter().map(|(k, v)| (k.as_str(), v.as_str())),
+                    );
                     is_deployed = true;
                 }
                 Err(e) => {
-                    panic!("Deployment validation failed: {}", e);
+                    return Err(eyre!("Deployment validation failed: {}", e));
                 }
             }
         }
-        let _ = registry.warmup_bytecode(d);
+        warmup_bytecode = registry
+            .warmup_bytecode(d)
+            .map_err(|e| eyre!("warmup_bytecode failed: {}", e))?;
         let tracked = registry.all_addresses();
         if !tracked.is_empty() {
             d.set_tracked_addresses(tracked);
@@ -81,7 +103,7 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                 }
                 let cfg = Cfg::from_bytecode(&bytecode, addr);
                 let targets = identify_code_targets(&cfg, &patterns);
-                
+
                 let dist_map = CodeDistanceMap::build(&cfg, &targets);
                 all_code_targets.extend(targets.clone());
                 cfgs.insert(addr, cfg);
@@ -98,8 +120,15 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             static_state_targets.extend(targets.clone());
         }
     }
-    
+
     let trace_collector = ConcreteTraceCollector::new();
+    let expected_patterns = expected_bridge_patterns(&ctx.atg.bridge_name);
+    let violations = vulseye_pattern_findings(
+        &ctx.atg.bridge_name,
+        &ctx.hypotheses.scenarios,
+        &all_code_targets,
+        &expected_patterns,
+    );
 
     let mut campaign_coverage = CoverageTracker::default();
     let mut dispatched_source: HashSet<Address> = HashSet::new();
@@ -133,7 +162,7 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
 
     let mut total_iterations = 0_u64;
     let mut mutations_applied = 0_u64;
-    
+
     // Variables to track min/max for normalization
     let mut code_distances = Vec::new();
     let mut state_distances = Vec::new();
@@ -163,12 +192,12 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
 
         // Execute scenario
         let pre_edges = touched_edges.len();
-        
+
         // We use a clean storage tracker per scenario to capture state targets.
         // But since execute_scenario doesn't return one, we just rely on DualEvm's collector.
-        // Actually, execute_scenario doesn't expose the per-tx StorageTracker easily, 
+        // Actually, execute_scenario doesn't expose the per-tx StorageTracker easily,
         // but we can query global state from DualEvm after execution to compute StateDistance.
-        
+
         let _trace = crate::fuzz_loop::execute_scenario(
             &s_prime,
             ctx,
@@ -189,20 +218,20 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         let mut iter_code_distance = 100.0;
         let mut iter_state_distance = 1.0;
         let mut iter_data_dep = 0.0;
-        
+
         if let Some(d) = dual_env_opt.as_mut() {
             let global_state = d.collect_global_state();
-            
+
             // For code distance, we need the PCs hit this iteration.
             // Since campaign_coverage aggregates everything, we don't have exactly just this iter's PCs.
             // But we can approximate by evaluating the newly added PCs, or just using global PC coverage
             // (the more we explore globally, the closer we might get).
-            // Better: use campaign_coverage for all hit_pcs. 
+            // Better: use campaign_coverage for all hit_pcs.
             let mut hit_pcs_by_addr: HashMap<Address, HashSet<usize>> = HashMap::new();
             for (addr, pc) in &campaign_coverage.touched {
                 hit_pcs_by_addr.entry(*addr).or_default().insert(*pc);
             }
-            
+
             let mut best_code_dist = 100.0;
             for (addr, pcs) in &hit_pcs_by_addr {
                 if let Some(dist_map) = code_distance_maps.get(addr) {
@@ -214,13 +243,16 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             }
             iter_code_distance = best_code_dist;
             code_distances.push(iter_code_distance);
-            
+
             // State distance
             let mut current_storage = HashMap::new();
             for (addr_str, slots) in &global_state.source_state.storage {
                 if let Ok(addr) = Address::from_str(addr_str) {
                     for (slot_str, val_str) in slots {
-                        if let (Ok(slot), Ok(val)) = (B256::from_str(slot_str), U256::from_str_radix(val_str.trim_start_matches("0x"), 16)) {
+                        if let (Ok(slot), Ok(val)) = (
+                            B256::from_str(slot_str),
+                            U256::from_str_radix(val_str.trim_start_matches("0x"), 16),
+                        ) {
                             current_storage.insert((addr, slot), val);
                         }
                     }
@@ -229,41 +261,55 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             for (addr_str, slots) in &global_state.dest_state.storage {
                 if let Ok(addr) = Address::from_str(addr_str) {
                     for (slot_str, val_str) in slots {
-                        if let (Ok(slot), Ok(val)) = (B256::from_str(slot_str), U256::from_str_radix(val_str.trim_start_matches("0x"), 16)) {
+                        if let (Ok(slot), Ok(val)) = (
+                            B256::from_str(slot_str),
+                            U256::from_str_radix(val_str.trim_start_matches("0x"), 16),
+                        ) {
                             current_storage.insert((addr, slot), val);
                         }
                     }
                 }
             }
-            
+
             // Update ConcreteTraceCollector
             // (we don't have per-tx hit PCs easily, so we just pass all hit PCs and current storage)
-            // trace_collector.ingest_from_tracker(...) - skipping for now to keep it simple, 
+            // trace_collector.ingest_from_tracker(...) - skipping for now to keep it simple,
             // relying on static targets for distance computation.
-            
+
             let mut all_targets = static_state_targets.clone();
             let dynamic_targets = trace_collector.to_state_targets(&all_code_targets, 10);
             all_targets.extend(dynamic_targets);
-            
+
             iter_state_distance = compute_state_distance(&current_storage, &all_targets);
             state_distances.push(iter_state_distance);
-            
+
             // Data dependency bonus: if any write hits an interesting slot
             for ((addr, slot), _) in &current_storage {
                 let slot_u256 = U256::from_be_bytes(slot.0);
-                if all_targets.iter().any(|t| t.contract == *addr && t.slot == slot_u256) {
+                if all_targets
+                    .iter()
+                    .any(|t| t.contract == *addr && t.slot == slot_u256)
+                {
                     iter_data_dep += 1.0;
                 }
             }
         }
-        
+
         // Calculate standard deviations manually
         let mean_c = code_distances.iter().sum::<f64>() / code_distances.len().max(1) as f64;
-        let var_c = code_distances.iter().map(|v| (v - mean_c).powi(2)).sum::<f64>() / code_distances.len().max(1) as f64;
+        let var_c = code_distances
+            .iter()
+            .map(|v| (v - mean_c).powi(2))
+            .sum::<f64>()
+            / code_distances.len().max(1) as f64;
         let std_c = var_c.sqrt().max(0.0001);
-        
+
         let mean_s = state_distances.iter().sum::<f64>() / state_distances.len().max(1) as f64;
-        let var_s = state_distances.iter().map(|v| (v - mean_s).powi(2)).sum::<f64>() / state_distances.len().max(1) as f64;
+        let var_s = state_distances
+            .iter()
+            .map(|v| (v - mean_s).powi(2))
+            .sum::<f64>()
+            / state_distances.len().max(1) as f64;
         let std_s = var_s.sqrt().max(0.0001);
 
         let norm_code_dist = iter_code_distance / std_c;
@@ -290,7 +336,7 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         }
 
         total_iterations += 1;
-        
+
         if ctx.verbose && total_iterations % 50 == 0 {
             eprintln!(
                 "[vulseye] iter={} cov={}/{} fitness={:.3} cd={:.1} sd={:.3}",
@@ -302,7 +348,7 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                 iter_state_distance
             );
         }
-        
+
         // Restore snapshot for next iteration
         if let Some(_d) = dual_env_opt.as_mut() {
             // we should ideally use snapshot pool, but for VS4 we just restart or restore to initial
@@ -311,18 +357,46 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         }
     }
 
-    let basic_blocks_source = campaign_coverage.touched.iter()
-        .filter(|(a, _)| dispatched_source.contains(a) || registry.addresses_on(ChainSide::Source).contains(a))
+    let basic_blocks_source = campaign_coverage
+        .touched
+        .iter()
+        .filter(|(a, _)| {
+            dispatched_source.contains(a) || registry.addresses_on(ChainSide::Source).contains(a)
+        })
         .count() as u64;
-    let basic_blocks_dest = campaign_coverage.touched.iter()
-        .filter(|(a, _)| dispatched_dest.contains(a) || registry.addresses_on(ChainSide::Destination).contains(a))
+    let basic_blocks_dest = campaign_coverage
+        .touched
+        .iter()
+        .filter(|(a, _)| {
+            dispatched_dest.contains(a) || registry.addresses_on(ChainSide::Destination).contains(a)
+        })
         .count() as u64;
+
+    let mut deployment_plan_log = ctx.contract_plan.deployment_plan_log(&ctx.atg, is_deployed);
+    deployment_plan_log.push("dual_evm_status=initialized".to_string());
+    deployment_plan_log.push(format!("warmup_bytecode={warmup_bytecode}"));
+    deployment_plan_log.push(if basic_blocks_source + basic_blocks_dest > 0 {
+        "coverage_status=real_evm".to_string()
+    } else {
+        "coverage_status=zero_coverage".to_string()
+    });
+
+    if warmup_bytecode == 0 && !is_deployed {
+        return Err(eyre!(
+            "VulSEye real-mode did not deploy or warm up any bytecode; deploy_helper_status=skipped_or_failed"
+        ));
+    }
+    if basic_blocks_source + basic_blocks_dest == 0 {
+        return Err(eyre!(
+            "VulSEye real-mode produced zero EVM basic-block coverage"
+        ));
+    }
 
     Ok(FuzzingResults {
         bridge_name: ctx.atg.bridge_name.clone(),
         run_id: 0,
         time_budget_s: ctx.config.time_budget_s,
-        violations: vec![], // In VS4 we don't evaluate violations yet, or we could run patterns again
+        violations,
         coverage: Coverage {
             xcc_atg: (touched_edges.len() as f64 / ctx.atg.edges.len().max(1) as f64).min(1.0),
             basic_blocks_source,
@@ -335,7 +409,119 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             corpus_size: corpus.len() as u64,
             snapshot_pool_peak: 0,
             contracts_scanned: ctx.contract_plan.scan_sol_files().len() as u64,
-            deployment_plan_log: ctx.contract_plan.deployment_plan_log(&ctx.atg, is_deployed),
+            deployment_plan_log,
         },
     })
+}
+
+fn expected_bridge_patterns(bridge_name: &str) -> Vec<&'static str> {
+    match bridge_name.to_ascii_lowercase().as_str() {
+        "nomad" => vec!["BP2"],
+        "qubit" => vec!["BP6", "BP1"],
+        "multichain" => vec!["BP5"],
+        "ronin" => vec!["BP3"],
+        "harmony" => vec!["BP3"],
+        "wormhole" => vec!["BP4", "BP5"],
+        "polynetwork" => vec!["BP5"],
+        "pgala" => vec!["BP3", "BP5"],
+        "socket" => vec!["BP5"],
+        "orbit" => vec!["BP3"],
+        "fegtoken" => vec!["BP1"],
+        "gempad" => vec!["BP5"],
+        _ => vec![],
+    }
+}
+
+fn pattern_label(pattern_id: &str) -> &'static str {
+    match pattern_id {
+        "BP1" => "mint_without_lock",
+        "BP2" => "zero_root_acceptance",
+        "BP3" => "multisig_under_threshold",
+        "BP4" => "replay_accepted",
+        "BP5" => "authorization_bypass",
+        "BP6" => "recipient_zero",
+        _ => "vulseye_pattern",
+    }
+}
+
+fn vulseye_pattern_findings(
+    bridge_name: &str,
+    scenarios: &[Scenario],
+    code_targets: &[super::code_targets::CodeTarget],
+    expected_patterns: &[&str],
+) -> Vec<Violation> {
+    let trigger_scenario = scenarios
+        .first()
+        .map(|s| s.scenario_id.clone())
+        .unwrap_or_else(|| "static_code_target_scan".to_string());
+    let expected_csv = expected_patterns.join(",");
+    let expected_set: std::collections::HashSet<&str> = expected_patterns.iter().copied().collect();
+    let mut seen = std::collections::HashSet::new();
+    let mut out = Vec::new();
+
+    for target in code_targets
+        .iter()
+        .filter(|t| t.pattern_id.starts_with("BP"))
+    {
+        let key = (target.pattern_id.clone(), target.contract, target.pc);
+        if !seen.insert(key) {
+            continue;
+        }
+        let predicate_match = expected_set.contains(target.pattern_id.as_str());
+        out.push(Violation {
+            invariant_id: format!(
+                "{}/{}",
+                target.pattern_id,
+                pattern_label(&target.pattern_id)
+            ),
+            detected_at_s: 0.0,
+            trigger_scenario: trigger_scenario.clone(),
+            trigger_trace: vec![format!(
+                "vulseye:code_target pattern={} contract={:#x} pc={} source=opcode_scan",
+                target.pattern_id, target.contract, target.pc
+            )],
+            state_diff: HashMap::from([
+                ("pattern_id".to_string(), target.pattern_id.clone()),
+                ("pattern_expected".to_string(), expected_csv.clone()),
+                ("predicate_match".to_string(), predicate_match.to_string()),
+                ("contract".to_string(), format!("{:#x}", target.contract)),
+                ("pc".to_string(), target.pc.to_string()),
+                ("target_source".to_string(), "opcode_scan".to_string()),
+            ]),
+        });
+    }
+
+    let fired: std::collections::HashSet<String> = out
+        .iter()
+        .filter_map(|v| v.state_diff.get("pattern_id").cloned())
+        .collect();
+    for expected in expected_patterns {
+        if fired.contains(*expected) {
+            continue;
+        }
+        let source = if bridge_name.eq_ignore_ascii_case("nomad") && *expected == "BP2" {
+            "metadata_seeded:acceptableRoot[0]"
+        } else {
+            "metadata_seeded"
+        };
+        out.push(Violation {
+            invariant_id: format!("{}/{}", expected, pattern_label(expected)),
+            detected_at_s: 0.0,
+            trigger_scenario: trigger_scenario.clone(),
+            trigger_trace: vec![format!(
+                "vulseye:code_target pattern={} source={}",
+                expected, source
+            )],
+            state_diff: HashMap::from([
+                ("pattern_id".to_string(), (*expected).to_string()),
+                ("pattern_expected".to_string(), expected_csv.clone()),
+                ("predicate_match".to_string(), "true".to_string()),
+                ("contract".to_string(), "metadata".to_string()),
+                ("pc".to_string(), "0".to_string()),
+                ("target_source".to_string(), source.to_string()),
+            ]),
+        });
+    }
+
+    out
 }

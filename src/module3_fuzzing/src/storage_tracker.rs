@@ -183,9 +183,7 @@ mod tests {
         //   PUSH1 0x09  PUSH1 0x01  SSTORE     (slot 1 := 9)
         //   STOP
         let bytecode = Bytecode::new_raw(Bytes::from(vec![
-            0x60, 0x07, 0x60, 0x01, 0x55,
-            0x60, 0x09, 0x60, 0x01, 0x55,
-            0x00,
+            0x60, 0x07, 0x60, 0x01, 0x55, 0x60, 0x09, 0x60, 0x01, 0x55, 0x00,
         ]));
 
         let mut evm: Evm<'_, StorageTracker, BenchmarkDB> = Evm::builder()
@@ -267,9 +265,7 @@ mod tests {
     fn xscope_inspector_populates_both_trackers() {
         // Same SSTORE×2 program as `tracker_records_sstore_writes`.
         let bytecode = Bytecode::new_raw(Bytes::from(vec![
-            0x60, 0x07, 0x60, 0x01, 0x55,
-            0x60, 0x09, 0x60, 0x01, 0x55,
-            0x00,
+            0x60, 0x07, 0x60, 0x01, 0x55, 0x60, 0x09, 0x60, 0x01, 0x55, 0x00,
         ]));
         let mut cov = crate::coverage_tracker::CoverageTracker::default();
         let mut storage = StorageTracker::default();

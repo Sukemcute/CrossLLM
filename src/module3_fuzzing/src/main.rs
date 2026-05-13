@@ -3,19 +3,19 @@
 //! Synchronized dual-EVM fuzzer for cross-chain bridge vulnerability discovery.
 //! Maintains paired EVM instances (source + destination) connected through a mock relay.
 
-pub mod types;
-pub mod config;
 mod baselines;
+mod checker;
+pub mod config;
 mod contract_loader;
 mod coverage_tracker;
 mod dual_evm;
 mod fuzz_loop;
 mod mock_relay;
-mod snapshot;
 mod mutator;
-mod checker;
 mod scenario_sim;
+mod snapshot;
 mod storage_tracker;
+pub mod types;
 
 use eyre::Context;
 
@@ -62,8 +62,8 @@ fn write_results(path: &str, results: &types::FuzzingResults) -> eyre::Result<()
         }
     }
 
-    let content = serde_json::to_string_pretty(results)
-        .wrap_err("Failed to serialize results to JSON")?;
+    let content =
+        serde_json::to_string_pretty(results).wrap_err("Failed to serialize results to JSON")?;
     std::fs::write(output_path, content)
         .wrap_err_with(|| format!("Failed to write output file: {}", output_path.display()))?;
     Ok(())

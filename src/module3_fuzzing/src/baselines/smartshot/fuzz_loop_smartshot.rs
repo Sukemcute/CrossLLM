@@ -81,8 +81,13 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         if !ctx.contract_plan.scan_sol_files().is_empty() {
             match ctx.contract_plan.compile_and_deploy(d) {
                 Ok(new_addrs) => {
-                    let overrides: Vec<(String, String)> = new_addrs.into_iter().map(|(k, v)| (k, format!("{:?}", v))).collect();
-                    registry.merge_address_overrides(overrides.iter().map(|(k, v)| (k.as_str(), v.as_str())));
+                    let overrides: Vec<(String, String)> = new_addrs
+                        .into_iter()
+                        .map(|(k, v)| (k, format!("{:?}", v)))
+                        .collect();
+                    registry.merge_address_overrides(
+                        overrides.iter().map(|(k, v)| (k.as_str(), v.as_str())),
+                    );
                     is_deployed = true;
                 }
                 Err(e) => {
@@ -166,7 +171,11 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         // ── Step 1: Selection ──────────────────────────────────────────
         // Linear ranking selection (matching SmartShot's LinearRankingSelection).
         // Sort by fitness descending, then pick with linear probability.
-        corpus.sort_by(|a, b| b.fitness.partial_cmp(&a.fitness).unwrap_or(std::cmp::Ordering::Equal));
+        corpus.sort_by(|a, b| {
+            b.fitness
+                .partial_cmp(&a.fitness)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let pop_size = corpus.len();
         let cidx = {
@@ -253,7 +262,8 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                 snapshots_captured += 1;
 
                 // Pick a random tainted slot from the cache to create a mutation
-                let all_tainted: Vec<(Address, B256)> = taint_cache.all_slots().into_iter().collect();
+                let all_tainted: Vec<(Address, B256)> =
+                    taint_cache.all_slots().into_iter().collect();
                 if !all_tainted.is_empty() {
                     let (addr, slot) = all_tainted[rng.gen_range(0..all_tainted.len())];
                     let value = boundary_values[rng.gen_range(0..boundary_values.len())];
@@ -335,7 +345,11 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
 
         // Keep corpus bounded (like SmartShot's population size)
         if corpus.len() > ctx.config.max_corpus {
-            corpus.sort_by(|a, b| b.fitness.partial_cmp(&a.fitness).unwrap_or(std::cmp::Ordering::Equal));
+            corpus.sort_by(|a, b| {
+                b.fitness
+                    .partial_cmp(&a.fitness)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
             corpus.truncate(ctx.config.max_corpus);
         }
 
@@ -374,8 +388,7 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         .touched
         .iter()
         .filter(|(a, _)| {
-            dispatched_dest.contains(a)
-                || registry.addresses_on(ChainSide::Destination).contains(a)
+            dispatched_dest.contains(a) || registry.addresses_on(ChainSide::Destination).contains(a)
         })
         .count() as u64;
 

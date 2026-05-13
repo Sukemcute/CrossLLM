@@ -1,6 +1,6 @@
+use crate::types::Scenario;
 use rand::rngs::StdRng;
 use rand::Rng;
-use crate::types::Scenario;
 
 /// Linear ranking selection based on fitness.
 /// Probability of selecting seed S: P(S) = Fitness(S) / Σ Fitness
@@ -31,26 +31,26 @@ pub fn crossover_raw(parent1: &Scenario, parent2: &Scenario, rng: &mut StdRng) -
     if parent1.actions.is_empty() || parent2.actions.is_empty() {
         return child;
     }
-    
+
     // Splice two seeds at an action boundary.
     // In full VulSEye this uses a data-dependency graph, but for scenario
     // fuzzing, action sequences are the dependency units.
     let split1 = rng.gen_range(0..=parent1.actions.len());
     let split2 = rng.gen_range(0..=parent2.actions.len());
-    
+
     let mut new_actions = parent1.actions[..split1].to_vec();
     new_actions.extend_from_slice(&parent2.actions[split2..]);
-    
+
     // If empty after slice, just fall back to parent1
     if new_actions.is_empty() {
         return child;
     }
-    
+
     // Fix steps
     for (i, a) in new_actions.iter_mut().enumerate() {
         a.step = i as u32;
     }
-    
+
     child.actions = new_actions;
     child
 }

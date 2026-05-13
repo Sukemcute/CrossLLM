@@ -163,12 +163,7 @@ mod tests {
             0,
             vec![], // initial
         );
-        pool.capture(
-            None,
-            &relay,
-            2,
-            vec!["a|x|f|".into(), "b|y|g|".into()],
-        );
+        pool.capture(None, &relay, 2, vec!["a|x|f|".into(), "b|y|g|".into()]);
         pool.capture(
             None,
             &relay,

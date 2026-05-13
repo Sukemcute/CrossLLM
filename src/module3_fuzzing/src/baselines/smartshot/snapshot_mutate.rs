@@ -23,7 +23,6 @@
 //! The snapshot simply restores EVM storage to a past state, applies one
 //! targeted slot mutation, then runs the individual's remaining transactions.
 
-
 use crate::dual_evm::DualEvm;
 
 use super::mutable_snapshot::MutableSnapshot;
@@ -36,10 +35,7 @@ use super::mutable_snapshot::MutableSnapshot;
 /// then calling `restore_original()` to undo the mutation.
 ///
 /// Returns `true` if mutation was applied successfully.
-pub fn apply_snapshot_mutation(
-    dual: &mut DualEvm,
-    snap: &MutableSnapshot,
-) -> bool {
+pub fn apply_snapshot_mutation(dual: &mut DualEvm, snap: &MutableSnapshot) -> bool {
     // Step 1: Restore DualEvm to the snapshot's base state.
     dual.restore_snapshot(snap.base.clone());
 

@@ -128,7 +128,7 @@ pub fn mutation_pool_values() -> Vec<B256> {
         U256::from(1u8),
         U256::MAX,
         U256::from(u128::MAX),
-        U256::from(1u128) << 127,  // INT_MAX for signed 128-bit
+        U256::from(1u128) << 127, // INT_MAX for signed 128-bit
         U256::from(u64::MAX),
         U256::from(10u64).pow(U256::from(18u64)), // 1 ether in wei
     ]

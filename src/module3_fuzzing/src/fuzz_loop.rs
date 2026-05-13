@@ -8,9 +8,9 @@ use std::time::Instant;
 use eyre::{eyre, Result};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+use revm::primitives::keccak256;
 use revm::primitives::specification::SpecId;
 use revm::primitives::Address;
-use revm::primitives::keccak256;
 
 use crate::baselines::xscope::AuthWitness;
 use crate::baselines::xscope_adapter::XScopeBuilder;
@@ -49,7 +49,9 @@ struct CorpusEntry {
 fn scenario_fingerprint_hash(s: &Scenario) -> u64 {
     let mut h = std::collections::hash_map::DefaultHasher::new();
     s.scenario_id.hash(&mut h);
-    serde_json::to_string(&s.actions).unwrap_or_default().hash(&mut h);
+    serde_json::to_string(&s.actions)
+        .unwrap_or_default()
+        .hash(&mut h);
     h.finish()
 }
 
@@ -147,15 +149,21 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     match ctx.baseline_mode {
         BaselineMode::Xscope => return run_xscope(ctx),
         BaselineMode::XscopeReplay => return run_xscope_replay(ctx),
-        BaselineMode::Vulseye => return crate::baselines::vulseye::fuzz_loop_vulseye::run_vulseye(ctx),
-        BaselineMode::Smartshot => return crate::baselines::smartshot::fuzz_loop_smartshot::run_smartshot(ctx),
+        BaselineMode::Vulseye => {
+            return crate::baselines::vulseye::fuzz_loop_vulseye::run_vulseye(ctx)
+        }
+        BaselineMode::Smartshot => {
+            return crate::baselines::smartshot::fuzz_loop_smartshot::run_smartshot(ctx)
+        }
         BaselineMode::Bridgesentry => {}
     }
     let mutator = Mutator::with_atg(&ctx.atg);
     let mut registry = ContractRegistry::from_atg(&ctx.atg);
     if !ctx.address_overrides.is_empty() {
         registry.merge_address_overrides(
-            ctx.address_overrides.iter().map(|(k, v)| (k.as_str(), v.as_str())),
+            ctx.address_overrides
+                .iter()
+                .map(|(k, v)| (k.as_str(), v.as_str())),
         );
     }
     let calldata_mutator = CalldataMutator::from_registry(&registry, &ctx.atg);
@@ -178,8 +186,13 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         if !ctx.contract_plan.scan_sol_files().is_empty() {
             match ctx.contract_plan.compile_and_deploy(d) {
                 Ok(new_addrs) => {
-                    let overrides: Vec<(String, String)> = new_addrs.into_iter().map(|(k, v)| (k, format!("{:?}", v))).collect();
-                    registry.merge_address_overrides(overrides.iter().map(|(k, v)| (k.as_str(), v.as_str())));
+                    let overrides: Vec<(String, String)> = new_addrs
+                        .into_iter()
+                        .map(|(k, v)| (k, format!("{:?}", v)))
+                        .collect();
+                    registry.merge_address_overrides(
+                        overrides.iter().map(|(k, v)| (k.as_str(), v.as_str())),
+                    );
                     is_deployed = true;
                 }
                 Err(e) => {
@@ -290,7 +303,10 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         state.relay_state = relay.to_relay_snapshot();
         if let Some(d) = dual.as_mut() {
             let onchain = d.collect_global_state();
-            merge_balances(&mut state.source_state.balances, onchain.source_state.balances);
+            merge_balances(
+                &mut state.source_state.balances,
+                onchain.source_state.balances,
+            );
             merge_balances(&mut state.dest_state.balances, onchain.dest_state.balances);
         }
 
@@ -334,13 +350,9 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                     weight: r.max(0.1),
                 });
             }
-            let fingerprints: Vec<String> = s_prime.actions.iter().map(action_fingerprint).collect();
-            pool.capture(
-                dual.as_ref(),
-                &relay,
-                s_prime.actions.len(),
-                fingerprints,
-            );
+            let fingerprints: Vec<String> =
+                s_prime.actions.iter().map(action_fingerprint).collect();
+            pool.capture(dual.as_ref(), &relay, s_prime.actions.len(), fingerprints);
             pool.evict_oldest_if_over(ctx.config.max_snapshots);
             snapshots_captured_count = snapshots_captured_count.saturating_add(1);
         }
@@ -474,7 +486,11 @@ pub(crate) fn execute_scenario(
             trace.push(format!(
                 "relay:{}:{}",
                 action.step,
-                if relay_result.is_ok() { "ok" } else { "queued_or_err" }
+                if relay_result.is_ok() {
+                    "ok"
+                } else {
+                    "queued_or_err"
+                }
             ));
             continue;
         }
@@ -818,10 +834,12 @@ fn run_xscope(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                                 storage: &mut iter_storage,
                             };
                             match seed.chain {
-                                ChainSide::Source => d
-                                    .execute_on_source_with_inspector_full(&payload, composite),
-                                ChainSide::Destination => d
-                                    .execute_on_dest_with_inspector_full(&payload, composite),
+                                ChainSide::Source => {
+                                    d.execute_on_source_with_inspector_full(&payload, composite)
+                                }
+                                ChainSide::Destination => {
+                                    d.execute_on_dest_with_inspector_full(&payload, composite)
+                                }
                                 ChainSide::Relay => continue,
                             }
                         };
@@ -872,8 +890,7 @@ fn run_xscope(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             // earlier mode-only heuristic. The recipe lives in
             // metadata.auth_witness; the trace lives in scenario_storage
             // (the StorageTracker accumulated across the scenario's txs).
-            let auth_kind =
-                derive_auth_witness(ctx.auth_witness.as_ref(), &scenario_storage);
+            let auth_kind = derive_auth_witness(ctx.auth_witness.as_ref(), &scenario_storage);
             // Stage 1: relay-message-derived witnesses (highest specificity).
             for parsed in relay.parsed_log() {
                 if let Some(h) = parsed.source_msg_hash {
@@ -901,12 +918,10 @@ fn run_xscope(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                     detected_at_s: start.elapsed().as_secs_f64(),
                     trigger_scenario: scenario.scenario_id.clone(),
                     trigger_trace: trace.clone(),
-                    state_diff: HashMap::from([
-                        (
-                            "evidence".to_string(),
-                            v.evidence.chars().take(200).collect::<String>(),
-                        ),
-                    ]),
+                    state_diff: HashMap::from([(
+                        "evidence".to_string(),
+                        v.evidence.chars().take(200).collect::<String>(),
+                    )]),
                 });
             }
 
@@ -1066,7 +1081,10 @@ fn run_xscope_replay(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         // and re-funded later; replaying at fork_block - 1 may catch
         // them with 0 ETH and trigger Halt::OutOfFund (no opcodes
         // execute â†’ bb=0). Fund unconditionally to MAX/2 wei.
-        dual.fund_source(caller, revm::primitives::U256::MAX / revm::primitives::U256::from(2u8));
+        dual.fund_source(
+            caller,
+            revm::primitives::U256::MAX / revm::primitives::U256::from(2u8),
+        );
 
         let mut iter_cov = CoverageTracker::default();
         let mut iter_storage = StorageTracker::default();
@@ -1184,7 +1202,10 @@ fn run_xscope_replay(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                     violations.push(Violation {
                         invariant_id: format!("{}/{}", v.predicate_id, v.class),
                         detected_at_s: start.elapsed().as_secs_f64(),
-                        trigger_scenario: format!("replay_tx_{}", &tx.hash[..10.min(tx.hash.len())]),
+                        trigger_scenario: format!(
+                            "replay_tx_{}",
+                            &tx.hash[..10.min(tx.hash.len())]
+                        ),
                         trigger_trace: trace.clone(),
                         state_diff: HashMap::from([(
                             "evidence".to_string(),
@@ -1282,21 +1303,41 @@ fn load_replay_txs(dir: &std::path::Path) -> Result<Vec<ReplayTx>> {
     for e in entries {
         let raw = std::fs::read_to_string(e.path())?;
         let v: serde_json::Value = serde_json::from_str(&raw)?;
-        let hash = v.get("hash").and_then(|x| x.as_str()).unwrap_or("").to_string();
-        let from = v.get("from").and_then(|x| x.as_str()).unwrap_or("").to_string();
-        let to = v.get("to").and_then(|x| x.as_str()).unwrap_or("").to_string();
+        let hash = v
+            .get("hash")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_string();
+        let from = v
+            .get("from")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_string();
+        let to = v
+            .get("to")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_string();
         let input = v
             .get("input")
             .and_then(|x| x.as_str())
             .unwrap_or("")
             .to_string();
-        out.push(ReplayTx { hash, from, to, input });
+        out.push(ReplayTx {
+            hash,
+            from,
+            to,
+            input,
+        });
     }
     Ok(out)
 }
 
 fn decode_hex(s: &str) -> std::result::Result<Vec<u8>, String> {
-    let trimmed = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")).unwrap_or(s);
+    let trimmed = s
+        .strip_prefix("0x")
+        .or_else(|| s.strip_prefix("0X"))
+        .unwrap_or(s);
     hex::decode(trimmed).map_err(|e| format!("hex decode failed: {e}"))
 }
 
@@ -1369,7 +1410,10 @@ fn derive_auth_witness(
             } else {
                 storage.total_writes() as u32
             };
-            AuthWitness::Multisig { signatures, threshold }
+            AuthWitness::Multisig {
+                signatures,
+                threshold,
+            }
         }
         "mpc" => AuthWitness::Mpc {
             matches_canonical: writes_on_target.is_empty(),
@@ -1415,7 +1459,10 @@ mod tests {
         // Mock vocabulary still works.
         assert_eq!(bare_op_lower("dispatch"), "dispatch");
         // Case insensitivity.
-        assert_eq!(bare_op_lower("ProcessAndRelease(NomadMessage.Body)"), "processandrelease");
+        assert_eq!(
+            bare_op_lower("ProcessAndRelease(NomadMessage.Body)"),
+            "processandrelease"
+        );
         // View suffix stripped.
         assert_eq!(bare_op_lower("totalLocked() view"), "totallocked");
         // Empty string stays empty.
@@ -1423,4 +1470,3 @@ mod tests {
         assert_eq!(bare_op_lower("   "), "");
     }
 }
-

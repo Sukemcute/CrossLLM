@@ -70,10 +70,7 @@ pub type StateTargetMap = HashMap<usize, Vec<StateTarget>>;
 ///
 /// Returns a map from code-target index (in `code_targets` slice) to the
 /// state targets discovered.
-pub fn identify_state_targets_static(
-    cfg: &Cfg,
-    code_targets: &[CodeTarget],
-) -> StateTargetMap {
+pub fn identify_state_targets_static(cfg: &Cfg, code_targets: &[CodeTarget]) -> StateTargetMap {
     let mut out = StateTargetMap::new();
 
     for (ct_idx, ct) in code_targets.iter().enumerate() {
@@ -171,9 +168,7 @@ fn infer_constraint_after_sload(
 }
 
 /// Find the first PUSH value in a slice of instructions.
-fn find_nearby_push_value(
-    instructions: &[super::code_targets::Instruction],
-) -> Option<U256> {
+fn find_nearby_push_value(instructions: &[super::code_targets::Instruction]) -> Option<U256> {
     instructions
         .iter()
         .take(3)
@@ -236,11 +231,7 @@ impl ConcreteTraceCollector {
     /// For each (code_target, slot), the most frequent observed value
     /// becomes an `Exact` constraint. Returns targets sorted by
     /// observation frequency (most observed first).
-    pub fn to_state_targets(
-        &self,
-        code_targets: &[CodeTarget],
-        top_n: usize,
-    ) -> Vec<StateTarget> {
+    pub fn to_state_targets(&self, code_targets: &[CodeTarget], top_n: usize) -> Vec<StateTarget> {
         let mut all: Vec<(usize, StateTarget)> = Vec::new();
 
         for (&(ct_idx, slot), values) in &self.observations {
@@ -257,10 +248,7 @@ impl ConcreteTraceCollector {
             for v in values {
                 *freq.entry(*v).or_default() += 1;
             }
-            let (best_value, count) = freq
-                .into_iter()
-                .max_by_key(|(_, c)| *c)
-                .unwrap();
+            let (best_value, count) = freq.into_iter().max_by_key(|(_, c)| *c).unwrap();
 
             all.push((
                 count,
@@ -369,10 +357,12 @@ mod tests {
     fn static_extraction_finds_sload_slots() {
         // PUSH1 0x05  SLOAD  ISZERO  PUSH1 0x0A  JUMPI  STOP  JUMPDEST  STOP
         let bytecode = vec![
-            0x60, 0x05, // PUSH1 5 (slot)
+            0x60,
+            0x05, // PUSH1 5 (slot)
             op::SLOAD,
             op::ISZERO,
-            0x60, 0x0A, // PUSH1 10 (jump target)
+            0x60,
+            0x0A, // PUSH1 10 (jump target)
             op::JUMPI,
             op::STOP,
             op::JUMPDEST,
@@ -420,7 +410,10 @@ mod tests {
 
         let refined = collector.to_state_targets(&targets, 10);
         assert_eq!(refined.len(), 1);
-        assert_eq!(refined[0].constraint, ValueConstraint::Exact(U256::from(42)));
+        assert_eq!(
+            refined[0].constraint,
+            ValueConstraint::Exact(U256::from(42))
+        );
     }
 
     #[test]

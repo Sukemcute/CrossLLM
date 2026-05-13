@@ -95,7 +95,11 @@ mod tests {
         b.touched.insert((addr, 2));
 
         a.merge(&b);
-        assert_eq!(a.unique_pc_count(), 3, "merged set should have 3 unique PCs");
+        assert_eq!(
+            a.unique_pc_count(),
+            3,
+            "merged set should have 3 unique PCs"
+        );
         // Idempotent re-merge.
         a.merge(&b);
         assert_eq!(a.unique_pc_count(), 3, "re-merge does not duplicate");
@@ -116,7 +120,7 @@ mod tests {
         let a = Address::from([0xAA; 20]);
         let b = Address::from([0xBB; 20]);
         t.touched.insert((a, 0));
-        t.touched.insert((b, 0));   // same PC at different address
+        t.touched.insert((b, 0)); // same PC at different address
         t.touched.insert((a, 1));
         let flat = t.into_pcs();
         // PC=0 collapses across the two addresses; PC=1 stays.
@@ -131,9 +135,7 @@ mod tests {
     #[test]
     fn tracker_records_pcs_during_simple_execution() {
         // PUSH1 0x01 PUSH1 0x02 ADD STOP — 4 distinct opcode steps.
-        let bytecode = Bytecode::new_raw(Bytes::from(vec![
-            0x60, 0x01, 0x60, 0x02, 0x01, 0x00,
-        ]));
+        let bytecode = Bytecode::new_raw(Bytes::from(vec![0x60, 0x01, 0x60, 0x02, 0x01, 0x00]));
 
         let mut evm: Evm<'_, CoverageTracker, BenchmarkDB> = Evm::builder()
             .with_db(BenchmarkDB::new_bytecode(bytecode))

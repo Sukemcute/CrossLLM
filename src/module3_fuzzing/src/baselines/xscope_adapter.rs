@@ -62,8 +62,10 @@ pub struct XScopeBuilder<'a> {
 impl<'a> XScopeBuilder<'a> {
     pub fn new(atg: &AtgGraph, registry: &ContractRegistry, fee_tolerance_ppm: u128) -> Self {
         let (lock_topics, unlock_topics) = topics_from_atg(atg);
-        let src_addresses: HashSet<Address> =
-            registry.addresses_on(ChainSide::Source).into_iter().collect();
+        let src_addresses: HashSet<Address> = registry
+            .addresses_on(ChainSide::Source)
+            .into_iter()
+            .collect();
         let dst_addresses: HashSet<Address> = registry
             .addresses_on(ChainSide::Destination)
             .into_iter()
@@ -79,9 +81,7 @@ impl<'a> XScopeBuilder<'a> {
             relay_log: Vec::new(),
             auth_witnesses: HashMap::new(),
             fee_tolerance_ppm,
-            fallback_lock_keywords: vec![
-                "lock", "dispatch", "deposit", "submit", "send", "claim",
-            ],
+            fallback_lock_keywords: vec!["lock", "dispatch", "deposit", "submit", "send", "claim"],
             fallback_unlock_keywords: vec![
                 "unlock", "mint", "process", "release", "redeem", "withdraw",
             ],
@@ -274,7 +274,11 @@ fn topics_from_atg(atg: &AtgGraph) -> (HashSet<B256>, HashSet<B256>) {
             .next()
             .unwrap_or("")
             .to_ascii_lowercase();
-        let needle = if label.is_empty() { bare_op.clone() } else { label };
+        let needle = if label.is_empty() {
+            bare_op.clone()
+        } else {
+            label
+        };
         if lock_kw.iter().any(|k| needle.contains(*k)) {
             locks.insert(topic0);
         }
@@ -470,7 +474,8 @@ mod tests {
         let registry = ContractRegistry::from_atg(&atg);
         let mut builder = XScopeBuilder::new(&atg, &registry, 10_000);
 
-        let topic_dispatch = revm::primitives::keccak256("dispatch(uint32,uint256,address)".as_bytes());
+        let topic_dispatch =
+            revm::primitives::keccak256("dispatch(uint32,uint256,address)".as_bytes());
         let msg_hash = B256::from([0xa1; 32]);
         let log = make_log(
             router_addr(),
@@ -504,8 +509,16 @@ mod tests {
         // No auth witness → I-6 should fire as no_authorization_witness.
         let v = builder.check();
         let classes: Vec<&str> = v.iter().map(|x| x.class.as_str()).collect();
-        assert!(classes.contains(&"C3.unauthorized_unlocking"), "got {:?}", classes);
-        assert!(classes.contains(&"C3.no_authorization_witness"), "got {:?}", classes);
+        assert!(
+            classes.contains(&"C3.unauthorized_unlocking"),
+            "got {:?}",
+            classes
+        );
+        assert!(
+            classes.contains(&"C3.no_authorization_witness"),
+            "got {:?}",
+            classes
+        );
     }
 
     #[test]

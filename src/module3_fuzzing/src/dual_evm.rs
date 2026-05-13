@@ -9,16 +9,18 @@
 use std::str::FromStr;
 use std::sync::{Arc, OnceLock};
 
-use ethers_core::types::{Address as EthAddress, BlockId as EthBlockId, H256 as EthH256, U256 as EthU256};
+use ethers_core::types::{
+    Address as EthAddress, BlockId as EthBlockId, H256 as EthH256, U256 as EthU256,
+};
 use ethers_core::utils::get_contract_address;
 use ethers_providers::{Http, Middleware, Provider};
 use revm::db::{CacheDB, EthersDB};
 use revm::{
     inspector_handle_register,
     primitives::{
-        specification::SpecId,
-        AccountInfo, Address, BlockEnv, Bytes, CfgEnv, CfgEnvWithHandlerCfg, EnvWithHandlerCfg,
-        ExecutionResult, HandlerCfg, Log, Output, TransactTo, TxEnv, B256, KECCAK_EMPTY, U256,
+        specification::SpecId, AccountInfo, Address, BlockEnv, Bytes, CfgEnv, CfgEnvWithHandlerCfg,
+        EnvWithHandlerCfg, ExecutionResult, HandlerCfg, Log, Output, TransactTo, TxEnv, B256,
+        KECCAK_EMPTY, U256,
     },
     Database, DatabaseRef, Evm, Inspector,
 };
@@ -139,7 +141,11 @@ impl ChainVm {
 
     /// Variant of [`Self::run_tx`] that wires an [`Inspector`] (e.g.
     /// [`CoverageTracker`]) so per-instruction callbacks fire during execution.
-    fn run_tx_with_inspector<I>(&mut self, tx: TxEnv, inspector: I) -> Result<ExecutionResult, String>
+    fn run_tx_with_inspector<I>(
+        &mut self,
+        tx: TxEnv,
+        inspector: I,
+    ) -> Result<ExecutionResult, String>
     where
         I: Inspector<ChainDb>,
     {
@@ -255,10 +261,9 @@ impl ChainVm {
     fn map_call_result(result: ExecutionResult) -> Result<Vec<u8>, String> {
         match result {
             ExecutionResult::Success { output, .. } => Ok(output.into_data().to_vec()),
-            ExecutionResult::Revert { output, .. } => Err(format!(
-                "execution reverted: 0x{}",
-                hex::encode(output)
-            )),
+            ExecutionResult::Revert { output, .. } => {
+                Err(format!("execution reverted: 0x{}", hex::encode(output)))
+            }
             ExecutionResult::Halt { reason, .. } => Err(format!("execution halted: {reason:?}")),
         }
     }
@@ -291,10 +296,9 @@ impl ChainVm {
 
         match result {
             ExecutionResult::Success { output, .. } => Ok((output.into_data().to_vec(), touched)),
-            ExecutionResult::Revert { output, .. } => Err(format!(
-                "execution reverted: 0x{}",
-                hex::encode(output)
-            )),
+            ExecutionResult::Revert { output, .. } => {
+                Err(format!("execution reverted: 0x{}", hex::encode(output)))
+            }
             ExecutionResult::Halt { reason, .. } => Err(format!("execution halted: {reason:?}")),
         }
     }
@@ -358,10 +362,7 @@ impl ChainVm {
     }
 
     fn balance_of(&mut self, who: Address) -> Result<U256, String> {
-        let acc = self
-            .db
-            .basic(who)
-            .map_err(|e| format!("db.basic: {e:?}"))?;
+        let acc = self.db.basic(who).map_err(|e| format!("db.basic: {e:?}"))?;
         Ok(acc.map(|a| a.balance).unwrap_or(U256::ZERO))
     }
 
@@ -407,7 +408,12 @@ pub struct TxOutcome {
 impl TxOutcome {
     fn from_execution_result(result: ExecutionResult) -> Self {
         match result {
-            ExecutionResult::Success { gas_used, logs, output, .. } => Self {
+            ExecutionResult::Success {
+                gas_used,
+                logs,
+                output,
+                ..
+            } => Self {
                 success: true,
                 output: output.into_data().to_vec(),
                 logs,
@@ -502,7 +508,12 @@ impl DualEvm {
     ///
     /// # Panics
     /// Never; errors are returned as `Err(String)`.
-    pub fn new(source_rpc: &str, dest_rpc: &str, source_block: u64, dest_block: u64) -> Result<Self, String> {
+    pub fn new(
+        source_rpc: &str,
+        dest_rpc: &str,
+        source_block: u64,
+        dest_block: u64,
+    ) -> Result<Self, String> {
         Self::new_with_spec(
             source_rpc,
             dest_rpc,
@@ -604,7 +615,10 @@ impl DualEvm {
         Ok(src)
     }
 
-    fn predict_next_create_address(vm: &mut ChainVm, caller: Address) -> Result<EthAddress, String> {
+    fn predict_next_create_address(
+        vm: &mut ChainVm,
+        caller: Address,
+    ) -> Result<EthAddress, String> {
         let n = vm.nonce_hint(caller);
         let eth_caller = EthAddress::from_slice(caller.as_slice());
         Ok(get_contract_address(eth_caller, EthU256::from(n)))
@@ -634,7 +648,8 @@ impl DualEvm {
         tracker: &mut CoverageTracker,
     ) -> Result<Vec<u8>, String> {
         let (caller, to, data) = parse_execute_payload(tx)?;
-        self.source.execute_raw_call_with_inspector(caller, to, data, tracker)
+        self.source
+            .execute_raw_call_with_inspector(caller, to, data, tracker)
     }
 
     /// Destination-side counterpart of [`DualEvm::execute_on_source_with_inspector`].
@@ -644,7 +659,8 @@ impl DualEvm {
         tracker: &mut CoverageTracker,
     ) -> Result<Vec<u8>, String> {
         let (caller, to, data) = parse_execute_payload(tx)?;
-        self.dest.execute_raw_call_with_inspector(caller, to, data, tracker)
+        self.dest
+            .execute_raw_call_with_inspector(caller, to, data, tracker)
     }
 
     /// Same as [`DualEvm::execute_on_source_with_inspector`] but returns
@@ -728,14 +744,22 @@ impl DualEvm {
     /// predicate to compare lock-event amount against real balance delta.
     /// The baseline is whatever the caller captured before the call —
     /// typically via [`Self::source_balance`].
-    pub fn source_balance_delta_since(&mut self, who: Address, baseline: U256) -> Result<i128, String> {
+    pub fn source_balance_delta_since(
+        &mut self,
+        who: Address,
+        baseline: U256,
+    ) -> Result<i128, String> {
         let now = self.source.balance_of(who)?;
         Ok(u256_signed_delta(baseline, now))
     }
 
     /// Destination-side counterpart of
     /// [`Self::source_balance_delta_since`].
-    pub fn dest_balance_delta_since(&mut self, who: Address, baseline: U256) -> Result<i128, String> {
+    pub fn dest_balance_delta_since(
+        &mut self,
+        who: Address,
+        baseline: U256,
+    ) -> Result<i128, String> {
         let now = self.dest.balance_of(who)?;
         Ok(u256_signed_delta(baseline, now))
     }
@@ -954,9 +978,7 @@ mod tests {
     fn revm_poc_fork_mainnet_read_balance_latest() {
         let rpc = std::env::var("ETH_RPC_URL")
             .unwrap_or_else(|_| "https://ethereum.publicnode.com".to_string());
-        let provider = Arc::new(
-            Provider::<Http>::try_from(rpc.as_str()).expect("valid RPC URL"),
-        );
+        let provider = Arc::new(Provider::<Http>::try_from(rpc.as_str()).expect("valid RPC URL"));
         let block_num = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -970,8 +992,8 @@ mod tests {
             });
 
         // Vitalik's address — always holds ETH on mainnet.
-        let vitalik = Address::from_str("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045")
-            .expect("valid address");
+        let vitalik =
+            Address::from_str("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045").expect("valid address");
 
         let mut dual = DualEvm::new(&rpc, &rpc, block_num, block_num).expect("DualEvm fork");
         let balance = dual.source_balance(vitalik).expect("read balance");
@@ -979,9 +1001,7 @@ mod tests {
             balance > U256::ZERO,
             "expected positive ETH balance at block {block_num}, got {balance}"
         );
-        eprintln!(
-            "revm PoC OK: block={block_num} vitalik_balance_wei={balance}"
-        );
+        eprintln!("revm PoC OK: block={block_num} vitalik_balance_wei={balance}");
     }
 
     /// Requires `SOURCE_RPC_URL` (or `ETH_RPC_URL`) pointing at Ethereum mainnet archival RPC.
@@ -993,14 +1013,15 @@ mod tests {
             .expect("set ETH_RPC_URL");
         let mut dual = DualEvm::new(&rpc, &rpc, 15259100, 15259100).expect("dual evm");
         dual.set_tracked_addresses(vec![nomad_replica_address()]);
-        let b = dual
-            .dest_balance(nomad_replica_address())
-            .expect("balance");
+        let b = dual.dest_balance(nomad_replica_address()).expect("balance");
         assert!(b > U256::ZERO);
         let gs = dual.collect_global_state();
         assert_eq!(gs.source_state.block_number, 15259100);
         assert_eq!(gs.dest_state.block_number, 15259100);
-        assert!(gs.dest_state.balances.contains_key("0x5d94309e5a0090b165fa4181519701637b6daeba"));
+        assert!(gs
+            .dest_state
+            .balances
+            .contains_key("0x5d94309e5a0090b165fa4181519701637b6daeba"));
     }
 
     /// Snapshot capture/restore on a real fork (archive RPC). Run with `ETH_RPC_URL` + `--ignored`.
@@ -1013,17 +1034,13 @@ mod tests {
         let mut dual = DualEvm::new(&rpc, &rpc, 15259100, 15259100).expect("dual evm");
         dual.set_tracked_addresses(vec![nomad_replica_address()]);
         let snap = dual.capture_snapshot();
-        let b_before = dual
-            .dest_balance(nomad_replica_address())
-            .expect("balance");
+        let b_before = dual.dest_balance(nomad_replica_address()).expect("balance");
         let mut payload = vec![0u8; 40];
         payload[..20].copy_from_slice(default_caller().as_slice());
         payload[20..40].copy_from_slice(nomad_replica_address().as_slice());
         let _ = dual.execute_on_dest(&payload);
         dual.restore_snapshot(snap);
-        let b_after = dual
-            .dest_balance(nomad_replica_address())
-            .expect("balance");
+        let b_after = dual.dest_balance(nomad_replica_address()).expect("balance");
         assert_eq!(b_before, b_after);
     }
 }

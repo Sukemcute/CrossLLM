@@ -117,10 +117,9 @@ impl ContractRegistry {
             if needle.is_empty() {
                 continue;
             }
-            if let Some((_, addr)) = pairs
-                .iter()
-                .find(|(k, _)| !k.is_empty() && (k.contains(&needle) || needle.contains(k.as_str())))
-            {
+            if let Some((_, addr)) = pairs.iter().find(|(k, _)| {
+                !k.is_empty() && (k.contains(&needle) || needle.contains(k.as_str()))
+            }) {
                 self.addresses.insert(node_id, *addr);
             }
         }
@@ -195,10 +194,7 @@ impl ContractRegistry {
     /// All deployed addresses, partitioned by side (source first, then destination).
     /// Convenient for [`DualEvm::set_tracked_addresses`].
     pub fn all_addresses(&self) -> Vec<Address> {
-        self.addresses
-            .iter()
-            .map(|(_, a)| *a)
-            .collect()
+        self.addresses.iter().map(|(_, a)| *a).collect()
     }
 
     /// Addresses on a specific chain side.
@@ -250,7 +246,11 @@ pub fn canonical_signature(raw: &str) -> String {
     if close < open {
         return String::new();
     }
-    let name = trimmed[..open].split_whitespace().last().unwrap_or("").trim();
+    let name = trimmed[..open]
+        .split_whitespace()
+        .last()
+        .unwrap_or("")
+        .trim();
     if name.is_empty() {
         return String::new();
     }
@@ -328,7 +328,10 @@ mod tests {
     #[test]
     fn selector_matches_known_erc20_transfer() {
         // ERC-20 `transfer(address,uint256)` selector is `0xa9059cbb`.
-        assert_eq!(function_selector("transfer(address,uint256)"), [0xa9, 0x05, 0x9c, 0xbb]);
+        assert_eq!(
+            function_selector("transfer(address,uint256)"),
+            [0xa9, 0x05, 0x9c, 0xbb]
+        );
     }
 
     #[test]
@@ -344,7 +347,9 @@ mod tests {
         );
         assert_eq!(reg.chain_of("replica"), Some(ChainSide::Destination));
 
-        let router = reg.address_of("source_router").expect("source_router address");
+        let router = reg
+            .address_of("source_router")
+            .expect("source_router address");
         assert_eq!(
             format!("{router:#x}"),
             "0xb92336759618f55bd0f8313bd843604592e27bd8"
@@ -393,7 +398,10 @@ mod tests {
         // record the selector since the table is keyed on node_id (not address).
         let user_b_sels = reg.selectors_of("user_b");
         assert_eq!(user_b_sels.len(), 1);
-        assert_eq!(user_b_sels[0], function_selector("transfer(address,uint256)"));
+        assert_eq!(
+            user_b_sels[0],
+            function_selector("transfer(address,uint256)")
+        );
     }
 
     #[test]
@@ -427,16 +435,37 @@ mod tests {
         // contract) and `ronin_bridge_v2_proxy`; the ATG's
         // `RoninBridgeManager` should resolve to the former, not the proxy.
         let overrides = vec![
-            ("wormhole_core_eth", "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"),
-            ("ronin_bridge_manager", "0x098B716B8Aaf21512996dC57EB06000000000000"),
-            ("ronin_bridge_v2_proxy", "0x1A2a1c938CE3eC39b6D47113c7950000000000B"),
-            ("horizon_eth_manager", "0x5D94309E5a0090b165FA4181519701637B6DAEBA"),
+            (
+                "wormhole_core_eth",
+                "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B",
+            ),
+            (
+                "ronin_bridge_manager",
+                "0x098B716B8Aaf21512996dC57EB06000000000000",
+            ),
+            (
+                "ronin_bridge_v2_proxy",
+                "0x1A2a1c938CE3eC39b6D47113c7950000000000B",
+            ),
+            (
+                "horizon_eth_manager",
+                "0x5D94309E5a0090b165FA4181519701637B6DAEBA",
+            ),
         ];
         reg.merge_address_overrides(overrides);
 
-        assert!(reg.address_of("WormholeCore").is_some(), "WormholeCore should match wormhole_core_eth");
-        assert!(reg.address_of("RoninBridgeManager").is_some(), "RoninBridgeManager should match ronin_bridge_v2_proxy");
-        assert!(reg.address_of("HorizonEthManager").is_some(), "HorizonEthManager should match horizon_eth_manager");
+        assert!(
+            reg.address_of("WormholeCore").is_some(),
+            "WormholeCore should match wormhole_core_eth"
+        );
+        assert!(
+            reg.address_of("RoninBridgeManager").is_some(),
+            "RoninBridgeManager should match ronin_bridge_v2_proxy"
+        );
+        assert!(
+            reg.address_of("HorizonEthManager").is_some(),
+            "HorizonEthManager should match horizon_eth_manager"
+        );
     }
 
     #[test]
@@ -537,14 +566,15 @@ impl ContractPlan {
             benchmarks_root.to_string_lossy()
         );
 
-        let out = run_solc_combined_json(&workspace, &allow, &sol_inputs, false)
-            .or_else(|first_err| {
+        let out = run_solc_combined_json(&workspace, &allow, &sol_inputs, false).or_else(
+            |first_err| {
                 if first_err.contains("Stack too deep") {
                     run_solc_combined_json(&workspace, &allow, &sol_inputs, true)
                 } else {
                     Err(first_err)
                 }
-            })?;
+            },
+        )?;
 
         let v: serde_json::Value =
             serde_json::from_slice(&out.stdout).map_err(|e| format!("solc JSON parse: {e}"))?;
@@ -576,11 +606,7 @@ impl ContractPlan {
             let abi: Abi = serde_json::from_str(&abi_text)
                 .map_err(|e| format!("ABI parse failed for {fq_key}: {e}"))?;
 
-            let short = fq_key
-                .rsplit(':')
-                .next()
-                .unwrap_or(fq_key)
-                .to_string();
+            let short = fq_key.rsplit(':').next().unwrap_or(fq_key).to_string();
 
             let art = AbridgedCompiled {
                 fq_name: fq_key.clone(),
@@ -645,8 +671,6 @@ impl ContractPlan {
         log
     }
 }
-
-
 
 #[derive(Clone, Debug)]
 struct AbridgedCompiled {
@@ -764,8 +788,7 @@ fn encode_initcode_for(art: &AbridgedCompiled, args: &[Token]) -> Result<Vec<u8>
         return Ok(code);
     };
 
-    ctor
-        .encode_input(code.into(), args)
+    ctor.encode_input(code.into(), args)
         .map(|b: ethers_core::abi::Bytes| b.to_vec())
         .map_err(|e| format!("{}: constructor encode_input failed: {e}", art.short_name))
 }
@@ -783,9 +806,15 @@ fn deploy_logged(
     Ok(addr)
 }
 
-fn pick_unique(by_short: &HashMap<String, Vec<AbridgedCompiled>>, bridge: &str, name: &str) -> Result<AbridgedCompiled, String> {
+fn pick_unique(
+    by_short: &HashMap<String, Vec<AbridgedCompiled>>,
+    bridge: &str,
+    name: &str,
+) -> Result<AbridgedCompiled, String> {
     let Some(v) = by_short.get(name) else {
-        return Err(format!("benchmark {bridge}: missing compiled contract `{name}`"));
+        return Err(format!(
+            "benchmark {bridge}: missing compiled contract `{name}`"
+        ));
     };
     if v.len() != 1 {
         return Err(format!(
@@ -803,7 +832,11 @@ fn fixed_signers(n: usize, base_u64: u64) -> Vec<Address> {
 }
 
 fn address_token_list(addrs: &[Address]) -> Vec<Token> {
-    addrs.iter().copied().map(|a| Token::Address(eth_address(a))).collect()
+    addrs
+        .iter()
+        .copied()
+        .map(|a| Token::Address(eth_address(a)))
+        .collect()
 }
 
 fn deploy_bridge_fixtures(
@@ -834,12 +867,10 @@ fn deploy_bridge_fixtures(
         "nomad" => {
             d!("Replica");
             d!("MockToken");
-            let rep = deployed_address(deployed, "Replica").ok_or_else(|| {
-                "internal: Replica address missing after deploy".to_string()
-            })?;
-            let tok = deployed_address(deployed, "MockToken").ok_or_else(|| {
-                "internal: MockToken address missing after deploy".to_string()
-            })?;
+            let rep = deployed_address(deployed, "Replica")
+                .ok_or_else(|| "internal: Replica address missing after deploy".to_string())?;
+            let tok = deployed_address(deployed, "MockToken")
+                .ok_or_else(|| "internal: MockToken address missing after deploy".to_string())?;
             d_ctor!(
                 "BridgeRouter",
                 Token::Address(eth_address(rep)),
@@ -918,10 +949,7 @@ fn deploy_bridge_fixtures(
                 Token::Uint(EthU256::from(18u8))
             );
             let signers = fixed_signers(10, 0x601);
-            d_ctor!(
-                "OrbitVault",
-                Token::Array(address_token_list(&signers))
-            );
+            d_ctor!("OrbitVault", Token::Array(address_token_list(&signers)));
             Ok(())
         }
 
@@ -943,10 +971,7 @@ fn deploy_bridge_fixtures(
         "harmony" => {
             let signers = fixed_signers(4, 0x701);
             let mgr_pred_src = dual.peek_next_create_address_source()?;
-            d_ctor!(
-                "EthBucket",
-                Token::Address(mgr_pred_src)
-            );
+            d_ctor!("EthBucket", Token::Address(mgr_pred_src));
             let bucket = deployed_address(deployed, "EthBucket")
                 .ok_or_else(|| "internal: harmony bucket".to_string())?;
             d_ctor!(
@@ -979,10 +1004,7 @@ fn deploy_bridge_fixtures(
 
         "polynetwork" => {
             let data_pred = dual.peek_next_create_address_source()?;
-            d_ctor!(
-                "EthCrossChainManager",
-                Token::Address(data_pred)
-            );
+            d_ctor!("EthCrossChainManager", Token::Address(data_pred));
             let mgr = deployed_address(deployed, "EthCrossChainManager")
                 .ok_or_else(|| "internal: poly manager".to_string())?;
             d_ctor!("EthCrossChainData", Token::Address(eth_address(mgr)));
@@ -1001,16 +1023,14 @@ fn deploy_bridge_fixtures(
                 Token::Address(bridge_pred)
             );
 
-            let core = deployed_address(deployed, "WormholeCore").ok_or_else(|| {
-                "internal: wormhole core missing".to_string()
-            })?;
-            let _wrapped = deployed_address(deployed, "WrappedAsset").ok_or_else(|| {
-                "internal: wormhole wrapped missing".to_string()
-            })?;
+            let core = deployed_address(deployed, "WormholeCore")
+                .ok_or_else(|| "internal: wormhole core missing".to_string())?;
+            let _wrapped = deployed_address(deployed, "WrappedAsset")
+                .ok_or_else(|| "internal: wormhole wrapped missing".to_string())?;
             d_ctor!("TokenBridge", Token::Address(eth_address(core)));
 
-            let br =
-                deployed_address(deployed, "TokenBridge").ok_or_else(|| "internal: bridge".to_string())?;
+            let br = deployed_address(deployed, "TokenBridge")
+                .ok_or_else(|| "internal: bridge".to_string())?;
             if eth_address(br) != bridge_pred {
                 return Err("wormhole: predicted TokenBridge CREATE address mismatch".into());
             }
@@ -1058,7 +1078,8 @@ pub fn load_contract_plan(atg_path: &str, atg: &AtgGraph) -> ContractPlan {
     // Base map from ATG itself.
     for n in &atg.nodes {
         if !n.address.trim().is_empty() {
-            plan.node_to_address.insert(n.node_id.clone(), n.address.clone());
+            plan.node_to_address
+                .insert(n.node_id.clone(), n.address.clone());
         }
     }
 

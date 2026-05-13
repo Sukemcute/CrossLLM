@@ -69,7 +69,10 @@ pub mod op {
 
     #[inline]
     pub fn is_terminator(o: u8) -> bool {
-        matches!(o, STOP | JUMP | JUMPI | RETURN | REVERT | INVALID | SELFDESTRUCT)
+        matches!(
+            o,
+            STOP | JUMP | JUMPI | RETURN | REVERT | INVALID | SELFDESTRUCT
+        )
     }
 
     #[inline]

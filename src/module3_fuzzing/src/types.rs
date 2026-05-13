@@ -352,14 +352,30 @@ pub struct FuzzerConfig {
     pub dynamic_snapshots: bool,
 }
 
-fn default_runs() -> u32 { 1 }
-fn default_alpha() -> f64 { 0.3 }
-fn default_beta() -> f64 { 0.4 }
-fn default_gamma() -> f64 { 0.3 }
-fn default_r_threshold() -> f64 { 0.5 }
-fn default_max_corpus() -> usize { 256 }
-fn default_max_snapshots() -> usize { 64 }
-fn default_true() -> bool { true }
+fn default_runs() -> u32 {
+    1
+}
+fn default_alpha() -> f64 {
+    0.3
+}
+fn default_beta() -> f64 {
+    0.4
+}
+fn default_gamma() -> f64 {
+    0.3
+}
+fn default_r_threshold() -> f64 {
+    0.5
+}
+fn default_max_corpus() -> usize {
+    256
+}
+fn default_max_snapshots() -> usize {
+    64
+}
+fn default_true() -> bool {
+    true
+}
 
 // ============================================================================
 // Invariant check result (used by checker.rs)
@@ -391,8 +407,10 @@ mod tests {
 
     fn fixtures_dir() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .parent().unwrap()  // src/
-            .parent().unwrap()  // project root
+            .parent()
+            .unwrap() // src/
+            .parent()
+            .unwrap() // project root
             .join("tests")
             .join("fixtures")
     }
@@ -402,14 +420,18 @@ mod tests {
         let path = fixtures_dir().join("atg_mock.json");
         let content = std::fs::read_to_string(&path)
             .unwrap_or_else(|e| panic!("Failed to read {}: {}", path.display(), e));
-        let atg: AtgGraph = serde_json::from_str(&content)
-            .unwrap_or_else(|e| panic!("Failed to parse ATG: {}", e));
+        let atg: AtgGraph =
+            serde_json::from_str(&content).unwrap_or_else(|e| panic!("Failed to parse ATG: {}", e));
 
         assert_eq!(atg.bridge_name, "nomad");
         assert_eq!(atg.version, "1.0");
         assert_eq!(atg.nodes.len(), 6, "Expected 6 nodes in Nomad ATG");
         assert_eq!(atg.edges.len(), 5, "Expected 5 edges in Nomad ATG");
-        assert_eq!(atg.invariants.len(), 4, "Expected 4 invariants in Nomad ATG");
+        assert_eq!(
+            atg.invariants.len(),
+            4,
+            "Expected 4 invariants in Nomad ATG"
+        );
 
         // Verify specific invariant categories
         let categories: Vec<&str> = atg.invariants.iter().map(|i| i.category.as_str()).collect();
@@ -456,8 +478,14 @@ mod tests {
                 trigger_scenario: "s1_zero_root_bypass".to_string(),
                 trigger_trace: vec!["tx1".to_string(), "tx2".to_string()],
                 state_diff: HashMap::from([
-                    ("source_locked".to_string(), "1000000000000000000".to_string()),
-                    ("dest_minted".to_string(), "999000000000000000000".to_string()),
+                    (
+                        "source_locked".to_string(),
+                        "1000000000000000000".to_string(),
+                    ),
+                    (
+                        "dest_minted".to_string(),
+                        "999000000000000000000".to_string(),
+                    ),
                 ]),
             }],
             coverage: Coverage {
@@ -500,10 +528,22 @@ mod tests {
         let config: FuzzerConfig = serde_json::from_str(json).expect("Failed to parse config");
         assert_eq!(config.time_budget_s, 600);
         assert_eq!(config.runs, 1, "Default runs should be 1");
-        assert!((config.alpha - 0.3).abs() < f64::EPSILON, "Default alpha should be 0.3");
-        assert!((config.beta - 0.4).abs() < f64::EPSILON, "Default beta should be 0.4");
-        assert!((config.gamma - 0.3).abs() < f64::EPSILON, "Default gamma should be 0.3");
-        assert!(config.random_seed.is_none(), "Default random_seed should be None");
+        assert!(
+            (config.alpha - 0.3).abs() < f64::EPSILON,
+            "Default alpha should be 0.3"
+        );
+        assert!(
+            (config.beta - 0.4).abs() < f64::EPSILON,
+            "Default beta should be 0.4"
+        );
+        assert!(
+            (config.gamma - 0.3).abs() < f64::EPSILON,
+            "Default gamma should be 0.3"
+        );
+        assert!(
+            config.random_seed.is_none(),
+            "Default random_seed should be None"
+        );
         assert!((config.r_threshold - 0.5).abs() < 1e-9);
         assert_eq!(config.max_corpus, 256);
         assert_eq!(config.max_snapshots, 64);
@@ -578,9 +618,7 @@ mod tests {
     fn test_global_state() {
         let state = GlobalState {
             source_state: ChainState {
-                balances: HashMap::from([
-                    ("0xRouter".to_string(), "1000".to_string()),
-                ]),
+                balances: HashMap::from([("0xRouter".to_string(), "1000".to_string())]),
                 storage: HashMap::new(),
                 block_number: 15259100,
                 timestamp: 1659171599,

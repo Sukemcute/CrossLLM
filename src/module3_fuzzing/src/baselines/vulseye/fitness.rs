@@ -1,7 +1,7 @@
-use std::collections::{HashMap, HashSet};
-use revm::primitives::{Address, B256, U256};
 use crate::baselines::vulseye::code_targets::{Cfg, CodeTarget};
-use crate::baselines::vulseye::state_targets::{StateTarget, state_target_distance};
+use crate::baselines::vulseye::state_targets::{state_target_distance, StateTarget};
+use revm::primitives::{Address, B256, U256};
+use std::collections::{HashMap, HashSet};
 
 /// Precomputed distances from every basic block to the nearest CodeTarget.
 #[derive(Clone, Debug)]
@@ -42,7 +42,7 @@ impl CodeDistanceMap {
     pub fn distance_for_trace(&self, hit_bbs: &HashSet<usize>) -> f64 {
         let mut min_dist = f64::MAX;
         let mut found_reachable = false;
-        
+
         // VulSEye computes mean of top 5 lowest distance basic blocks in python:
         // transaction_distance.append(np.mean(sorted(basic_block_distances)[:set_min]))
         // Let's replicate this accurately to match their paper/repo:
@@ -50,11 +50,11 @@ impl CodeDistanceMap {
             .iter()
             .filter_map(|bb| self.distances.get(bb).copied())
             .collect();
-            
+
         if bb_distances.is_empty() {
             return 100.0;
         }
-        
+
         bb_distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let take = bb_distances.len().min(5);
         let sum: f64 = bb_distances.iter().take(take).sum();
@@ -94,7 +94,7 @@ pub fn compute_state_distance(
 }
 
 /// Computes the final Eq 8 Fitness for an execution iteration.
-/// 
+///
 /// `norm_code_dist` and `norm_state_dist` should be `code_distance / std_dev` across corpus.
 /// Since we need these std deviations, we can just pass them in or calculate online.
 /// To keep it stateless, we'll pass the normalized distances directly.
@@ -107,11 +107,11 @@ pub fn calculate_fitness(
     // Eq. 8 and python matching:
     // final_score = 1 / (0.5 * normalized_code_distance + 0.5 * normalized_state_distance + 0.1)
     let final_score = 1.0 / (0.5 * norm_code_dist + 0.5 * norm_state_dist + 0.1);
-    
+
     // score = (block_coverage_fitness + data_dependency_fitness) * 0.015
     let coverage_score = newly_visited_branches as f64;
     let score = (coverage_score + data_dep_score) * 0.015;
-    
+
     // fitness = final_score + score
     final_score + score
 }

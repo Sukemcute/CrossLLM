@@ -76,12 +76,7 @@ impl InvariantChecker {
     }
 
     fn zero_root_accepted(state: &GlobalState) -> bool {
-        slot_equals(
-            &state.dest_state,
-            "replica",
-            "zero_root_accepted",
-            "true",
-        )
+        slot_equals(&state.dest_state, "replica", "zero_root_accepted", "true")
     }
 
     fn check_asset_conservation(
