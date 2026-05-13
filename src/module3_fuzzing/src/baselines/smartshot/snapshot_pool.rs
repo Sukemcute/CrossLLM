@@ -17,7 +17,7 @@ use std::collections::{HashMap, VecDeque};
 
 use revm::primitives::{Address, B256};
 
-use super::mutable_snapshot::{MutableSnapshot, SnapshotKind};
+use super::mutable_snapshot::{MutableSnapshot, MutationOperator, SnapshotKind};
 
 /// One entry in the snapshot pool — represents a restorable state plus
 /// the targeted mutation to apply before resuming execution.
@@ -31,6 +31,8 @@ pub struct SnapshotEntry {
     pub slot: B256,
     /// The value to write into `slot` (Z3-solved or boundary).
     pub target_value: B256,
+    /// Mutation operator represented by this entry.
+    pub operator: MutationOperator,
 }
 
 /// Pool of pending snapshot-based mutations, keyed by trigger type + slot.

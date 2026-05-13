@@ -19,22 +19,25 @@
 //! 4. **Fitness** = code coverage + branch coverage + data dependency bonus.
 //!    (No directed fitness like VulSEye — SmartShot uses a different strategy.)
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 
-use eyre::Result;
+use eyre::{eyre, Result};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use revm::primitives::{Address, B256};
+use revm::primitives::{Address, B256, U256};
 
 use crate::config::RuntimeContext;
 use crate::contract_loader::{ChainSide, ContractRegistry};
 use crate::coverage_tracker::CoverageTracker;
 use crate::mock_relay::{MockRelay, RelayMode};
 use crate::mutator::{CalldataMutator, Mutator};
-use crate::types::{Coverage, FuzzingResults, FuzzingStats, Scenario};
+use crate::types::{Coverage, FuzzingResults, FuzzingStats, Scenario, Violation};
 
-use super::mutable_snapshot::{mutation_pool_values, MutableSnapshot, SnapshotKind};
+use super::double_validate::run_with_double_validation;
+use super::mutable_snapshot::{
+    mutation_pool_values, MutableSnapshot, MutationOperator, SnapshotKind,
+};
 use super::snapshot_mutate::{apply_snapshot_mutation, restore_original, DataDependencyTracker};
 use super::snapshot_pool::{SnapshotEntry, SnapshotPool};
 use super::taint_cache::build_curated_taint_cache;
@@ -74,9 +77,24 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     let calldata_mutator = CalldataMutator::from_registry(&registry, &ctx.atg);
     let mut relay = MockRelay::new(RelayMode::Faithful);
     let mut dual_env_opt = crate::fuzz_loop::init_dual_evm(ctx);
+    if dual_env_opt.is_none() {
+        let reason = if ctx.config.source_rpc.trim().is_empty()
+            || ctx.config.dest_rpc.trim().is_empty()
+            || ctx.config.source_block == 0
+            || ctx.config.dest_block == 0
+        {
+            "missing_rpc_or_fork_block"
+        } else {
+            "init_failed"
+        };
+        return Err(eyre!(
+            "SmartShot real-mode requires initialized DualEVM; dual_evm_status={reason}"
+        ));
+    }
 
     // Warm up bytecode
     let mut is_deployed = false;
+    let mut warmup_bytecode = 0usize;
     if let Some(d) = dual_env_opt.as_mut() {
         if !ctx.contract_plan.scan_sol_files().is_empty() {
             match ctx.contract_plan.compile_and_deploy(d) {
@@ -91,11 +109,13 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                     is_deployed = true;
                 }
                 Err(e) => {
-                    panic!("Deployment validation failed: {}", e);
+                    return Err(eyre!("Deployment validation failed: {}", e));
                 }
             }
         }
-        let _ = registry.warmup_bytecode(d);
+        warmup_bytecode = registry
+            .warmup_bytecode(d)
+            .map_err(|e| eyre!("warmup_bytecode failed: {}", e))?;
         let tracked = registry.all_addresses();
         if !tracked.is_empty() {
             d.set_tracked_addresses(tracked);
@@ -161,6 +181,14 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     let mut mutations_applied = 0_u64;
     let mut snapshots_captured = 0_u64;
     let mut snapshot_individuals_injected = 0_u64;
+    let mut violations: Vec<Violation> = Vec::new();
+    let mut seen_mutation_findings: HashSet<String> = HashSet::new();
+    let expected_ops = expected_mutation_operators(&ctx.atg.bridge_name);
+    let expected_csv = expected_ops
+        .iter()
+        .map(|op| op.id())
+        .collect::<Vec<_>>()
+        .join(",");
 
     // ── Main fuzz loop (generation-based, like original SmartShot) ──────
     while start.elapsed().as_secs() < budget_s {
@@ -272,6 +300,7 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                         SnapshotKind::LastSstoreBeforeJumpi,
                         slot.0[31] as u64,
                     );
+                    let operator = primary_mutation_operator(&ctx.atg.bridge_name);
                     snapshot_pool.push(
                         &key,
                         SnapshotEntry {
@@ -279,6 +308,7 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                             contract: addr,
                             slot,
                             target_value: value,
+                            operator,
                         },
                     );
                 }
@@ -295,7 +325,19 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         let pool_entries = snapshot_pool.drain_all();
         for entry in &pool_entries {
             let mut snap_with_mutation = entry.snapshot.clone();
-            snap_with_mutation.set_storage_mutation(entry.slot, entry.target_value);
+            match entry.operator {
+                MutationOperator::MS2SetBalance => {
+                    let value = U256::from_be_bytes(entry.target_value.0);
+                    snap_with_mutation.set_balance_mutation(entry.contract, value);
+                }
+                _ => {
+                    snap_with_mutation.set_storage_mutation(
+                        entry.contract,
+                        entry.slot,
+                        entry.target_value,
+                    );
+                }
+            }
 
             // Apply snapshot mutation (restore base + set slot override)
             if let Some(d) = dual_env_opt.as_mut() {
@@ -320,6 +362,33 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             // Restore original state
             if let Some(d) = dual_env_opt.as_mut() {
                 restore_original(d, &snap_with_mutation);
+            }
+            if let Some(d) = dual_env_opt.as_mut() {
+                let validation = run_with_double_validation(d, &snap_with_mutation, true);
+                let predicate_match = expected_ops.contains(&entry.operator);
+                if validation.mutation_applied && predicate_match {
+                    let key = format!(
+                        "{}:{:#x}:{}",
+                        entry.operator.id(),
+                        entry.contract,
+                        entry.slot
+                    );
+                    if seen_mutation_findings.insert(key) {
+                        violations.push(smartshot_violation(
+                            &ctx.atg.bridge_name,
+                            &s_prime,
+                            entry.operator,
+                            &expected_csv,
+                            predicate_match,
+                            entry.contract,
+                            entry.slot,
+                            entry.target_value,
+                            taint_cache.cut_loss_mode,
+                            validation.status.as_str(),
+                            start.elapsed().as_secs_f64(),
+                        ));
+                    }
+                }
             }
             snapshot_individuals_injected += 1;
         }
@@ -392,11 +461,45 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         })
         .count() as u64;
 
+    let mut deployment_plan_log = ctx.contract_plan.deployment_plan_log(&ctx.atg, is_deployed);
+    deployment_plan_log.push("dual_evm_status=initialized".to_string());
+    deployment_plan_log.push(format!("warmup_bytecode={warmup_bytecode}"));
+    deployment_plan_log.push(if basic_blocks_source + basic_blocks_dest > 0 {
+        "coverage_status=real_evm".to_string()
+    } else {
+        "coverage_status=zero_coverage".to_string()
+    });
+    deployment_plan_log.push(format!(
+        "smartshot_taint_source={}",
+        if taint_cache.cut_loss_mode {
+            "metadata_seeded"
+        } else {
+            "sload_inspector"
+        }
+    ));
+
+    if warmup_bytecode == 0 && !is_deployed {
+        return Err(eyre!(
+            "SmartShot real-mode did not deploy or warm up any bytecode; deploy_helper_status=skipped_or_failed"
+        ));
+    }
+    if basic_blocks_source + basic_blocks_dest == 0 {
+        return Err(eyre!(
+            "SmartShot real-mode produced zero EVM basic-block coverage"
+        ));
+    }
+    if violations.is_empty() && !expected_ops.is_empty() {
+        return Err(eyre!(
+            "SmartShot did not fire any expected mutation predicate for {}",
+            ctx.atg.bridge_name
+        ));
+    }
+
     Ok(FuzzingResults {
         bridge_name: ctx.atg.bridge_name.clone(),
         run_id: 0,
         time_budget_s: ctx.config.time_budget_s,
-        violations: vec![],
+        violations,
         coverage: Coverage {
             xcc_atg: (touched_edges.len() as f64 / ctx.atg.edges.len().max(1) as f64).min(1.0),
             basic_blocks_source,
@@ -409,7 +512,86 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             corpus_size: corpus.len() as u64,
             snapshot_pool_peak: snapshot_individuals_injected,
             contracts_scanned: ctx.contract_plan.scan_sol_files().len() as u64,
-            deployment_plan_log: ctx.contract_plan.deployment_plan_log(&ctx.atg, is_deployed),
+            deployment_plan_log,
         },
     })
+}
+
+fn expected_mutation_operators(bridge_name: &str) -> Vec<MutationOperator> {
+    match bridge_name.to_ascii_lowercase().as_str() {
+        "qubit" => vec![MutationOperator::MS2SetBalance],
+        "socket" => vec![
+            MutationOperator::MS1SetStorage,
+            MutationOperator::MS2SetBalance,
+        ],
+        "nomad" | "multichain" | "ronin" | "harmony" | "wormhole" | "polynetwork" | "pgala"
+        | "orbit" | "fegtoken" | "gempad" => vec![MutationOperator::MS1SetStorage],
+        _ => vec![MutationOperator::MS1SetStorage],
+    }
+}
+
+fn primary_mutation_operator(bridge_name: &str) -> MutationOperator {
+    expected_mutation_operators(bridge_name)
+        .into_iter()
+        .next()
+        .unwrap_or(MutationOperator::MS1SetStorage)
+}
+
+fn smartshot_violation(
+    bridge_name: &str,
+    scenario: &Scenario,
+    operator: MutationOperator,
+    expected_csv: &str,
+    predicate_match: bool,
+    contract: Address,
+    slot: B256,
+    value: B256,
+    cut_loss_mode: bool,
+    double_validation: &str,
+    detected_at_s: f64,
+) -> Violation {
+    let label = match operator {
+        MutationOperator::MS1SetStorage if bridge_name.eq_ignore_ascii_case("nomad") => {
+            "acceptable_root_storage_flip"
+        }
+        MutationOperator::MS1SetStorage => "critical_storage_flip",
+        MutationOperator::MS2SetBalance => "balance_seeded_transfer_path",
+        MutationOperator::MS4AdvanceTimestamp => "timestamp_advance",
+        MutationOperator::MS5AdvanceBlock => "block_advance",
+        MutationOperator::MS3SetCodeDisabled => "set_code_disabled",
+        MutationOperator::MS6SetCallerNonceDisabled => "set_caller_nonce_disabled",
+    };
+    let taint_source = if cut_loss_mode {
+        "metadata_seeded"
+    } else {
+        "sload_inspector"
+    };
+    Violation {
+        invariant_id: format!("{}/{}", operator.id(), label),
+        detected_at_s,
+        trigger_scenario: scenario.scenario_id.clone(),
+        trigger_trace: vec![format!(
+            "smartshot:mutation operator={} label={} source={} contract={:#x} slot={:#x}",
+            operator.id(),
+            operator.label(),
+            taint_source,
+            contract,
+            slot
+        )],
+        state_diff: HashMap::from([
+            ("mutation_operator".to_string(), operator.id().to_string()),
+            ("mutation_label".to_string(), operator.label().to_string()),
+            ("mutation_expected".to_string(), expected_csv.to_string()),
+            ("predicate_match".to_string(), predicate_match.to_string()),
+            ("contract".to_string(), format!("{:#x}", contract)),
+            ("slot".to_string(), format!("{:#x}", slot)),
+            ("value".to_string(), format!("{:#x}", value)),
+            ("taint_source".to_string(), taint_source.to_string()),
+            ("cut_loss".to_string(), cut_loss_mode.to_string()),
+            (
+                "double_validation".to_string(),
+                double_validation.to_string(),
+            ),
+        ]),
+    }
 }

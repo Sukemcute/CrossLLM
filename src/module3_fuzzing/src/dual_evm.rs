@@ -101,6 +101,21 @@ impl ChainVm {
         fund_account(&mut self.db, addr, balance);
     }
 
+    fn set_storage(&mut self, addr: Address, slot: U256, value: U256) -> Result<(), String> {
+        self.db
+            .insert_account_storage(addr, slot, value)
+            .map_err(|e| format!("db.insert_account_storage: {e:?}"))
+    }
+
+    fn advance_time(&mut self, delta: u64) {
+        self.fork_block.timestamp = self.fork_block.timestamp.saturating_add(U256::from(delta));
+    }
+
+    fn advance_block(&mut self, delta: u64) {
+        self.block_number = self.block_number.saturating_add(delta);
+        self.fork_block.number = self.fork_block.number.saturating_add(U256::from(delta));
+    }
+
     fn prepare_deployer(&mut self, addr: Address, balance: U256) {
         let mut info = self
             .db
@@ -167,6 +182,34 @@ impl ChainVm {
         let (db, _) = evm.into_db_and_env_with_handler_cfg();
         self.db = db;
         Ok(res)
+    }
+
+    fn run_tx_with_inspector_return<I>(
+        &mut self,
+        tx: TxEnv,
+        inspector: I,
+    ) -> Result<(ExecutionResult, I), String>
+    where
+        I: Inspector<ChainDb>,
+    {
+        let mut cfg = CfgEnv::default();
+        cfg.chain_id = self.chain_id;
+        let cfg_wh = CfgEnvWithHandlerCfg::new(cfg, HandlerCfg::new(self.spec_id));
+        let env = EnvWithHandlerCfg::new_with_cfg_env(cfg_wh, self.fork_block.clone(), tx);
+
+        let mut evm = Evm::builder()
+            .with_db(self.db.clone())
+            .with_external_context(inspector)
+            .with_env_with_handler_cfg(env)
+            .append_handler_register(inspector_handle_register)
+            .build();
+
+        let res = evm
+            .transact_commit()
+            .map_err(|e| format!("EVM error: {e:?}"))?;
+        let ctx = evm.into_context();
+        self.db = ctx.evm.inner.db;
+        Ok((res, ctx.external))
     }
 
     /// Convenience wrapper around [`Self::run_tx_with_inspector`] that
@@ -561,6 +604,48 @@ impl DualEvm {
         self.dest.fund(who, balance);
     }
 
+    pub fn set_source_storage(
+        &mut self,
+        addr: Address,
+        slot: U256,
+        value: U256,
+    ) -> Result<(), String> {
+        self.source.set_storage(addr, slot, value)
+    }
+
+    pub fn set_dest_storage(
+        &mut self,
+        addr: Address,
+        slot: U256,
+        value: U256,
+    ) -> Result<(), String> {
+        self.dest.set_storage(addr, slot, value)
+    }
+
+    pub fn set_source_balance(&mut self, who: Address, balance: U256) {
+        self.fund_source(who, balance);
+    }
+
+    pub fn set_dest_balance(&mut self, who: Address, balance: U256) {
+        self.fund_dest(who, balance);
+    }
+
+    pub fn advance_source_time(&mut self, delta: u64) {
+        self.source.advance_time(delta);
+    }
+
+    pub fn advance_dest_time(&mut self, delta: u64) {
+        self.dest.advance_time(delta);
+    }
+
+    pub fn advance_source_block(&mut self, delta: u64) {
+        self.source.advance_block(delta);
+    }
+
+    pub fn advance_dest_block(&mut self, delta: u64) {
+        self.dest.advance_block(delta);
+    }
+
     /// Read ETH balance of an address on the destination fork.
     pub fn dest_balance(&mut self, who: Address) -> Result<U256, String> {
         self.dest.balance_of(who)
@@ -699,6 +784,34 @@ impl DualEvm {
         let (caller, to, data) = parse_execute_payload(tx)?;
         self.dest
             .execute_raw_call_with_inspector_full(caller, to, data, inspector)
+    }
+
+    pub fn execute_on_source_with_inspector_return<I>(
+        &mut self,
+        tx: &[u8],
+        inspector: I,
+    ) -> Result<(TxOutcome, I), String>
+    where
+        I: Inspector<ChainDb>,
+    {
+        let (caller, to, data) = parse_execute_payload(tx)?;
+        let tx = self.source.build_call_tx(caller, to, data);
+        let (result, inspector) = self.source.run_tx_with_inspector_return(tx, inspector)?;
+        Ok((TxOutcome::from_execution_result(result), inspector))
+    }
+
+    pub fn execute_on_dest_with_inspector_return<I>(
+        &mut self,
+        tx: &[u8],
+        inspector: I,
+    ) -> Result<(TxOutcome, I), String>
+    where
+        I: Inspector<ChainDb>,
+    {
+        let (caller, to, data) = parse_execute_payload(tx)?;
+        let tx = self.dest.build_call_tx(caller, to, data);
+        let (result, inspector) = self.dest.run_tx_with_inspector_return(tx, inspector)?;
+        Ok((TxOutcome::from_execution_result(result), inspector))
     }
 
     /// Returns the bytecode of a contract on the source or dest chain.

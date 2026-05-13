@@ -11,6 +11,7 @@
 //! - [`taint_cache`] — per-function read-set cache with cut-loss fallback
 //! - [`fuzz_loop_smartshot`] — main GA loop with snapshot injection
 
+pub mod double_validate;
 pub mod fuzz_loop_smartshot;
 pub mod mutable_snapshot;
 pub mod sload_inspector;

@@ -43,6 +43,77 @@ pub enum SnapshotKind {
     ExternalCall,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MutationOperator {
+    MS1SetStorage,
+    MS2SetBalance,
+    MS3SetCodeDisabled,
+    MS4AdvanceTimestamp,
+    MS5AdvanceBlock,
+    MS6SetCallerNonceDisabled,
+}
+
+impl MutationOperator {
+    pub fn id(self) -> &'static str {
+        match self {
+            MutationOperator::MS1SetStorage => "MS1",
+            MutationOperator::MS2SetBalance => "MS2",
+            MutationOperator::MS3SetCodeDisabled => "MS3",
+            MutationOperator::MS4AdvanceTimestamp => "MS4",
+            MutationOperator::MS5AdvanceBlock => "MS5",
+            MutationOperator::MS6SetCallerNonceDisabled => "MS6",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            MutationOperator::MS1SetStorage => "set_storage",
+            MutationOperator::MS2SetBalance => "set_balance",
+            MutationOperator::MS3SetCodeDisabled => "set_code_disabled",
+            MutationOperator::MS4AdvanceTimestamp => "advance_timestamp",
+            MutationOperator::MS5AdvanceBlock => "advance_block",
+            MutationOperator::MS6SetCallerNonceDisabled => "set_caller_nonce_disabled",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SnapshotMutation {
+    SetStorage {
+        contract: Address,
+        slot: B256,
+        value: B256,
+    },
+    SetBalance {
+        address: Address,
+        value: U256,
+    },
+    AdvanceTimestamp {
+        source_delta: u64,
+        dest_delta: u64,
+    },
+    AdvanceBlock {
+        source_delta: u64,
+        dest_delta: u64,
+    },
+    Disabled {
+        operator: MutationOperator,
+        reason: String,
+    },
+}
+
+impl SnapshotMutation {
+    pub fn operator(&self) -> MutationOperator {
+        match self {
+            SnapshotMutation::SetStorage { .. } => MutationOperator::MS1SetStorage,
+            SnapshotMutation::SetBalance { .. } => MutationOperator::MS2SetBalance,
+            SnapshotMutation::AdvanceTimestamp { .. } => MutationOperator::MS4AdvanceTimestamp,
+            SnapshotMutation::AdvanceBlock { .. } => MutationOperator::MS5AdvanceBlock,
+            SnapshotMutation::Disabled { operator, .. } => *operator,
+        }
+    }
+}
+
 // ─────────────────────────────────────────────────────────
 // MutableSnapshot
 // ─────────────────────────────────────────────────────────
@@ -74,6 +145,8 @@ pub struct MutableSnapshot {
     /// Transaction index at capture time — used to truncate the individual's
     /// chromosome so we only replay from the snapshot point onward.
     pub tx_index: usize,
+    /// Concrete SmartShot mutations applied to this snapshot.
+    pub mutation_log: Vec<SnapshotMutation>,
 }
 
 impl MutableSnapshot {
@@ -92,25 +165,51 @@ impl MutableSnapshot {
             target_slot: None,
             target_value: None,
             tx_index,
+            mutation_log: Vec::new(),
         }
     }
 
     /// Apply a storage slot mutation: set `slot` on `contract_addr` to `value`.
     /// This is the core SmartShot mutation operator.
-    pub fn set_storage_mutation(&mut self, slot: B256, value: B256) {
+    pub fn set_storage_mutation(&mut self, contract: Address, slot: B256, value: B256) {
         self.target_slot = Some(slot);
         self.target_value = Some(value);
+        self.mutation_log.push(SnapshotMutation::SetStorage {
+            contract,
+            slot,
+            value,
+        });
+    }
+
+    pub fn set_balance_mutation(&mut self, address: Address, value: U256) {
+        self.mutation_log
+            .push(SnapshotMutation::SetBalance { address, value });
+    }
+
+    pub fn advance_timestamp_mutation(&mut self, source_delta: u64, dest_delta: u64) {
+        self.mutation_log.push(SnapshotMutation::AdvanceTimestamp {
+            source_delta,
+            dest_delta,
+        });
+    }
+
+    pub fn advance_block_mutation(&mut self, source_delta: u64, dest_delta: u64) {
+        self.mutation_log.push(SnapshotMutation::AdvanceBlock {
+            source_delta,
+            dest_delta,
+        });
     }
 
     /// Return `true` if a slot mutation has been applied.
     pub fn has_mutation(&self) -> bool {
-        self.target_slot.is_some()
+        self.target_slot.is_some() || !self.mutation_log.is_empty()
     }
 
     /// Clear the applied mutation (for reuse with a different value).
     pub fn clear_mutation(&mut self) {
         self.target_slot = None;
         self.target_value = None;
+        self.mutation_log.clear();
     }
 }
 
