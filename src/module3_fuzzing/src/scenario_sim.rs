@@ -85,7 +85,7 @@ pub fn global_state_from_scenario(scenario: &Scenario) -> GlobalState {
     let scenario_is_attack = scenario_indicates_attack(scenario);
 
     for action in &scenario.actions {
-        let raw_fn = action.function.as_deref().unwrap_or("");
+        let raw_fn = action.semantic_op_raw().unwrap_or("");
         let op = extract_op(raw_fn).to_ascii_lowercase();
 
         // Skip view / pure calls — they don't mutate state.
@@ -628,5 +628,33 @@ mod tests {
         );
         let minted = u128_balance(&g.dest_state, "__minted__");
         assert!(minted > 0, "forgery scenario should produce non-zero mint");
+    }
+
+    #[test]
+    fn schema_contract_op_only_drives_state() {
+        let scenario_json = r#"{
+            "scenario_id": "nomad_schema_contract_replay",
+            "target_invariant": "asset_conservation_total",
+            "vulnerability_class": "replay_attack",
+            "confidence": 0.8,
+            "actions": [
+                {"step":1,"chain":"ethereum","op":"lock","function_signature":"lock(uint256 amount)","params":{"amount":"1000"},"description":"lock"},
+                {"step":2,"chain":"polygon","op":"process","function_signature":"process(bytes message)","params":{},"description":"process"},
+                {"step":3,"chain":"polygon","op":"process","function_signature":"process(bytes message)","params":{},"description":"replay"}
+            ],
+            "waypoints": [
+                {"waypoint_id":"w1","after_step":1,"predicate":"step_1_executed","description":"locked"},
+                {"waypoint_id":"w2","after_step":3,"predicate":"step_3_executed","description":"replayed"}
+            ],
+            "retrieved_exploits": []
+        }"#;
+        let scenario: Scenario = serde_json::from_str(scenario_json).expect("valid json");
+        let g = global_state_from_scenario(&scenario);
+
+        assert_eq!(u128_balance(&g.source_state, "__locked__"), 1000);
+        assert_eq!(u128_balance(&g.dest_state, "__minted__"), 2000);
+        let w = evaluate_waypoints(&g, &scenario);
+        assert!(w.contains(&"w1".to_string()));
+        assert!(w.contains(&"w2".to_string()));
     }
 }

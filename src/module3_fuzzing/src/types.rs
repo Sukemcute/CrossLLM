@@ -113,12 +113,18 @@ pub struct Scenario {
 pub struct Action {
     pub step: u32,
     pub chain: String,
+    /// Controlled operation vocabulary shared by Module 2 and Module 3.
+    #[serde(default)]
+    pub op: Option<String>,
     /// Contract node_id — present when targeting a contract
     #[serde(default)]
     pub contract: Option<String>,
     /// Function to call on the contract
     #[serde(default)]
     pub function: Option<String>,
+    /// Raw Solidity signature from Module 2, if available.
+    #[serde(default)]
+    pub function_signature: Option<String>,
     /// Relay action mode (faithful, tamper, replay, delay) — present when targeting relay
     #[serde(default)]
     pub action: Option<String>,
@@ -126,6 +132,25 @@ pub struct Action {
     #[serde(default)]
     pub params: HashMap<String, serde_json::Value>,
     pub description: String,
+}
+
+impl Action {
+    /// Preferred raw call signature for ABI encoding: explicit
+    /// `function_signature` first, then the legacy `function` field.
+    pub fn callable_signature(&self) -> Option<&str> {
+        self.function_signature
+            .as_deref()
+            .or(self.function.as_deref())
+    }
+
+    /// Preferred semantic operation token: controlled `op` first, then the
+    /// raw callable fields for backward compatibility with older fixtures.
+    pub fn semantic_op_raw(&self) -> Option<&str> {
+        self.op
+            .as_deref()
+            .or(self.function_signature.as_deref())
+            .or(self.function.as_deref())
+    }
 }
 
 /// A checkpoint predicate that should become true during scenario execution.
@@ -582,6 +607,25 @@ mod tests {
         assert_eq!(action.contract, Some("replica".to_string()));
         assert_eq!(action.function, Some("process".to_string()));
         assert!(action.action.is_none());
+    }
+
+    #[test]
+    fn test_action_with_schema_contract_fields() {
+        let json = r#"{
+            "step": 1,
+            "chain": "destination",
+            "op": "process",
+            "contract": "replica",
+            "function_signature": "process(bytes message)",
+            "params": {"message": "0x00"},
+            "description": "Submit message"
+        }"#;
+
+        let action: Action = serde_json::from_str(json).unwrap();
+        assert_eq!(action.op, Some("process".to_string()));
+        assert!(action.function.is_none());
+        assert_eq!(action.callable_signature(), Some("process(bytes message)"));
+        assert_eq!(action.semantic_op_raw(), Some("process"));
     }
 
     #[test]

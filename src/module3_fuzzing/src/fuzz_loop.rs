@@ -572,11 +572,11 @@ pub(crate) fn execute_scenario(
         // 1. Contract-id match â€” mock fixtures populate `action.contract`
         //    with a node_id (e.g. eplica`) that equals an ATG edge's src
         //    or dst. Direct match.
-        // 2. Function-signature op match â€” Module 2 LLM scenarios leave
-        //    `action.contract` as None and put the full Solidity signature
-        //    in `action.function`. We extract the bare op name from both
-        //    `action.function` and `edge.function_signature`; if they
-        //    agree, the edge counts as exercised.
+        // 2. Function/op match â€” Module 2 may emit the formal schema
+        //    contract (`op` + `function_signature`) or the older `function`
+        //    field. We extract the bare op name from both the action and
+        //    `edge.function_signature`; if they agree, the edge counts as
+        //    exercised.
         for edge in &ctx.atg.edges {
             let contract_match = action
                 .contract
@@ -585,8 +585,7 @@ pub(crate) fn execute_scenario(
                 .unwrap_or(false);
 
             let function_match = action
-                .function
-                .as_deref()
+                .semantic_op_raw()
                 .map(|fn_sig| {
                     let action_op = bare_op_lower(fn_sig);
                     let edge_op = bare_op_lower(&edge.function_signature);
@@ -638,7 +637,7 @@ pub(crate) fn build_evm_payload(action: &crate::types::Action, to: Address) -> V
 
 fn build_calldata(action: &crate::types::Action) -> Vec<u8> {
     let mut out = Vec::new();
-    let Some(sig) = action.function.as_deref() else {
+    let Some(sig) = action.callable_signature().or(action.op.as_deref()) else {
         return out;
     };
 

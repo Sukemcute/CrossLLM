@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bridgesentry.local/schemas/scenario_action.schema.json",
+  "title": "ScenarioAction",
+  "description": "Single Module 2 attack action consumed by Module 3. Formalizes the op/function_signature contract while preserving legacy function/action fields.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["step", "chain", "op", "params", "description"],
+  "properties": {
+    "step": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "chain": {
+      "type": "string",
+      "description": "Canonical source | destination | relay, or a project-specific chain label."
+    },
+    "op": {
+      "type": "string",
+      "enum": [
+        "lock",
+        "unlock",
+        "dispatch",
+        "process",
+        "mint",
+        "burn",
+        "relay",
+        "verify",
+        "approve",
+        "transfer",
+        "transferFrom",
+        "register",
+        "claim",
+        "swap"
+      ],
+      "description": "Controlled operation vocabulary for Module 3 semantic dispatch."
+    },
+    "contract": {
+      "type": "string",
+      "description": "ATG node_id when the action targets a contract."
+    },
+    "function_signature": {
+      "type": "string",
+      "description": "Raw Solidity signature from Module 2, e.g. process(bytes message)."
+    },
+    "function": {
+      "type": "string",
+      "description": "Legacy function field; kept for backward compatibility."
+    },
+    "action": {
+      "type": "string",
+      "description": "Legacy relay-mode field, e.g. faithful, tamper, replay, delay."
+    },
+    "params": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "actor": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    }
+  }
+}

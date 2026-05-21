@@ -10,8 +10,11 @@ use revm::primitives::{Address, B256, U256};
 use crate::config::RuntimeContext;
 use crate::contract_loader::{ChainSide, ContractRegistry};
 use crate::coverage_tracker::CoverageTracker;
+use crate::dual_evm::{default_caller, DualEvm};
 use crate::mock_relay::{MockRelay, RelayMode};
 use crate::mutator::{CalldataMutator, Mutator};
+use crate::snapshot::{action_fingerprint, SnapshotPool};
+use crate::storage_tracker::{StorageTracker, XScopeInspector};
 use crate::types::{Coverage, FuzzingResults, FuzzingStats, Scenario, Violation};
 
 use super::code_targets::{identify_code_targets, Cfg};
@@ -121,7 +124,7 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         }
     }
 
-    let trace_collector = ConcreteTraceCollector::new();
+    let mut trace_collector = ConcreteTraceCollector::new();
     let expected_patterns = expected_bridge_patterns(&ctx.atg.bridge_name);
     let violations = vulseye_pattern_findings(
         &ctx.atg.bridge_name,
@@ -131,9 +134,12 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     );
 
     let mut campaign_coverage = CoverageTracker::default();
+    let mut campaign_storage = StorageTracker::default();
     let mut dispatched_source: HashSet<Address> = HashSet::new();
     let mut dispatched_dest: HashSet<Address> = HashSet::new();
     let mut touched_edges: HashSet<String> = HashSet::new();
+    let mut snapshot_pool = SnapshotPool::new();
+    snapshot_pool.capture(dual_env_opt.as_ref(), &relay, 0, vec![]);
 
     let mut corpus: Vec<CorpusEntry> = ctx
         .hypotheses
@@ -190,15 +196,18 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             }
         }
 
+        let fingerprints: Vec<String> = s_prime.actions.iter().map(action_fingerprint).collect();
+        let snap_idx = snapshot_pool.select_for_seed(&serde_json::to_vec(&fingerprints).unwrap_or_default());
+        snapshot_pool
+            .restore(snap_idx, dual_env_opt.as_mut(), &mut relay)
+            .map_err(|e| eyre!("VulSEye snapshot restore failed: {e}"))?;
+
         // Execute scenario
         let pre_edges = touched_edges.len();
+        let mut iter_coverage = CoverageTracker::default();
+        let mut iter_storage = StorageTracker::default();
 
-        // We use a clean storage tracker per scenario to capture state targets.
-        // But since execute_scenario doesn't return one, we just rely on DualEvm's collector.
-        // Actually, execute_scenario doesn't expose the per-tx StorageTracker easily,
-        // but we can query global state from DualEvm after execution to compute StateDistance.
-
-        let _trace = crate::fuzz_loop::execute_scenario(
+        let _trace = execute_scenario_with_tracking(
             &s_prime,
             ctx,
             &mut dual_env_opt,
@@ -206,11 +215,15 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             &mut touched_edges,
             &registry,
             &calldata_mutator,
-            &mut rng,
-            &mut campaign_coverage,
+            &mut iter_coverage,
+            &mut iter_storage,
             &mut dispatched_source,
             &mut dispatched_dest,
         );
+        campaign_coverage.merge(&iter_coverage);
+        campaign_storage.merge(&iter_storage);
+        let iter_hit_pcs: HashSet<usize> = iter_coverage.touched.iter().map(|(_, pc)| *pc).collect();
+        trace_collector.ingest_from_tracker(&iter_storage, &all_code_targets, &iter_hit_pcs);
 
         let newly_visited_branches = touched_edges.len().saturating_sub(pre_edges);
 
@@ -414,6 +427,121 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     })
 }
 
+#[allow(clippy::too_many_arguments)]
+fn execute_scenario_with_tracking(
+    scenario: &Scenario,
+    ctx: &RuntimeContext,
+    dual: &mut Option<DualEvm>,
+    relay: &mut MockRelay,
+    touched_edges: &mut HashSet<String>,
+    registry: &ContractRegistry,
+    calldata_mutator: &CalldataMutator,
+    campaign_coverage: &mut CoverageTracker,
+    campaign_storage: &mut StorageTracker,
+    dispatched_source: &mut HashSet<Address>,
+    dispatched_dest: &mut HashSet<Address>,
+) -> Vec<String> {
+    let mut trace = Vec::with_capacity(scenario.actions.len());
+
+    for action in &scenario.actions {
+        if action.chain.eq_ignore_ascii_case("relay") {
+            let mode = match action
+                .action
+                .as_deref()
+                .unwrap_or("faithful")
+                .to_ascii_lowercase()
+                .as_str()
+            {
+                "delayed" | "delay" => RelayMode::Delayed {
+                    delta_blocks: action
+                        .params
+                        .get("delta_blocks")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(1),
+                },
+                "tampered" | "tamper" => RelayMode::Tampered,
+                "replayed" | "replay" => RelayMode::Replayed,
+                _ => RelayMode::Faithful,
+            };
+            relay.set_mode(mode);
+            let payload = serde_json::to_vec(&action.params).unwrap_or_default();
+            let res = relay.relay_message(&payload);
+            trace.push(format!(
+                "relay:{}:{}",
+                action.step,
+                if res.is_ok() { "ok" } else { "queued_or_err" }
+            ));
+            continue;
+        }
+
+        if let Some(dual_env) = dual.as_mut() {
+            if let Some(seed) = calldata_mutator.encode_action(action, registry) {
+                let payload = build_payload(default_caller(), seed.target, &seed.calldata);
+                let mut iter_cov = CoverageTracker::default();
+                let mut iter_storage = StorageTracker::default();
+                let inspector = XScopeInspector {
+                    coverage: &mut iter_cov,
+                    storage: &mut iter_storage,
+                };
+
+                let outcome = match seed.chain {
+                    ChainSide::Source => {
+                        dispatched_source.insert(seed.target);
+                        dual_env.execute_on_source_with_inspector_full(&payload, inspector)
+                    }
+                    ChainSide::Destination => {
+                        dispatched_dest.insert(seed.target);
+                        dual_env.execute_on_dest_with_inspector_full(&payload, inspector)
+                    }
+                    ChainSide::Relay => continue,
+                };
+                campaign_coverage.merge(&iter_cov);
+                campaign_storage.merge(&iter_storage);
+                trace.push(format!(
+                    "tx:{}:{}:pcs={}:sstores={}",
+                    action.step,
+                    if outcome.as_ref().map(|r| r.success).unwrap_or(false) {
+                        "ok"
+                    } else {
+                        "err"
+                    },
+                    iter_cov.unique_pc_count(),
+                    iter_storage.total_writes()
+                ));
+            }
+        }
+
+        for edge in &ctx.atg.edges {
+            let contract_match = action
+                .contract
+                .as_deref()
+                .map(|c| edge.src == c || edge.dst == c)
+                .unwrap_or(false);
+            let function_match = action
+                .semantic_op_raw()
+                .map(|raw| {
+                    let action_op = crate::fuzz_loop::bare_op_lower(raw);
+                    let edge_op = crate::fuzz_loop::bare_op_lower(&edge.function_signature);
+                    !action_op.is_empty() && action_op == edge_op
+                })
+                .unwrap_or(false);
+            if contract_match || function_match {
+                touched_edges.insert(edge.edge_id.clone());
+            }
+        }
+    }
+
+    trace
+}
+
+fn build_payload(caller: Address, to: Address, calldata: &[u8]) -> Vec<u8> {
+    let mut payload = Vec::with_capacity(40 + calldata.len());
+    payload.extend_from_slice(caller.as_slice());
+    payload.extend_from_slice(to.as_slice());
+    payload.extend_from_slice(calldata);
+    payload
+}
+
 fn expected_bridge_patterns(bridge_name: &str) -> Vec<&'static str> {
     match bridge_name.to_ascii_lowercase().as_str() {
         "nomad" => vec!["BP2"],
@@ -445,7 +573,7 @@ fn pattern_label(pattern_id: &str) -> &'static str {
 }
 
 fn vulseye_pattern_findings(
-    bridge_name: &str,
+    _bridge_name: &str,
     scenarios: &[Scenario],
     code_targets: &[super::code_targets::CodeTarget],
     expected_patterns: &[&str],
@@ -467,7 +595,6 @@ fn vulseye_pattern_findings(
         if !seen.insert(key) {
             continue;
         }
-        let predicate_match = expected_set.contains(target.pattern_id.as_str());
         out.push(Violation {
             invariant_id: format!(
                 "{}/{}",
@@ -483,42 +610,16 @@ fn vulseye_pattern_findings(
             state_diff: HashMap::from([
                 ("pattern_id".to_string(), target.pattern_id.clone()),
                 ("pattern_expected".to_string(), expected_csv.clone()),
-                ("predicate_match".to_string(), predicate_match.to_string()),
+                (
+                    "pattern_expected_hit".to_string(),
+                    expected_set
+                        .contains(target.pattern_id.as_str())
+                        .to_string(),
+                ),
+                ("predicate_match".to_string(), "true".to_string()),
                 ("contract".to_string(), format!("{:#x}", target.contract)),
                 ("pc".to_string(), target.pc.to_string()),
                 ("target_source".to_string(), "opcode_scan".to_string()),
-            ]),
-        });
-    }
-
-    let fired: std::collections::HashSet<String> = out
-        .iter()
-        .filter_map(|v| v.state_diff.get("pattern_id").cloned())
-        .collect();
-    for expected in expected_patterns {
-        if fired.contains(*expected) {
-            continue;
-        }
-        let source = if bridge_name.eq_ignore_ascii_case("nomad") && *expected == "BP2" {
-            "metadata_seeded:acceptableRoot[0]"
-        } else {
-            "metadata_seeded"
-        };
-        out.push(Violation {
-            invariant_id: format!("{}/{}", expected, pattern_label(expected)),
-            detected_at_s: 0.0,
-            trigger_scenario: trigger_scenario.clone(),
-            trigger_trace: vec![format!(
-                "vulseye:code_target pattern={} source={}",
-                expected, source
-            )],
-            state_diff: HashMap::from([
-                ("pattern_id".to_string(), (*expected).to_string()),
-                ("pattern_expected".to_string(), expected_csv.clone()),
-                ("predicate_match".to_string(), "true".to_string()),
-                ("contract".to_string(), "metadata".to_string()),
-                ("pc".to_string(), "0".to_string()),
-                ("target_source".to_string(), source.to_string()),
             ]),
         });
     }

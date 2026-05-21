@@ -51,7 +51,6 @@ pub fn apply_snapshot_mutation(dual: &mut DualEvm, snap: &MutableSnapshot) -> bo
                 dual.advance_dest_block(*dest_delta);
                 applied = true;
             }
-            SnapshotMutation::Disabled { .. } => {}
         }
     }
 

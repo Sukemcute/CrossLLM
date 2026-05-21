@@ -72,9 +72,17 @@
           "type": "string",
           "description": "ATG node_id when calling a contract"
         },
+        "op": {
+          "type": "string",
+          "description": "Controlled operation vocabulary consumed by Module 3; e.g. lock, unlock, dispatch, process, mint, burn, relay, verify"
+        },
+        "function_signature": {
+          "type": "string",
+          "description": "Raw Solidity signature preserved from Module 2 output; e.g. process(bytes message)"
+        },
         "function": {
           "type": "string",
-          "description": "Function name on the contract"
+          "description": "Legacy function name/signature on the contract; kept for backward compatibility"
         },
         "action": {
           "type": "string",

@@ -249,7 +249,7 @@ impl CalldataMutator {
 
         // Resolve selector: prefer the action's own function signature, then
         // any registry signature attached to the receiver.
-        let selector = if let Some(fn_sig) = action.function.as_deref() {
+        let selector = if let Some(fn_sig) = action.callable_signature() {
             let canonical = crate::contract_loader::canonical_signature(fn_sig);
             if !canonical.is_empty() {
                 crate::contract_loader::function_selector(&canonical)
@@ -427,8 +427,10 @@ fn build_adjacent_action(
     let inserted = Action {
         step: 0,
         chain: base.chain.clone(),
+        op: Some("adjacent_probe".to_string()),
         contract: Some(dst),
         function: Some("adjacent_probe".to_string()),
+        function_signature: None,
         action: None,
         params: HashMap::new(),
         description: "Inserted adjacent ATG action".to_string(),
@@ -482,8 +484,10 @@ mod tests {
             actions: vec![Action {
                 step: 1,
                 chain: "relay".to_string(),
+                op: None,
                 contract: None,
                 function: None,
+                function_signature: None,
                 action: Some("faithful".to_string()),
                 params: HashMap::new(),
                 description: "relay".to_string(),
@@ -598,8 +602,10 @@ mod tests {
         let action = Action {
             step: 1,
             chain: "destination".to_string(),
+            op: Some("process".to_string()),
             contract: Some("replica".to_string()),
             function: Some("proveAndProcess(bytes,bytes,uint256)".to_string()),
+            function_signature: None,
             action: None,
             params,
             description: "encode test".to_string(),
@@ -633,8 +639,10 @@ mod tests {
             actions: vec![Action {
                 step: 1,
                 chain: "source".to_string(),
+                op: Some("dispatch".to_string()),
                 contract: Some("source_router".to_string()),
                 function: Some("dispatch".to_string()),
+                function_signature: None,
                 action: None,
                 params: HashMap::new(),
                 description: "seed action".to_string(),

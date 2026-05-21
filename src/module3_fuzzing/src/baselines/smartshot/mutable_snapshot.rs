@@ -47,21 +47,24 @@ pub enum SnapshotKind {
 pub enum MutationOperator {
     MS1SetStorage,
     MS2SetBalance,
-    MS3SetCodeDisabled,
     MS4AdvanceTimestamp,
     MS5AdvanceBlock,
-    MS6SetCallerNonceDisabled,
 }
 
 impl MutationOperator {
+    pub const ACTIVE_POOL: &'static [MutationOperator] = &[
+        MutationOperator::MS1SetStorage,
+        MutationOperator::MS2SetBalance,
+        MutationOperator::MS4AdvanceTimestamp,
+        MutationOperator::MS5AdvanceBlock,
+    ];
+
     pub fn id(self) -> &'static str {
         match self {
             MutationOperator::MS1SetStorage => "MS1",
             MutationOperator::MS2SetBalance => "MS2",
-            MutationOperator::MS3SetCodeDisabled => "MS3",
             MutationOperator::MS4AdvanceTimestamp => "MS4",
             MutationOperator::MS5AdvanceBlock => "MS5",
-            MutationOperator::MS6SetCallerNonceDisabled => "MS6",
         }
     }
 
@@ -69,10 +72,8 @@ impl MutationOperator {
         match self {
             MutationOperator::MS1SetStorage => "set_storage",
             MutationOperator::MS2SetBalance => "set_balance",
-            MutationOperator::MS3SetCodeDisabled => "set_code_disabled",
             MutationOperator::MS4AdvanceTimestamp => "advance_timestamp",
             MutationOperator::MS5AdvanceBlock => "advance_block",
-            MutationOperator::MS6SetCallerNonceDisabled => "set_caller_nonce_disabled",
         }
     }
 }
@@ -96,10 +97,6 @@ pub enum SnapshotMutation {
         source_delta: u64,
         dest_delta: u64,
     },
-    Disabled {
-        operator: MutationOperator,
-        reason: String,
-    },
 }
 
 impl SnapshotMutation {
@@ -109,7 +106,6 @@ impl SnapshotMutation {
             SnapshotMutation::SetBalance { .. } => MutationOperator::MS2SetBalance,
             SnapshotMutation::AdvanceTimestamp { .. } => MutationOperator::MS4AdvanceTimestamp,
             SnapshotMutation::AdvanceBlock { .. } => MutationOperator::MS5AdvanceBlock,
-            SnapshotMutation::Disabled { operator, .. } => *operator,
         }
     }
 }

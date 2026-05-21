@@ -30,6 +30,7 @@ use revm::primitives::{Address, B256, U256};
 use crate::config::RuntimeContext;
 use crate::contract_loader::{ChainSide, ContractRegistry};
 use crate::coverage_tracker::CoverageTracker;
+use crate::dual_evm::default_caller;
 use crate::mock_relay::{MockRelay, RelayMode};
 use crate::mutator::{CalldataMutator, Mutator};
 use crate::types::{Coverage, FuzzingResults, FuzzingStats, Scenario, Violation};
@@ -40,12 +41,13 @@ use super::mutable_snapshot::{
 };
 use super::snapshot_mutate::{apply_snapshot_mutation, restore_original, DataDependencyTracker};
 use super::snapshot_pool::{SnapshotEntry, SnapshotPool};
-use super::taint_cache::build_curated_taint_cache;
+use super::taint_cache::{build_curated_taint_cache, collect_read_set, TaintCache};
 
 // ─────────────────────────────────────────────────────────
 // Corpus entry (mirrors GA Individual)
 // ─────────────────────────────────────────────────────────
 
+#[derive(Clone)]
 struct CorpusEntry {
     scenario: Scenario,
     fitness: f64,
@@ -123,12 +125,31 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     }
 
     // ── Build TaintCache (cut-loss mode for bridge benchmarks) ──────────
+    let selectors: Vec<[u8; 4]> = if calldata_mutator.known_selectors().is_empty() {
+        vec![[0u8; 4]]
+    } else {
+        calldata_mutator.known_selectors().to_vec()
+    };
     let contracts_with_selectors: Vec<(Address, [u8; 4])> = registry
         .all_addresses()
         .into_iter()
-        .map(|addr| (addr, [0u8; 4])) // use fallback selector (whole-contract scope)
+        .flat_map(|addr| {
+            let selectors = selectors.clone();
+            selectors.into_iter().map(move |selector| (addr, selector))
+        })
         .collect();
-    let taint_cache = build_curated_taint_cache(&ctx.atg.bridge_name, &contracts_with_selectors);
+    let mut taint_cache = TaintCache::new();
+    if let Some(d) = dual_env_opt.as_mut() {
+        for (addr, selector) in &contracts_with_selectors {
+            let read_set = collect_read_set(d, *addr, *selector);
+            if !read_set.is_empty() {
+                taint_cache.insert((*addr, *selector), read_set);
+            }
+        }
+    }
+    if taint_cache.total_slots() == 0 {
+        taint_cache = build_curated_taint_cache(&ctx.atg.bridge_name, &contracts_with_selectors);
+    }
 
     eprintln!(
         "[smartshot] taint_cache: {} functions, {} total slots (cut_loss={})",
@@ -163,6 +184,10 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             snapshot: None,
         })
         .collect();
+    let initial_corpus = corpus.clone();
+    let mut last_coverage_len = 0usize;
+    let mut stalled_iters = 0usize;
+    let mut mutation_rate = 1.0f64;
 
     let start = Instant::now();
     let budget_s = ctx
@@ -241,7 +266,11 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         } else {
             // Mutation: mutate calldata
             let scenario_bytes = serde_json::to_vec(&s_prime).unwrap_or_default();
-            let mutated_bytes = mutator.mutate(&scenario_bytes);
+            let mut mutated_bytes = scenario_bytes.clone();
+            let mutation_rounds = mutation_rate.ceil() as usize;
+            for _ in 0..mutation_rounds.max(1) {
+                mutated_bytes = mutator.mutate(&mutated_bytes);
+            }
             if mutated_bytes != scenario_bytes {
                 mutations_applied += 1;
                 s_prime = serde_json::from_slice(&mutated_bytes).unwrap_or(s_prime);
@@ -300,7 +329,7 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                         SnapshotKind::LastSstoreBeforeJumpi,
                         slot.0[31] as u64,
                     );
-                    let operator = primary_mutation_operator(&ctx.atg.bridge_name);
+                    let operator = random_mutation_operator(&mut rng);
                     snapshot_pool.push(
                         &key,
                         SnapshotEntry {
@@ -326,16 +355,22 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         for entry in &pool_entries {
             let mut snap_with_mutation = entry.snapshot.clone();
             match entry.operator {
-                MutationOperator::MS2SetBalance => {
-                    let value = U256::from_be_bytes(entry.target_value.0);
-                    snap_with_mutation.set_balance_mutation(entry.contract, value);
-                }
-                _ => {
+                MutationOperator::MS1SetStorage => {
                     snap_with_mutation.set_storage_mutation(
                         entry.contract,
                         entry.slot,
                         entry.target_value,
                     );
+                }
+                MutationOperator::MS2SetBalance => {
+                    let value = U256::from_be_bytes(entry.target_value.0);
+                    snap_with_mutation.set_balance_mutation(entry.contract, value);
+                }
+                MutationOperator::MS4AdvanceTimestamp => {
+                    snap_with_mutation.advance_timestamp_mutation(1, 1);
+                }
+                MutationOperator::MS5AdvanceBlock => {
+                    snap_with_mutation.advance_block_mutation(1, 1);
                 }
             }
 
@@ -364,8 +399,11 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                 restore_original(d, &snap_with_mutation);
             }
             if let Some(d) = dual_env_opt.as_mut() {
-                let validation = run_with_double_validation(d, &snap_with_mutation, true);
-                let predicate_match = expected_ops.contains(&entry.operator);
+                let validation_payload = validation_payload_for(&s_prime, &registry, &calldata_mutator);
+                let validation =
+                    run_with_double_validation(d, &snap_with_mutation, &validation_payload);
+                let predicate_match =
+                    matches!(validation.status, super::double_validate::DoubleValidationStatus::Validated);
                 if validation.mutation_applied && predicate_match {
                     let key = format!(
                         "{}:{:#x}:{}",
@@ -420,6 +458,19 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                     .unwrap_or(std::cmp::Ordering::Equal)
             });
             corpus.truncate(ctx.config.max_corpus);
+        }
+
+        let current_coverage_len = code_coverage_set.len();
+        if current_coverage_len > last_coverage_len {
+            last_coverage_len = current_coverage_len;
+            stalled_iters = 0;
+        } else {
+            stalled_iters += 1;
+        }
+        if stalled_iters >= 200 {
+            corpus = initial_corpus.clone();
+            mutation_rate = (mutation_rate * 1.25).min(8.0);
+            stalled_iters = 0;
         }
 
         total_iterations += 1;
@@ -488,13 +539,6 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             "SmartShot real-mode produced zero EVM basic-block coverage"
         ));
     }
-    if violations.is_empty() && !expected_ops.is_empty() {
-        return Err(eyre!(
-            "SmartShot did not fire any expected mutation predicate for {}",
-            ctx.atg.bridge_name
-        ));
-    }
-
     Ok(FuzzingResults {
         bridge_name: ctx.atg.bridge_name.clone(),
         run_id: 0,
@@ -530,11 +574,28 @@ fn expected_mutation_operators(bridge_name: &str) -> Vec<MutationOperator> {
     }
 }
 
-fn primary_mutation_operator(bridge_name: &str) -> MutationOperator {
-    expected_mutation_operators(bridge_name)
-        .into_iter()
-        .next()
-        .unwrap_or(MutationOperator::MS1SetStorage)
+fn random_mutation_operator(rng: &mut StdRng) -> MutationOperator {
+    let pool = MutationOperator::ACTIVE_POOL;
+    pool[rng.gen_range(0..pool.len())]
+}
+
+fn validation_payload_for(
+    scenario: &Scenario,
+    registry: &ContractRegistry,
+    calldata_mutator: &CalldataMutator,
+) -> Vec<u8> {
+    scenario
+        .actions
+        .iter()
+        .find_map(|action| calldata_mutator.encode_action(action, registry))
+        .map(|seed| {
+            let mut payload = Vec::with_capacity(40 + seed.calldata.len());
+            payload.extend_from_slice(default_caller().as_slice());
+            payload.extend_from_slice(seed.target.as_slice());
+            payload.extend_from_slice(&seed.calldata);
+            payload
+        })
+        .unwrap_or_default()
 }
 
 fn smartshot_violation(
@@ -558,8 +619,6 @@ fn smartshot_violation(
         MutationOperator::MS2SetBalance => "balance_seeded_transfer_path",
         MutationOperator::MS4AdvanceTimestamp => "timestamp_advance",
         MutationOperator::MS5AdvanceBlock => "block_advance",
-        MutationOperator::MS3SetCodeDisabled => "set_code_disabled",
-        MutationOperator::MS6SetCallerNonceDisabled => "set_caller_nonce_disabled",
     };
     let taint_source = if cut_loss_mode {
         "metadata_seeded"
