@@ -57,11 +57,6 @@ if [ ! -x "$BIN" ]; then
     echo "ERROR: binary not found at $BIN — build first: (cd $REPO/src/module3_fuzzing && cargo build --release)"
     exit 1
 fi
-if [ -z "${ETH_RPC_URL:-}" ]; then
-    echo "ERROR: ETH_RPC_URL not set in environment or $REPO/.env"
-    exit 1
-fi
-
 mkdir -p "$OUTDIR"
 echo "=== baseline sweep start $(date -u +%FT%TZ) — outdir=$OUTDIR baseline=$BASELINE budget=${BUDGET}s runs=$RUNS ==="
 
@@ -85,6 +80,29 @@ for b in $BRIDGES; do
         echo "skip $b (could not read fork.block_number)"
         continue
     fi
+    rpc_fields=$(python3 -c 'import json,sys; m=json.load(open(sys.argv[1])); s=m.get("source_chain",{}); d=m.get("destination_chain",{}); r=m.get("exploit_replay",{}); print(s.get("rpc_env","ETH_RPC_URL"), d.get("rpc_env","ETH_RPC_URL"), s.get("name",""), d.get("name",""), r.get("rpc_env",""))' "$META" 2>/dev/null)
+    read -r src_rpc_env dst_rpc_env src_chain dst_chain replay_rpc_env <<< "$rpc_fields"
+    source_rpc="${!src_rpc_env:-}"
+    dest_rpc="${!dst_rpc_env:-}"
+    replay_rpc=""
+    if [ -n "${replay_rpc_env:-}" ]; then
+        replay_rpc="${!replay_rpc_env:-}"
+    fi
+    if [ -z "$source_rpc" ] && [ -n "$replay_rpc" ]; then
+        source_rpc="$replay_rpc"
+    fi
+    if [ -z "$dest_rpc" ] && [ -n "$replay_rpc" ]; then
+        dest_rpc="$replay_rpc"
+    fi
+    # Non-EVM source incidents such as Wormhole/Solana are represented by an
+    # EVM reconstruction on the destination side for this revm harness.
+    if [ "$src_chain" = "solana" ] && [ -n "$dest_rpc" ]; then
+        source_rpc="$dest_rpc"
+    fi
+    if [ -z "$source_rpc" ] || [ -z "$dest_rpc" ]; then
+        echo "skip $b (missing RPC env: source=$src_rpc_env dest=$dst_rpc_env replay=${replay_rpc_env:-none})"
+        continue
+    fi
 
     BOUT="$OUTDIR/$b"
     mkdir -p "$BOUT"
@@ -100,8 +118,8 @@ for b in $BRIDGES; do
             --metadata "$(host_path "$META")" \
             --output "$(host_path "$out")" \
             --budget "$BUDGET" \
-            --source-rpc "$ETH_RPC_URL" \
-            --dest-rpc "$ETH_RPC_URL" \
+            --source-rpc "$source_rpc" \
+            --dest-rpc "$dest_rpc" \
             --source-block "$block" \
             --dest-block "$block" \
             --baseline-mode "$BASELINE" \
