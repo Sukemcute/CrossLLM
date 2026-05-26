@@ -57,17 +57,20 @@ def collect_patterns(paths: List[str]) -> tuple[Set[str], int, List[str]]:
         total_bb += int(cov.get("basic_blocks_source", 0) or 0)
         total_bb += int(cov.get("basic_blocks_dest", 0) or 0)
         for v in data.get("violations", []) or []:
+            sd = v.get("state_diff", {}) or {}
+            src = sd.get("target_source")
+            if isinstance(src, str) and src:
+                sources.add(src)
+            predicate = str(sd.get("predicate_match", "false")).lower() == "true"
+            if src != "opcode_scan" or not predicate:
+                continue
             inv_id = v.get("invariant_id", "")
             pred = inv_id.split("/", 1)[0] if "/" in inv_id else inv_id
             if pred.startswith("BP"):
                 fired.add(pred)
-            sd = v.get("state_diff", {}) or {}
             p = sd.get("pattern_id")
             if isinstance(p, str) and p.startswith("BP"):
                 fired.add(p)
-            src = sd.get("target_source")
-            if isinstance(src, str) and src:
-                sources.add(src)
     return fired, total_bb, sorted(sources)
 
 

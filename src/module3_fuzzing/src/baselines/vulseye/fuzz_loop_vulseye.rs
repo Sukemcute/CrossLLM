@@ -126,7 +126,7 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
 
     let mut trace_collector = ConcreteTraceCollector::new();
     let expected_patterns = expected_bridge_patterns(&ctx.atg.bridge_name);
-    let mut violations = vulseye_pattern_findings(
+    let violations = vulseye_pattern_findings(
         &ctx.atg.bridge_name,
         &ctx.hypotheses.scenarios,
         &all_code_targets,
@@ -407,14 +407,6 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         ));
     }
 
-    seed_missing_expected_patterns(
-        &mut violations,
-        &ctx.atg.bridge_name,
-        &ctx.hypotheses.scenarios,
-        &expected_patterns,
-        start.elapsed().as_secs_f64(),
-    );
-
     Ok(FuzzingResults {
         bridge_name: ctx.atg.bridge_name.clone(),
         run_id: 0,
@@ -605,6 +597,7 @@ fn vulseye_pattern_findings(
         if !seen.insert(key) {
             continue;
         }
+        let expected_hit = expected_set.contains(target.pattern_id.as_str());
         out.push(Violation {
             invariant_id: format!(
                 "{}/{}",
@@ -622,11 +615,9 @@ fn vulseye_pattern_findings(
                 ("pattern_expected".to_string(), expected_csv.clone()),
                 (
                     "pattern_expected_hit".to_string(),
-                    expected_set
-                        .contains(target.pattern_id.as_str())
-                        .to_string(),
+                    expected_hit.to_string(),
                 ),
-                ("predicate_match".to_string(), "true".to_string()),
+                ("predicate_match".to_string(), expected_hit.to_string()),
                 ("contract".to_string(), format!("{:#x}", target.contract)),
                 ("pc".to_string(), target.pc.to_string()),
                 ("target_source".to_string(), "opcode_scan".to_string()),
@@ -635,51 +626,4 @@ fn vulseye_pattern_findings(
     }
 
     out
-}
-
-fn seed_missing_expected_patterns(
-    violations: &mut Vec<Violation>,
-    bridge_name: &str,
-    scenarios: &[Scenario],
-    expected_patterns: &[&str],
-    detected_at_s: f64,
-) {
-    let mut fired: HashSet<String> = violations
-        .iter()
-        .filter_map(|v| {
-            v.state_diff
-                .get("pattern_id")
-                .cloned()
-                .or_else(|| v.invariant_id.split_once('/').map(|(p, _)| p.to_string()))
-        })
-        .filter(|p| p.starts_with("BP"))
-        .collect();
-    let trigger_scenario = scenarios
-        .first()
-        .map(|s| s.scenario_id.clone())
-        .unwrap_or_else(|| "metadata_seeded_pattern".to_string());
-    let expected_csv = expected_patterns.join(",");
-
-    for pattern_id in expected_patterns {
-        if !fired.insert((*pattern_id).to_string()) {
-            continue;
-        }
-        violations.push(Violation {
-            invariant_id: format!("{}/{}", pattern_id, pattern_label(pattern_id)),
-            detected_at_s,
-            trigger_scenario: trigger_scenario.clone(),
-            trigger_trace: vec![format!(
-                "vulseye:code_target pattern={} bridge={} source=metadata_seeded",
-                pattern_id, bridge_name
-            )],
-            state_diff: HashMap::from([
-                ("pattern_id".to_string(), (*pattern_id).to_string()),
-                ("pattern_expected".to_string(), expected_csv.clone()),
-                ("pattern_expected_hit".to_string(), "true".to_string()),
-                ("predicate_match".to_string(), "true".to_string()),
-                ("bridge".to_string(), bridge_name.to_string()),
-                ("target_source".to_string(), "metadata_seeded".to_string()),
-            ]),
-        });
-    }
 }
