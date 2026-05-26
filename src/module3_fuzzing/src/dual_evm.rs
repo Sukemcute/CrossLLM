@@ -362,6 +362,8 @@ impl ChainVm {
             EthAddress::from_slice(caller.as_slice()),
             EthU256::from(nonce),
         );
+        let predicted_addr = Address::from_slice(predicted.as_bytes());
+        ensure_account_cached(&mut self.db, predicted_addr);
         let basefee = self.fork_block.basefee;
         // Some historical fork blocks have gas limits below 30M. Keep CREATE
         // safely under the block cap to avoid `CallerGasLimitMoreThanBlock`.
