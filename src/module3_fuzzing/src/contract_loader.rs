@@ -1013,27 +1013,18 @@ fn deploy_bridge_fixtures(
 
         "wormhole" => {
             d!("WormholeCore");
-
-            let bridge_pred = dual.peek_next_create_address_source()?;
+            let core = deployed_address(deployed, "WormholeCore")
+                .ok_or_else(|| "internal: wormhole core missing".to_string())?;
+            d_ctor!("TokenBridge", Token::Address(eth_address(core)));
+            let bridge = deployed_address(deployed, "TokenBridge")
+                .ok_or_else(|| "internal: bridge".to_string())?;
             d_ctor!(
                 "WrappedAsset",
                 Token::String("Wormhole ETH".to_string()),
                 Token::String("whETH".to_string()),
                 Token::Uint(EthU256::from(18u8)),
-                Token::Address(bridge_pred)
+                Token::Address(eth_address(bridge))
             );
-
-            let core = deployed_address(deployed, "WormholeCore")
-                .ok_or_else(|| "internal: wormhole core missing".to_string())?;
-            let _wrapped = deployed_address(deployed, "WrappedAsset")
-                .ok_or_else(|| "internal: wormhole wrapped missing".to_string())?;
-            d_ctor!("TokenBridge", Token::Address(eth_address(core)));
-
-            let br = deployed_address(deployed, "TokenBridge")
-                .ok_or_else(|| "internal: bridge".to_string())?;
-            if eth_address(br) != bridge_pred {
-                return Err("wormhole: predicted TokenBridge CREATE address mismatch".into());
-            }
             Ok(())
         }
 

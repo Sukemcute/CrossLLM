@@ -79,10 +79,11 @@ impl ChainVm {
         )
         .ok_or_else(|| "EthersDB::new failed (could not resolve fork block)".to_string())?;
 
+        let block_env = fetch_block_env(&provider, fork_block)?;
         let mut cache_db = CacheDB::new(ethers_db);
         fund_account(&mut cache_db, default_caller(), U256::MAX / U256::from(2u8));
-
-        let block_env = fetch_block_env(&provider, fork_block)?;
+        fund_account(&mut cache_db, default_deployer(), U256::MAX / U256::from(2u8));
+        ensure_account_cached(&mut cache_db, block_env.coinbase);
 
         Ok(Self {
             db: cache_db,
@@ -690,8 +691,12 @@ impl DualEvm {
     /// Keeps CREATE address alignment when both forks start from the same
     /// historical nonce for the deployer EOA.
     pub fn deploy_mock_on_both(&mut self, bytecode: &[u8]) -> Result<Address, String> {
-        let src = self.deploy_mock_on_source(bytecode)?;
-        let dst = self.deploy_mock_on_dest(bytecode)?;
+        let src = self
+            .deploy_mock_on_source(bytecode)
+            .map_err(|e| format!("source deploy failed: {e}"))?;
+        let dst = self
+            .deploy_mock_on_dest(bytecode)
+            .map_err(|e| format!("dest deploy failed: {e}"))?;
         if src != dst {
             return Err(format!(
                 "dual deploy address mismatch: source={src:?} dest={dst:?} (deployer nonces diverged?)"
@@ -958,6 +963,20 @@ fn fund_account<DB: DatabaseRef>(db: &mut CacheDB<DB>, addr: Address, balance: U
             code: None,
         });
     info.balance = balance;
+    db.insert_account_info(addr, info);
+}
+
+fn ensure_account_cached<DB: DatabaseRef>(db: &mut CacheDB<DB>, addr: Address) {
+    let info = db
+        .basic(addr)
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| AccountInfo {
+            balance: U256::ZERO,
+            nonce: 0,
+            code_hash: KECCAK_EMPTY,
+            code: None,
+        });
     db.insert_account_info(addr, info);
 }
 
