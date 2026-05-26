@@ -402,9 +402,10 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                 let validation_payload = validation_payload_for(&s_prime, &registry, &calldata_mutator);
                 let validation =
                     run_with_double_validation(d, &snap_with_mutation, &validation_payload);
-                let predicate_match =
+                let validated =
                     matches!(validation.status, super::double_validate::DoubleValidationStatus::Validated);
-                if validation.mutation_applied && predicate_match {
+                if validation.mutation_applied && validated {
+                    let predicate_match = expected_ops.contains(&entry.operator);
                     let key = format!(
                         "{}:{:#x}:{}",
                         entry.operator.id(),
