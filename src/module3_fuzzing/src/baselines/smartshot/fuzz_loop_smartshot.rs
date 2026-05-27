@@ -208,6 +208,11 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     let mut snapshot_individuals_injected = 0_u64;
     let mut violations: Vec<Violation> = Vec::new();
     let mut seen_mutation_findings: HashSet<String> = HashSet::new();
+    let mut validation_attempts = 0_u64;
+    let mut validated_findings = 0_u64;
+    let mut expected_validated_findings = 0_u64;
+    let mut validation_status_counts: HashMap<String, u64> = HashMap::new();
+    let mut validated_operator_counts: HashMap<String, u64> = HashMap::new();
     let expected_ops = expected_mutation_operators(&ctx.atg.bridge_name);
     let expected_csv = expected_ops
         .iter()
@@ -402,10 +407,21 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                 let validation_payload = validation_payload_for(&s_prime, &registry, &calldata_mutator);
                 let validation =
                     run_with_double_validation(d, &snap_with_mutation, &validation_payload);
+                validation_attempts += 1;
+                *validation_status_counts
+                    .entry(validation.status.as_str().to_string())
+                    .or_insert(0) += 1;
                 let validated =
                     matches!(validation.status, super::double_validate::DoubleValidationStatus::Validated);
                 if validation.mutation_applied && validated {
+                    validated_findings += 1;
                     let predicate_match = expected_ops.contains(&entry.operator);
+                    if predicate_match {
+                        expected_validated_findings += 1;
+                    }
+                    *validated_operator_counts
+                        .entry(entry.operator.id().to_string())
+                        .or_insert(0) += 1;
                     let key = format!(
                         "{}:{:#x}:{}",
                         entry.operator.id(),
@@ -529,6 +545,19 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             "sload_inspector"
         }
     ));
+    deployment_plan_log.push(format!("smartshot_validation_attempts={validation_attempts}"));
+    deployment_plan_log.push(format!("smartshot_validated_findings={validated_findings}"));
+    deployment_plan_log.push(format!(
+        "smartshot_expected_validated_findings={expected_validated_findings}"
+    ));
+    deployment_plan_log.push(format!(
+        "smartshot_validation_statuses={}",
+        format_counts(&validation_status_counts)
+    ));
+    deployment_plan_log.push(format!(
+        "smartshot_validated_operators={}",
+        format_counts(&validated_operator_counts)
+    ));
 
     if warmup_bytecode == 0 && !is_deployed {
         return Err(eyre!(
@@ -578,6 +607,15 @@ fn expected_mutation_operators(bridge_name: &str) -> Vec<MutationOperator> {
 fn random_mutation_operator(rng: &mut StdRng) -> MutationOperator {
     let pool = MutationOperator::ACTIVE_POOL;
     pool[rng.gen_range(0..pool.len())]
+}
+
+fn format_counts(counts: &HashMap<String, u64>) -> String {
+    if counts.is_empty() {
+        return "-".to_string();
+    }
+    let mut parts: Vec<String> = counts.iter().map(|(k, v)| format!("{k}:{v}")).collect();
+    parts.sort();
+    parts.join(",")
 }
 
 fn validation_payload_for(
