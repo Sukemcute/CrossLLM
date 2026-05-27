@@ -212,6 +212,7 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     let mut validated_findings = 0_u64;
     let mut expected_validated_findings = 0_u64;
     let mut validation_status_counts: HashMap<String, u64> = HashMap::new();
+    let mut attempted_operator_counts: HashMap<String, u64> = HashMap::new();
     let mut validated_operator_counts: HashMap<String, u64> = HashMap::new();
     let expected_ops = expected_mutation_operators(&ctx.atg.bridge_name);
     let expected_csv = expected_ops
@@ -334,17 +335,18 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                         SnapshotKind::LastSstoreBeforeJumpi,
                         slot.0[31] as u64,
                     );
-                    let operator = random_mutation_operator(&mut rng);
-                    snapshot_pool.push(
-                        &key,
-                        SnapshotEntry {
-                            snapshot: snap,
-                            contract: addr,
-                            slot,
-                            target_value: value,
-                            operator,
-                        },
-                    );
+                    for operator in MutationOperator::ACTIVE_POOL {
+                        snapshot_pool.push(
+                            &key,
+                            SnapshotEntry {
+                                snapshot: snap.clone(),
+                                contract: addr,
+                                slot,
+                                target_value: value,
+                                operator: *operator,
+                            },
+                        );
+                    }
                 }
             }
         }
@@ -408,6 +410,9 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                 let validation =
                     run_with_double_validation(d, &snap_with_mutation, &validation_payload);
                 validation_attempts += 1;
+                *attempted_operator_counts
+                    .entry(entry.operator.id().to_string())
+                    .or_insert(0) += 1;
                 *validation_status_counts
                     .entry(validation.status.as_str().to_string())
                     .or_insert(0) += 1;
@@ -555,6 +560,10 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         format_counts(&validation_status_counts)
     ));
     deployment_plan_log.push(format!(
+        "smartshot_attempted_operators={}",
+        format_counts(&attempted_operator_counts)
+    ));
+    deployment_plan_log.push(format!(
         "smartshot_validated_operators={}",
         format_counts(&validated_operator_counts)
     ));
@@ -602,11 +611,6 @@ fn expected_mutation_operators(bridge_name: &str) -> Vec<MutationOperator> {
         | "orbit" | "fegtoken" | "gempad" => vec![MutationOperator::MS1SetStorage],
         _ => vec![MutationOperator::MS1SetStorage],
     }
-}
-
-fn random_mutation_operator(rng: &mut StdRng) -> MutationOperator {
-    let pool = MutationOperator::ACTIVE_POOL;
-    pool[rng.gen_range(0..pool.len())]
 }
 
 fn format_counts(counts: &HashMap<String, u64>) -> String {
