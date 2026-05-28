@@ -86,8 +86,9 @@ impl ContractRegistry {
     /// Augment a registry's address map by matching ATG `node_id` strings
     /// against an external `node_id -> hex address` table. Used to graft
     /// real on-chain addresses from a benchmark's `metadata.json` onto ATGs
-    /// the LLM produced without addresses. Existing entries are not
-    /// overwritten.
+    /// the LLM produced without addresses. Existing non-zero entries are not
+    /// overwritten; a zero address is treated as an LLM placeholder and may
+    /// be replaced by a metadata or fixture-deploy address.
     ///
     /// Matching strategy: both sides are lower-cased and stripped of every
     /// non-alphanumeric character, then we test substring containment in
@@ -110,7 +111,11 @@ impl ContractRegistry {
 
         let nodes: Vec<String> = self.chain_of_node.keys().cloned().collect();
         for node_id in nodes {
-            if self.addresses.contains_key(&node_id) {
+            if self
+                .addresses
+                .get(&node_id)
+                .is_some_and(|addr| *addr != Address::ZERO)
+            {
                 continue;
             }
             let needle = normalize_name(&node_id);
@@ -230,6 +235,27 @@ impl ContractRegistry {
             }
         }
         Ok(warmed)
+    }
+
+    /// Best-effort version of [`Self::warmup_bytecode`]. Historical BSC
+    /// archive providers can return `missing trie node` for metadata
+    /// addresses even when fixture deployment succeeded. Baseline modes use
+    /// this path so one bad metadata lookup does not abort a real-EVM run.
+    pub fn warmup_bytecode_best_effort(&self, dual: &mut DualEvm) -> (usize, Vec<String>) {
+        let mut warmed = 0usize;
+        let mut errors = Vec::new();
+        for (node_id, addr) in &self.addresses {
+            let res = match self.chain_of_node.get(node_id).copied() {
+                Some(ChainSide::Source) => dual.source_balance(*addr),
+                Some(ChainSide::Destination) => dual.dest_balance(*addr),
+                _ => continue,
+            };
+            match res {
+                Ok(_) => warmed += 1,
+                Err(e) => errors.push(format!("{node_id}@{addr:#x}: {e}")),
+            }
+        }
+        (warmed, errors)
     }
 }
 

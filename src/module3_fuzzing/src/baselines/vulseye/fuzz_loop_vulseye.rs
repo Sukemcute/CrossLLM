@@ -71,6 +71,7 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
 
     let mut is_deployed = false;
     let mut warmup_bytecode = 0usize;
+    let mut warmup_errors: Vec<String> = Vec::new();
     if let Some(d) = dual_env_opt.as_mut() {
         if !ctx.contract_plan.scan_sol_files().is_empty() {
             match ctx.contract_plan.compile_and_deploy(d) {
@@ -89,9 +90,9 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                 }
             }
         }
-        warmup_bytecode = registry
-            .warmup_bytecode(d)
-            .map_err(|e| eyre!("warmup_bytecode failed: {}", e))?;
+        let (warmed, errors) = registry.warmup_bytecode_best_effort(d);
+        warmup_bytecode = warmed;
+        warmup_errors = errors;
         let tracked = registry.all_addresses();
         if !tracked.is_empty() {
             d.set_tracked_addresses(tracked);
@@ -390,6 +391,12 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     let mut deployment_plan_log = ctx.contract_plan.deployment_plan_log(&ctx.atg, is_deployed);
     deployment_plan_log.push("dual_evm_status=initialized".to_string());
     deployment_plan_log.push(format!("warmup_bytecode={warmup_bytecode}"));
+    if !warmup_errors.is_empty() {
+        deployment_plan_log.push(format!("warmup_errors={}", warmup_errors.len()));
+        for e in warmup_errors.iter().take(5) {
+            deployment_plan_log.push(format!("warmup_error={e}"));
+        }
+    }
     deployment_plan_log.push(if basic_blocks_source + basic_blocks_dest > 0 {
         "coverage_status=real_evm".to_string()
     } else {
