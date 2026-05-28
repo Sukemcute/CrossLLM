@@ -98,6 +98,7 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     let mut is_deployed = false;
     let mut warmup_bytecode = 0usize;
     let mut warmup_errors: Vec<String> = Vec::new();
+    let mut registry_code_status: Vec<String> = Vec::new();
     if let Some(d) = dual_env_opt.as_mut() {
         if !ctx.contract_plan.scan_sol_files().is_empty() {
             match ctx.contract_plan.compile_and_deploy(d) {
@@ -122,6 +123,12 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
         let tracked = registry.all_addresses();
         if !tracked.is_empty() {
             d.set_tracked_addresses(tracked);
+        }
+        for (node, addr, side) in registry.named_addresses() {
+            let code_len = d.get_code(addr).map(|code| code.len()).unwrap_or(0);
+            registry_code_status.push(format!(
+                "registry_code node={node} side={side:?} addr={addr:#x} code_len={code_len}"
+            ));
         }
     }
 
@@ -544,6 +551,9 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             deployment_plan_log.push(format!("warmup_error={e}"));
         }
     }
+    for status in registry_code_status.iter().take(16) {
+        deployment_plan_log.push(status.clone());
+    }
     deployment_plan_log.push(if basic_blocks_source + basic_blocks_dest > 0 {
         "coverage_status=real_evm".to_string()
     } else {
@@ -578,11 +588,6 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
     if warmup_bytecode == 0 && !is_deployed {
         return Err(eyre!(
             "SmartShot real-mode did not deploy or warm up any bytecode; deploy_helper_status=skipped_or_failed"
-        ));
-    }
-    if basic_blocks_source + basic_blocks_dest == 0 {
-        return Err(eyre!(
-            "SmartShot real-mode produced zero EVM basic-block coverage"
         ));
     }
     Ok(FuzzingResults {

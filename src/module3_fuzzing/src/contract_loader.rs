@@ -202,6 +202,22 @@ impl ContractRegistry {
         self.addresses.iter().map(|(_, a)| *a).collect()
     }
 
+    pub fn named_addresses(&self) -> Vec<(String, Address, ChainSide)> {
+        self.addresses
+            .iter()
+            .map(|(node, addr)| {
+                (
+                    node.clone(),
+                    *addr,
+                    self.chain_of_node
+                        .get(node)
+                        .copied()
+                        .unwrap_or(ChainSide::Relay),
+                )
+            })
+            .collect()
+    }
+
     /// Addresses on a specific chain side.
     pub fn addresses_on(&self, side: ChainSide) -> Vec<Address> {
         self.addresses
