@@ -80,7 +80,7 @@ pub fn run_vulseye(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                         .into_iter()
                         .map(|(k, v)| (k, format!("{:?}", v)))
                         .collect();
-                    registry.merge_address_overrides(
+                    registry.merge_deployed_address_overrides(
                         overrides.iter().map(|(k, v)| (k.as_str(), v.as_str())),
                     );
                     is_deployed = true;
@@ -620,10 +620,7 @@ fn vulseye_pattern_findings(
             state_diff: HashMap::from([
                 ("pattern_id".to_string(), target.pattern_id.clone()),
                 ("pattern_expected".to_string(), expected_csv.clone()),
-                (
-                    "pattern_expected_hit".to_string(),
-                    expected_hit.to_string(),
-                ),
+                ("pattern_expected_hit".to_string(), expected_hit.to_string()),
                 ("predicate_match".to_string(), expected_hit.to_string()),
                 ("contract".to_string(), format!("{:#x}", target.contract)),
                 ("pc".to_string(), target.pc.to_string()),

@@ -107,7 +107,7 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                         .into_iter()
                         .map(|(k, v)| (k, format!("{:?}", v)))
                         .collect();
-                    registry.merge_address_overrides(
+                    registry.merge_deployed_address_overrides(
                         overrides.iter().map(|(k, v)| (k.as_str(), v.as_str())),
                     );
                     is_deployed = true;
@@ -414,9 +414,17 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                 restore_original(d, &snap_with_mutation);
             }
             if let Some(d) = dual_env_opt.as_mut() {
-                let validation_payload = validation_payload_for(&s_prime, &registry, &calldata_mutator);
-                let validation =
-                    run_with_double_validation(d, &snap_with_mutation, &validation_payload);
+                let validation_payload =
+                    validation_payload_for(&s_prime, &registry, &calldata_mutator);
+                let (validation_chain, validation_payload) = validation_payload
+                    .map(|(chain, payload)| (Some(chain), payload))
+                    .unwrap_or((None, Vec::new()));
+                let validation = run_with_double_validation(
+                    d,
+                    &snap_with_mutation,
+                    validation_chain,
+                    &validation_payload,
+                );
                 validation_attempts += 1;
                 *attempted_operator_counts
                     .entry(entry.operator.id().to_string())
@@ -424,8 +432,10 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
                 *validation_status_counts
                     .entry(validation.status.as_str().to_string())
                     .or_insert(0) += 1;
-                let validated =
-                    matches!(validation.status, super::double_validate::DoubleValidationStatus::Validated);
+                let validated = matches!(
+                    validation.status,
+                    super::double_validate::DoubleValidationStatus::Validated
+                );
                 if validation.mutation_applied && validated {
                     validated_findings += 1;
                     let predicate_match = expected_ops.contains(&entry.operator);
@@ -567,7 +577,9 @@ pub fn run_smartshot(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             "sload_inspector"
         }
     ));
-    deployment_plan_log.push(format!("smartshot_validation_attempts={validation_attempts}"));
+    deployment_plan_log.push(format!(
+        "smartshot_validation_attempts={validation_attempts}"
+    ));
     deployment_plan_log.push(format!("smartshot_validated_findings={validated_findings}"));
     deployment_plan_log.push(format!(
         "smartshot_expected_validated_findings={expected_validated_findings}"
@@ -638,7 +650,7 @@ fn validation_payload_for(
     scenario: &Scenario,
     registry: &ContractRegistry,
     calldata_mutator: &CalldataMutator,
-) -> Vec<u8> {
+) -> Option<(ChainSide, Vec<u8>)> {
     scenario
         .actions
         .iter()
@@ -648,9 +660,8 @@ fn validation_payload_for(
             payload.extend_from_slice(default_caller().as_slice());
             payload.extend_from_slice(seed.target.as_slice());
             payload.extend_from_slice(&seed.calldata);
-            payload
+            (seed.chain, payload)
         })
-        .unwrap_or_default()
 }
 
 fn smartshot_violation(

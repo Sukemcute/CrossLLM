@@ -1,5 +1,7 @@
 //! SmartShot double-validation wrapper.
 
+use crate::contract_loader::ChainSide;
+use crate::coverage_tracker::CoverageTracker;
 use crate::dual_evm::DualEvm;
 
 use super::mutable_snapshot::MutableSnapshot;
@@ -11,6 +13,7 @@ pub enum DoubleValidationStatus {
     RejectedNoValidationPayload,
     RejectedMutationDidNotTrigger,
     RejectedOriginalDidNotFail,
+    RejectedDifferentFailure,
 }
 
 impl DoubleValidationStatus {
@@ -22,6 +25,7 @@ impl DoubleValidationStatus {
                 "rejected_mutation_did_not_trigger"
             }
             DoubleValidationStatus::RejectedOriginalDidNotFail => "rejected_original_did_not_fail",
+            DoubleValidationStatus::RejectedDifferentFailure => "rejected_different_failure",
         }
     }
 }
@@ -41,8 +45,15 @@ pub struct DoubleValidationResult {
 pub fn run_with_double_validation(
     dual: &mut DualEvm,
     snap: &MutableSnapshot,
+    chain: Option<ChainSide>,
     scenario_payload: &[u8],
 ) -> DoubleValidationResult {
+    let Some(chain) = chain else {
+        return DoubleValidationResult {
+            mutation_applied: false,
+            status: DoubleValidationStatus::RejectedNoValidationPayload,
+        };
+    };
     if scenario_payload.is_empty() {
         return DoubleValidationResult {
             mutation_applied: false,
@@ -51,30 +62,59 @@ pub fn run_with_double_validation(
     }
 
     let mutation_applied = apply_snapshot_mutation(dual, snap);
-    let mutated_failed = if mutation_applied {
-        dual.execute_on_source(scenario_payload).is_err()
+    let mutated_failure = if mutation_applied {
+        validation_failure(dual, chain, scenario_payload)
     } else {
-        false
+        None
     };
 
     restore_original(dual, snap);
-    let original_failed = dual.execute_on_source(scenario_payload).is_err();
+    let original_failure = validation_failure(dual, chain, scenario_payload);
     restore_original(dual, snap);
 
     DoubleValidationResult {
         mutation_applied,
-        status: classify_double_validation(mutated_failed, original_failed),
+        status: classify_double_validation(mutated_failure.as_deref(), original_failure.as_deref()),
     }
 }
 
 fn classify_double_validation(
-    mutated_failed: bool,
-    original_failed: bool,
+    mutated_failure: Option<&str>,
+    original_failure: Option<&str>,
 ) -> DoubleValidationStatus {
-    match (mutated_failed, original_failed) {
-        (true, true) => DoubleValidationStatus::Validated,
-        (true, false) => DoubleValidationStatus::RejectedOriginalDidNotFail,
+    match (mutated_failure, original_failure) {
+        (Some(m), Some(o)) if m == o => DoubleValidationStatus::Validated,
+        (Some(_), Some(_)) => DoubleValidationStatus::RejectedDifferentFailure,
+        (Some(_), None) => DoubleValidationStatus::RejectedOriginalDidNotFail,
         _ => DoubleValidationStatus::RejectedMutationDidNotTrigger,
+    }
+}
+
+fn validation_failure(dual: &mut DualEvm, chain: ChainSide, payload: &[u8]) -> Option<String> {
+    let mut tracker = CoverageTracker::default();
+    let outcome = match chain {
+        ChainSide::Source => dual.execute_on_source_with_inspector_full(payload, &mut tracker),
+        ChainSide::Destination => dual.execute_on_dest_with_inspector_full(payload, &mut tracker),
+        ChainSide::Relay => return None,
+    };
+
+    match outcome {
+        Ok(out) if out.success => None,
+        Ok(out) => Some(normalize_failure_status(&out.status)),
+        Err(e) => Some(normalize_failure_status(&e)),
+    }
+}
+
+fn normalize_failure_status(status: &str) -> String {
+    if status.starts_with("reverted:") || status.starts_with("execution reverted:") {
+        "reverted".to_string()
+    } else if status.starts_with("halted:") || status.starts_with("execution halted:") {
+        status
+            .split_once(':')
+            .map(|(_, reason)| format!("halted:{}", reason.trim()))
+            .unwrap_or_else(|| "halted".to_string())
+    } else {
+        "execution_error".to_string()
     }
 }
 
@@ -97,25 +137,33 @@ mod tests {
             DoubleValidationStatus::RejectedOriginalDidNotFail.as_str(),
             "rejected_original_did_not_fail"
         );
+        assert_eq!(
+            DoubleValidationStatus::RejectedDifferentFailure.as_str(),
+            "rejected_different_failure"
+        );
     }
 
     #[test]
     fn classification_matches_smartshot_double_validation() {
         assert_eq!(
-            classify_double_validation(true, true),
+            classify_double_validation(Some("reverted"), Some("reverted")),
             DoubleValidationStatus::Validated
         );
         assert_eq!(
-            classify_double_validation(true, false),
+            classify_double_validation(Some("reverted"), None),
             DoubleValidationStatus::RejectedOriginalDidNotFail
         );
         assert_eq!(
-            classify_double_validation(false, true),
+            classify_double_validation(None, Some("reverted")),
             DoubleValidationStatus::RejectedMutationDidNotTrigger
         );
         assert_eq!(
-            classify_double_validation(false, false),
+            classify_double_validation(None, None),
             DoubleValidationStatus::RejectedMutationDidNotTrigger
+        );
+        assert_eq!(
+            classify_double_validation(Some("reverted"), Some("halted:OutOfGas")),
+            DoubleValidationStatus::RejectedDifferentFailure
         );
     }
 }

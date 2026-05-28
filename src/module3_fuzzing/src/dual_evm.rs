@@ -82,7 +82,11 @@ impl ChainVm {
         let block_env = fetch_block_env(&provider, fork_block)?;
         let mut cache_db = CacheDB::new(ethers_db);
         fund_account(&mut cache_db, default_caller(), U256::MAX / U256::from(2u8));
-        fund_account(&mut cache_db, default_deployer(), U256::MAX / U256::from(2u8));
+        fund_account(
+            &mut cache_db,
+            default_deployer(),
+            U256::MAX / U256::from(2u8),
+        );
         ensure_account_cached(&mut cache_db, block_env.coinbase);
 
         Ok(Self {

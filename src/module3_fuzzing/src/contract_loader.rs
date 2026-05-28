@@ -130,6 +130,40 @@ impl ContractRegistry {
         }
     }
 
+    /// Merge fixture-deployed addresses after compile-and-deploy. Unlike
+    /// [`Self::merge_address_overrides`], this intentionally overwrites
+    /// existing non-zero metadata addresses when the logical contract name
+    /// matches an ATG node. Benchmarks with reconstructed Solidity fixtures
+    /// must execute against those freshly deployed bytecodes, not stale
+    /// incident metadata addresses that may be pruned or EOAs at the fork.
+    pub fn merge_deployed_address_overrides<S: AsRef<str>, A: AsRef<str>>(
+        &mut self,
+        overrides: impl IntoIterator<Item = (S, A)>,
+    ) {
+        let pairs: Vec<(String, Address)> = overrides
+            .into_iter()
+            .filter_map(|(k, v)| {
+                Address::from_str(v.as_ref().trim())
+                    .ok()
+                    .map(|a| (normalize_name(k.as_ref()), a))
+            })
+            .collect();
+
+        let nodes: Vec<String> = self.chain_of_node.keys().cloned().collect();
+        for node_id in nodes {
+            let needle = normalize_name(&node_id);
+            if needle.is_empty() {
+                continue;
+            }
+            if let Some((_, addr)) = pairs.iter().find(|(k, _)| {
+                !k.is_empty()
+                    && (k == &needle || k.contains(&needle) || needle.contains(k.as_str()))
+            }) {
+                self.addresses.insert(node_id, *addr);
+            }
+        }
+    }
+
     /// Build the registry from an ATG. Nodes whose `address` is not parseable
     /// as a 20-byte hex (e.g. mock fixtures use `"0xAttacker"`) are skipped
     /// for the address map but still recorded in `chain_of_node` so the
