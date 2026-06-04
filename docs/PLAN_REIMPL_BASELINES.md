@@ -239,10 +239,10 @@ ta nhận thiếu sót thành thật.
 |---|---|---|---|
 | **X1-X6** XScope re-impl + sweep | Member B | 2 tuần | ✅ DONE — 10/12 PASS, `cf62229` |
 | **SA1-SA8** SmartAxe re-impl + sweep | Member A (Python) | 4 tuần | ✅ DONE — all 8 sub-tasks; detected=12/12, strict=4/12 |
-| **VS1-VS7** VulSEye re-impl + sweep | Member B | 3 tuần | ✅ DONE — Impl VS1-VS7 finished, sweep pending by user |
-| **SS1-SS7** SmartShot re-impl + sweep | Member B (or Member A nếu B kẹt) | 3 tuần | ⏸ SPEC done (SS1) — SS2-SS7 TODO |
-| **D1** BridgeSentry sweep | (đang chạy) | ~40h | 🔄 IN PROGRESS |
-| **D2** Aggregate re-impl + ItyFuzz + GPTScan + 4 self-run JSONs | Member A | 1 ngày | ⏸ Partial — XScope ready, đợi 3 tools còn lại |
+| **VS1-VS7** VulSEye re-impl + sweep | Member B | 3 tuần | 🔄 VS1-VS5 done (impl + honest fix `3532c73`) — VS6 (sweep) + VS7 (self_run JSON) TODO |
+| **SS1-SS7** SmartShot re-impl + sweep | Member B (or Member A nếu B kẹt) | 3 tuần | 🔄 SS1-SS5 done (impl + double-validate fix `3532c73`) — SS6 (sweep) + SS7 (self_run JSON) TODO |
+| **D1** BridgeSentry sweep | (đang chạy) | ~40h | ✅ DONE — 240/240 lab `2026-04-29` |
+| **D2** Aggregate re-impl + ItyFuzz + GPTScan + 4 self-run JSONs | Member A | 1 ngày | ⏸ Partial — XScope + SmartAxe self_run JSONs ready; VulSEye/SmartShot đợi VS7/SS7 |
 | **D3** LaTeX RQ1 table render | Member A | 2 ngày | ❌ Blocked |
 
 ---
