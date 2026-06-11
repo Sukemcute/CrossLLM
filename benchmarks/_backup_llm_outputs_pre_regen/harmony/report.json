@@ -1,0 +1,21 @@
+{
+  "benchmark": "harmony",
+  "artifacts": {
+    "atg": "results/harmony_llm/atg.json",
+    "hypotheses": "results/harmony_llm/hypotheses.json"
+  },
+  "module1": {
+    "contracts_processed": 3,
+    "entities": 7,
+    "edges": 7,
+    "invariants": 19
+  },
+  "module2": {
+    "scenarios": 19
+  },
+  "module3": {
+    "runs_attempted": 0,
+    "runs_completed": 0,
+    "violations_total": 0
+  }
+}

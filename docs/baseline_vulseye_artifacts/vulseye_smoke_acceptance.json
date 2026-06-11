@@ -1,0 +1,239 @@
+{
+  "bar": 11,
+  "passing": 9,
+  "total": 12,
+  "overall_pass": false,
+  "rows": [
+    {
+      "bridge": "nomad",
+      "expected": [
+        "BP2"
+      ],
+      "fired": [],
+      "matched": [],
+      "missed": [
+        "BP2"
+      ],
+      "basic_blocks_total": 22714,
+      "target_sources": [
+        "opcode_scan"
+      ],
+      "runs": 20,
+      "passed": false
+    },
+    {
+      "bridge": "qubit",
+      "expected": [
+        "BP1",
+        "BP6"
+      ],
+      "fired": [
+        "BP1",
+        "BP6"
+      ],
+      "matched": [
+        "BP1",
+        "BP6"
+      ],
+      "missed": [],
+      "basic_blocks_total": 16660,
+      "target_sources": [
+        "opcode_scan"
+      ],
+      "runs": 20,
+      "passed": true
+    },
+    {
+      "bridge": "multichain",
+      "expected": [
+        "BP5"
+      ],
+      "fired": [
+        "BP5"
+      ],
+      "matched": [
+        "BP5"
+      ],
+      "missed": [],
+      "basic_blocks_total": 12754,
+      "target_sources": [
+        "opcode_scan"
+      ],
+      "runs": 20,
+      "passed": true
+    },
+    {
+      "bridge": "ronin",
+      "expected": [
+        "BP3"
+      ],
+      "fired": [],
+      "matched": [],
+      "missed": [
+        "BP3"
+      ],
+      "basic_blocks_total": 14672,
+      "target_sources": [
+        "opcode_scan"
+      ],
+      "runs": 20,
+      "passed": false
+    },
+    {
+      "bridge": "harmony",
+      "expected": [
+        "BP3"
+      ],
+      "fired": [],
+      "matched": [],
+      "missed": [
+        "BP3"
+      ],
+      "basic_blocks_total": 15925,
+      "target_sources": [
+        "opcode_scan"
+      ],
+      "runs": 20,
+      "passed": false
+    },
+    {
+      "bridge": "wormhole",
+      "expected": [
+        "BP4",
+        "BP5"
+      ],
+      "fired": [
+        "BP5"
+      ],
+      "matched": [
+        "BP5"
+      ],
+      "missed": [
+        "BP4"
+      ],
+      "basic_blocks_total": 10420,
+      "target_sources": [
+        "opcode_scan"
+      ],
+      "runs": 20,
+      "passed": true
+    },
+    {
+      "bridge": "polynetwork",
+      "expected": [
+        "BP5"
+      ],
+      "fired": [
+        "BP5"
+      ],
+      "matched": [
+        "BP5"
+      ],
+      "missed": [],
+      "basic_blocks_total": 5140,
+      "target_sources": [
+        "opcode_scan"
+      ],
+      "runs": 20,
+      "passed": true
+    },
+    {
+      "bridge": "pgala",
+      "expected": [
+        "BP3",
+        "BP5"
+      ],
+      "fired": [
+        "BP5"
+      ],
+      "matched": [
+        "BP5"
+      ],
+      "missed": [
+        "BP3"
+      ],
+      "basic_blocks_total": 13120,
+      "target_sources": [
+        "opcode_scan"
+      ],
+      "runs": 20,
+      "passed": true
+    },
+    {
+      "bridge": "socket",
+      "expected": [
+        "BP5"
+      ],
+      "fired": [
+        "BP5"
+      ],
+      "matched": [
+        "BP5"
+      ],
+      "missed": [],
+      "basic_blocks_total": 39052,
+      "target_sources": [
+        "opcode_scan"
+      ],
+      "runs": 20,
+      "passed": true
+    },
+    {
+      "bridge": "orbit",
+      "expected": [
+        "BP3"
+      ],
+      "fired": [
+        "BP3"
+      ],
+      "matched": [
+        "BP3"
+      ],
+      "missed": [],
+      "basic_blocks_total": 24440,
+      "target_sources": [
+        "opcode_scan"
+      ],
+      "runs": 20,
+      "passed": true
+    },
+    {
+      "bridge": "fegtoken",
+      "expected": [
+        "BP1"
+      ],
+      "fired": [
+        "BP1"
+      ],
+      "matched": [
+        "BP1"
+      ],
+      "missed": [],
+      "basic_blocks_total": 31642,
+      "target_sources": [
+        "opcode_scan"
+      ],
+      "runs": 20,
+      "passed": true
+    },
+    {
+      "bridge": "gempad",
+      "expected": [
+        "BP5"
+      ],
+      "fired": [
+        "BP5"
+      ],
+      "matched": [
+        "BP5"
+      ],
+      "missed": [],
+      "basic_blocks_total": 18551,
+      "target_sources": [
+        "opcode_scan"
+      ],
+      "runs": 20,
+      "passed": true
+    }
+  ]
+}

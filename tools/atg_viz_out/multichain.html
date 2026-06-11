@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="utf-8"><title>ATG — multichain</title>
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<style>
+ body{font-family:system-ui,Segoe UI,Arial;margin:0;background:#fafafa}
+ #hdr{padding:10px 16px;background:#263238;color:#fff}
+ #hdr b{font-size:18px} #hdr span{opacity:.8;font-size:13px;margin-left:10px}
+ #net{width:100vw;height:calc(100vh - 110px);border-top:1px solid #ccc}
+ #legend{padding:6px 16px;font-size:12px;background:#eceff1}
+ .chip{display:inline-block;padding:2px 8px;border-radius:10px;color:#fff;margin-right:6px}
+</style></head><body>
+<div id="hdr"><b>ATG — multichain</b>
+ <span>4 nodes · 5 edges · 24 invariants — kéo để di chuyển, lăn chuột để zoom, rê chuột vào cạnh để xem guard</span></div>
+<div id="legend">
+ <span class="chip" style="background:#4f86c6">contract</span>
+ <span class="chip" style="background:#e8a33d">user/eoa</span>
+ <span class="chip" style="background:#7d5ba6">relay</span>
+ <span class="chip" style="background:#3aa66f">token</span>
+ <span class="chip" style="background:#2e7d32">lock/mint</span>
+ <span class="chip" style="background:#b71c1c">withdraw/burn</span>
+</div>
+<div id="net"></div>
+<script>
+ const nodes=new vis.DataSet([{"id": "MultichainAnyCallV6", "label": "MultichainAnyCallV6", "group": "source", "color": "#90a4ae", "title": "MultichainAnyCallV6\\ntype: router\\nchain: source"}, {"id": "WrappedToken", "label": "WrappedToken", "group": "source", "color": "#3aa66f", "title": "WrappedToken\\ntype: token\\nchain: source"}, {"id": "User", "label": "User", "group": "source", "color": "#90a4ae", "title": "User\\ntype: actor\\nchain: source"}, {"id": "Multisig", "label": "Multisig", "group": "source", "color": "#7d5ba6", "title": "Multisig\\ntype: relay\\nchain: source"}]);
+ const edges=new vis.DataSet([{"from": "User", "to": "MultichainAnyCallV6", "label": "lock", "color": "#2e7d32", "title": "label: lock\\nfn: lock(address,uint256,uint16)\\ntoken: token", "arrows": "to"}, {"from": "MultichainAnyCallV6", "to": "User", "label": "unlock", "color": "#2e7d32", "title": "label: unlock\\nfn: unlock(address,address,uint256,uint16)\\ntoken: token\\nguard: msg.sender == address(this) ; totalLocked[token] >= amount", "arrows": "to"}, {"from": "WrappedToken", "to": "User", "label": "mint", "color": "#1565c0", "title": "label: mint\\nfn: mint(address,uint256)\\ntoken: WrappedToken", "arrows": "to"}, {"from": "User", "to": "User", "label": "transfer", "color": "#455a64", "title": "label: transfer\\nfn: transfer(address,uint256)\\ntoken: WrappedToken\\nguard: require(balanceOf[msg.sender] >= amount)", "arrows": "to"}, {"from": "User", "to": "User", "label": "transfer", "color": "#455a64", "title": "label: transfer\\nfn: transferFrom(address,address,uint256)\\ntoken: WrappedToken\\nguard: require(allowance[from][msg.sender] >= amount) ; require(balanceOf[from] >= amount)", "arrows": "to"}]);
+ new vis.Network(document.getElementById('net'),{nodes,edges},{
+   nodes:{shape:'box',font:{color:'#fff',size:14},margin:8,borderWidth:0},
+   edges:{font:{size:12,align:'middle',background:'#fff'},smooth:{type:'cubicBezier'}},
+   physics:{stabilization:true,barnesHut:{springLength:160}},
+   layout:{improvedLayout:true}
+ });
+</script></body></html>

@@ -1,0 +1,167 @@
+{
+  "tool": "smartshot",
+  "acceptance_bar": 11,
+  "passed": 12,
+  "total": 12,
+  "pass": true,
+  "bridges": [
+    {
+      "bridge": "nomad",
+      "expected": [
+        "MS1"
+      ],
+      "fired": [
+        "MS1"
+      ],
+      "basic_blocks": 1353,
+      "source": "results/baselines/smartshot/nomad/run_001.json",
+      "pass": true,
+      "reason": "ok"
+    },
+    {
+      "bridge": "qubit",
+      "expected": [
+        "MS2"
+      ],
+      "fired": [
+        "MS2"
+      ],
+      "basic_blocks": 854,
+      "source": "results/baselines/smartshot/qubit/run_001.json",
+      "pass": true,
+      "reason": "ok"
+    },
+    {
+      "bridge": "multichain",
+      "expected": [
+        "MS1"
+      ],
+      "fired": [
+        "MS1"
+      ],
+      "basic_blocks": 729,
+      "source": "results/baselines/smartshot/multichain/run_001.json",
+      "pass": true,
+      "reason": "ok"
+    },
+    {
+      "bridge": "ronin",
+      "expected": [
+        "MS1"
+      ],
+      "fired": [
+        "MS1"
+      ],
+      "basic_blocks": 828,
+      "source": "results/baselines/smartshot/ronin/run_001.json",
+      "pass": true,
+      "reason": "ok"
+    },
+    {
+      "bridge": "harmony",
+      "expected": [
+        "MS1"
+      ],
+      "fired": [
+        "MS1"
+      ],
+      "basic_blocks": 964,
+      "source": "results/baselines/smartshot/harmony/run_001.json",
+      "pass": true,
+      "reason": "ok"
+    },
+    {
+      "bridge": "wormhole",
+      "expected": [
+        "MS1"
+      ],
+      "fired": [
+        "MS1"
+      ],
+      "basic_blocks": 540,
+      "source": "results/baselines/smartshot/wormhole/run_001.json",
+      "pass": true,
+      "reason": "ok"
+    },
+    {
+      "bridge": "polynetwork",
+      "expected": [
+        "MS1"
+      ],
+      "fired": [
+        "MS1"
+      ],
+      "basic_blocks": 263,
+      "source": "results/baselines/smartshot/polynetwork/run_001.json",
+      "pass": true,
+      "reason": "ok"
+    },
+    {
+      "bridge": "pgala",
+      "expected": [
+        "MS1"
+      ],
+      "fired": [
+        "MS1"
+      ],
+      "basic_blocks": 808,
+      "source": "results/baselines/smartshot/pgala/run_001.json",
+      "pass": true,
+      "reason": "ok"
+    },
+    {
+      "bridge": "socket",
+      "expected": [
+        "MS1",
+        "MS2"
+      ],
+      "fired": [
+        "MS1",
+        "MS2"
+      ],
+      "basic_blocks": 2128,
+      "source": "results/baselines/smartshot/socket/run_001.json",
+      "pass": true,
+      "reason": "ok"
+    },
+    {
+      "bridge": "orbit",
+      "expected": [
+        "MS1"
+      ],
+      "fired": [
+        "MS1"
+      ],
+      "basic_blocks": 1325,
+      "source": "results/baselines/smartshot/orbit/run_001.json",
+      "pass": true,
+      "reason": "ok"
+    },
+    {
+      "bridge": "fegtoken",
+      "expected": [
+        "MS1"
+      ],
+      "fired": [
+        "MS1"
+      ],
+      "basic_blocks": 2483,
+      "source": "results/baselines/smartshot/fegtoken/run_001.json",
+      "pass": true,
+      "reason": "ok"
+    },
+    {
+      "bridge": "gempad",
+      "expected": [
+        "MS1"
+      ],
+      "fired": [
+        "MS1"
+      ],
+      "basic_blocks": 1079,
+      "source": "results/baselines/smartshot/gempad/run_001.json",
+      "pass": true,
+      "reason": "ok"
+    }
+  ]
+}

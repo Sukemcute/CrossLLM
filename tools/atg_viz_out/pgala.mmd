@@ -1,0 +1,9 @@
+%% ATG pgala
+flowchart LR
+  n_LegacyCustodian["LegacyCustodian"]
+  n_pGALAToken["pGALAToken"]
+  n_User["User"]
+  n_LegacySigner["LegacySigner"]
+  n_Custodian["Custodian"]
+  n_LegacyCustodian -- "mint" --> n_User
+  n_Custodian -- "mint" --> n_User

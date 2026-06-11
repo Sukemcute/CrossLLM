@@ -5,777 +5,197 @@
     {
       "node_id": "LegacyCustodian",
       "node_type": "contract",
-      "chain": "unknown",
-      "address": "deployed_address_placeholder",
-      "functions": []
-    },
-    {
-      "node_id": "pGALAToken",
-      "node_type": "token",
-      "chain": "unknown",
-      "address": "pGALAAddr_parameter",
-      "functions": []
-    },
-    {
-      "node_id": "pGALAToken",
-      "node_type": "token",
-      "chain": "BSC",
+      "chain": "destination",
       "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "pGALAToken",
+      "node_type": "token",
+      "chain": "destination",
+      "address": "unknown",
+      "functions": []
+    },
+    {
+      "node_id": "User",
+      "node_type": "actor",
+      "chain": "destination",
+      "address": "unknown",
+      "functions": []
+    },
+    {
+      "node_id": "LegacySigner",
+      "node_type": "actor",
+      "chain": "offchain",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "Custodian",
+      "node_type": "actor",
+      "chain": "destination",
+      "address": "unknown",
       "functions": []
     }
   ],
   "edges": [
     {
       "edge_id": "e1",
-      "src": "off‑chain signed authorization",
-      "dst": "to (address)",
+      "src": "LegacyCustodian",
+      "dst": "User",
       "label": "mint",
-      "token": "pGALA",
+      "token": "pGALAToken",
       "conditions": [
-        "r",
-        "e",
-        "q",
-        "u",
-        "i",
-        "r",
-        "e",
-        "(",
-        "!",
-        "u",
-        "s",
-        "e",
-        "d",
-        "[",
-        "n",
-        "o",
-        "n",
-        "c",
-        "e",
-        "]",
-        ")",
-        " ",
-        "&",
-        "&",
-        " ",
-        "r",
-        "e",
-        "c",
-        "o",
-        "v",
-        "e",
-        "r",
-        "e",
-        "d",
-        " ",
-        "=",
-        "=",
-        " ",
-        "s",
-        "i",
-        "g",
-        "n",
-        "e",
-        "r"
+        "require(!used[nonce])",
+        "require(recovered == signer)"
       ],
       "condition_objects": [
         {
-          "type": "generic",
+          "type": "nonce",
           "params": {
-            "expression": "r"
+            "expression": "require(!used[nonce])"
           }
         },
         {
           "type": "generic",
           "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "q"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "u"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "i"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "("
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "!"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "u"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "s"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "d"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "["
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "n"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "o"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "n"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "c"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "]"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": ")"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": " "
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "&"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "&"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": " "
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "c"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "o"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "v"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "d"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": " "
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "="
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "="
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": " "
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "s"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "i"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "g"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "n"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "r"
+            "expression": "require(recovered == signer)"
           }
         }
       ],
-      "function_signature": "mint(address,uint256,uint64,bytes)"
+      "function_signature": "mint(address,uint256)"
     },
     {
       "edge_id": "e2",
-      "src": "null",
-      "dst": "to (parameter of mint)",
+      "src": "Custodian",
+      "dst": "User",
       "label": "mint",
       "token": "pGALA",
-      "conditions": [
-        "I",
-        "n",
-        " ",
-        "p",
-        "r",
-        "o",
-        "d",
-        "u",
-        "c",
-        "t",
-        "i",
-        "o",
-        "n",
-        ":",
-        " ",
-        "r",
-        "e",
-        "q",
-        "u",
-        "i",
-        "r",
-        "e",
-        "(",
-        "m",
-        "s",
-        "g",
-        ".",
-        "s",
-        "e",
-        "n",
-        "d",
-        "e",
-        "r",
-        " ",
-        "=",
-        "=",
-        " ",
-        "m",
-        "i",
-        "n",
-        "t",
-        "e",
-        "r",
-        ")"
-      ],
-      "condition_objects": [
-        {
-          "type": "generic",
-          "params": {
-            "expression": "I"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "n"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": " "
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "p"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "o"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "d"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "u"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "c"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "t"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "i"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "o"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "n"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": ":"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": " "
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "q"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "u"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "i"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "("
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "m"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "s"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "g"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "."
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "s"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "n"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "d"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": " "
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "="
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "="
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": " "
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "m"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "i"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "n"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "t"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": ")"
-          }
-        }
-      ],
+      "conditions": [],
+      "condition_objects": [],
       "function_signature": "mint(address,uint256)"
     }
   ],
   "invariants": [
     {
-      "invariant_id": "asset_conservation_total_locked_equals_minted_minus_fees",
+      "invariant_id": "asset_conservation_total_minted_equals_locked",
       "category": "asset_conservation",
-      "description": "The total amount of pGALA locked on the source chain must equal the total amount minted on the destination chain minus the accumulated bridge fees.",
-      "predicate": "totalLocked == totalMinted - totalFees",
-      "solidity_assertion": "require(totalLocked == totalMinted - totalFees, \"Invariant violation: locked != minted - fees\");",
+      "description": "The total amount of pGALAToken minted on the destination chain must equal the total amount of assets locked on the source chain minus protocol fees.",
+      "predicate": "mintedTotal == lockedTotal - feeTotal",
+      "solidity_assertion": "assert(mintedTotal == lockedTotal - feeTotal);",
       "related_edges": [
         "e1",
         "e2"
       ]
     },
     {
-      "invariant_id": "asset_conservation_bridge_balance_matches_outstanding_mint",
+      "invariant_id": "asset_conservation_mint_e1_respects_locked_amount",
       "category": "asset_conservation",
-      "description": "The bridge contract’s internal accounting of locked tokens must match the sum of all outstanding minted tokens that have not been refunded.",
-      "predicate": "bridgeLockedBalance == totalMinted - totalRefunded",
-      "solidity_assertion": "require(bridgeLockedBalance == totalMinted - totalRefunded, \"Invariant violation: bridge balance mismatch\");",
+      "description": "Each mint operation via edge e1 cannot create more tokens than the amount locked for the corresponding nonce.",
+      "predicate": "mintAmount_e1 <= lockedAmount[nonce]",
+      "solidity_assertion": "require(mintAmount <= lockedAmount[nonce], \"Mint exceeds locked amount\");",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "asset_conservation_fees_never_exceed_minted",
+      "invariant_id": "asset_conservation_mint_e2_respects_locked_amount",
       "category": "asset_conservation",
-      "description": "Collected bridge fees can never be greater than the total amount of tokens minted on the destination chain.",
-      "predicate": "totalFees <= totalMinted",
-      "solidity_assertion": "require(totalFees <= totalMinted, \"Invariant violation: fees exceed minted\");",
+      "description": "Each mint operation via edge e2 (custodian mint) must be backed by an equivalent amount locked on the source chain.",
+      "predicate": "mintAmount_e2 <= lockedAmount[nonce]",
+      "solidity_assertion": "require(mintAmount <= lockedAmount[nonce], \"Custodian mint exceeds locked amount\");",
       "related_edges": [
-        "e1"
+        "e2"
       ]
     },
     {
-      "invariant_id": "asset_conservation_total_supply_reflects_locked_minus_refunded",
+      "invariant_id": "asset_conservation_fee_not_exceed_mint",
       "category": "asset_conservation",
-      "description": "The total supply of pGALA on the destination chain must equal the total amount locked on the source chain minus the amount that has been refunded to original senders.",
-      "predicate": "pGALAToken.totalSupply() == totalLocked - totalRefunded",
-      "solidity_assertion": "require(pGALAToken.totalSupply() == totalLocked - totalRefunded, \"Invariant violation: totalSupply mismatch\");",
+      "description": "The protocol fee taken from a locked amount must never be greater than the amount minted for the user.",
+      "predicate": "feeAmount <= mintAmount",
+      "solidity_assertion": "assert(feeAmount <= mintAmount);",
       "related_edges": [
         "e1",
         "e2"
       ]
     },
     {
-      "invariant_id": "authorization_mint_called_by_authorized_relayer",
+      "invariant_id": "authorization_mint_e1_requires_valid_signature",
       "category": "authorization",
-      "description": "The mint function (edge e1) can only be invoked by the pre‑registered relayer address.",
-      "predicate": "msg.sender == authorizedRelayer",
-      "solidity_assertion": "require(msg.sender == authorizedRelayer, \"Unauthorized relayer\");",
+      "description": "Mint via edge e1 is only allowed when the recovered signer matches the registered LegacySigner.",
+      "predicate": "recovered == legacySigner",
+      "solidity_assertion": "require(recovered == legacySigner, \"Invalid signer for mint\");",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "authorization_mint_requires_valid_deposit_proof",
+      "invariant_id": "authorization_mint_e1_requires_unused_nonce",
       "category": "authorization",
-      "description": "When minting, the caller must provide a cryptographic proof that a corresponding lock event exists on the source chain.",
-      "predicate": "verifyDepositProof(proof, lockId)",
-      "solidity_assertion": "require(verifyDepositProof(proof, lockId), \"Invalid deposit proof\");",
+      "description": "Mint via edge e1 can only be executed if the nonce has not been used before.",
+      "predicate": "!used[nonce]",
+      "solidity_assertion": "require(!used[nonce], \"Nonce already used\");",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "authorization_unlock_requires_matching_lock",
+      "invariant_id": "authorization_mint_e2_requires_custodian_role",
       "category": "authorization",
-      "description": "Burning (unlock) on the source chain must be accompanied by a proof that the tokens were previously minted for the same lockId.",
-      "predicate": "verifyMintProof(mintProof, lockId)",
-      "solidity_assertion": "require(verifyMintProof(mintProof, lockId), \"Invalid mint proof\");",
+      "description": "Only an address with the CUSTODIAN_ROLE can call the mint function on edge e2.",
+      "predicate": "hasRole(CUSTODIAN_ROLE, msg.sender)",
+      "solidity_assertion": "require(hasRole(CUSTODIAN_ROLE, msg.sender), \"Caller is not custodian\");",
       "related_edges": [
         "e2"
       ]
     },
     {
-      "invariant_id": "authorization_mint_signature_matches_sender",
+      "invariant_id": "authorization_mint_e2_requires_positive_amount",
       "category": "authorization",
-      "description": "The off‑chain signed authorization embedded in the mint call must be a signature over the sender address, amount, nonce and deadline, and must verify against the sender’s public key.",
-      "predicate": "ECDSA.recover(hashMessage(sender, amount, nonce, deadline), signature) == sender",
-      "solidity_assertion": "require(ECDSA.recover(hashMessage(to, amount, nonce, deadline), signature) == to, \"Signature mismatch\");",
+      "description": "Mint via edge e2 must specify a strictly positive amount.",
+      "predicate": "mintAmount > 0",
+      "solidity_assertion": "require(mintAmount > 0, \"Mint amount must be > 0\");",
       "related_edges": [
-        "e1"
+        "e2"
       ]
     },
     {
-      "invariant_id": "uniqueness_nonce_used_at_most_once",
+      "invariant_id": "uniqueness_nonce_single_use",
       "category": "uniqueness",
-      "description": "Each nonce supplied to the mint function must be marked as used and cannot be reused.",
-      "predicate": "!nonceUsed[nonce]",
-      "solidity_assertion": "require(!nonceUsed[nonce], \"Nonce already used\"); nonceUsed[nonce] = true;",
-      "related_edges": [
-        "e1"
-      ]
-    },
-    {
-      "invariant_id": "uniqueness_message_hash_processed_once",
-      "category": "uniqueness",
-      "description": "A relay message identified by its hash may be processed only a single time.",
-      "predicate": "!processedMessage[messageHash]",
-      "solidity_assertion": "require(!processedMessage[messageHash], \"Message already processed\"); processedMessage[messageHash] = true;",
+      "description": "Each nonce can be marked used at most once across all mint operations.",
+      "predicate": "used[nonce] == true => used[nonce] was set exactly once",
+      "solidity_assertion": "assert(used[nonce] == true && usageCount[nonce] == 1);",
       "related_edges": [
         "e1",
         "e2"
       ]
     },
     {
-      "invariant_id": "uniqueness_lock_id_is_unique",
+      "invariant_id": "uniqueness_message_hash_single_consumption",
       "category": "uniqueness",
-      "description": "Every lock operation must generate a unique lockId that does not collide with an existing one.",
-      "predicate": "!locks[lockId].exists",
-      "solidity_assertion": "require(!locks[lockId].exists, \"Duplicate lockId\"); locks[lockId] = Lock({sender:msg.sender, amount:amount, timestamp:block.timestamp, exists:true});",
+      "description": "A message hash derived from (nonce, amount, recipient) can be consumed by at most one mint call.",
+      "predicate": "consumed[msgHash] <= 1",
+      "solidity_assertion": "require(consumed[msgHash] == 0, \"Message already consumed\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_replay_protection_e1",
+      "category": "uniqueness",
+      "description": "Edge e1 must reject any transaction where the same (nonce, signature) pair has been processed before.",
+      "predicate": "!processed[nonce][signature]",
+      "solidity_assertion": "require(!processed[nonce][signature], \"Replay detected\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_e2_custodian_mint_once_per_nonce",
+      "category": "uniqueness",
+      "description": "Custodian mint (edge e2) for a given nonce can be performed only once.",
+      "predicate": "!custodianMinted[nonce]",
+      "solidity_assertion": "require(!custodianMinted[nonce], \"Custodian already minted for nonce\");",
       "related_edges": [
         "e2"
       ]
@@ -783,79 +203,91 @@
     {
       "invariant_id": "timeliness_refund_allowed_after_timeout",
       "category": "timeliness",
-      "description": "A user may call the refund function only after the lock timestamp plus the configured timeout has elapsed.",
-      "predicate": "block.timestamp >= lock.timestamp + lockTimeout",
-      "solidity_assertion": "require(block.timestamp >= lock.timestamp + lockTimeout, \"Refund not yet available\");",
-      "related_edges": [
-        "e2"
-      ]
-    },
-    {
-      "invariant_id": "timeliness_refund_cannot_exceed_locked_amount",
-      "category": "timeliness",
-      "description": "When processing a refund, the amount returned must not exceed the amount originally locked for that lockId.",
-      "predicate": "refundAmount <= lock.amount",
-      "solidity_assertion": "require(refundAmount <= lock.amount, \"Refund exceeds locked amount\");",
-      "related_edges": [
-        "e2"
-      ]
-    },
-    {
-      "invariant_id": "timeliness_mint_must_be_before_deadline",
-      "category": "timeliness",
-      "description": "The mint call must be executed before the deadline embedded in the signed authorization.",
-      "predicate": "block.timestamp <= deadline",
-      "solidity_assertion": "require(block.timestamp <= deadline, \"Mint deadline passed\");",
+      "description": "If the lock timestamp plus the protocol timeout has passed, the original locker may claim a refund.",
+      "predicate": "block.timestamp >= lockTimestamp[nonce] + TIMEOUT",
+      "solidity_assertion": "require(block.timestamp >= lockTimestamp[nonce] + TIMEOUT, \"Timeout not reached\");",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "timeliness_relay_messages_processed_in_nonce_order",
+      "invariant_id": "timeliness_refund_clears_used_nonce",
       "category": "timeliness",
-      "description": "Relay messages must be processed in strictly increasing nonce order to prevent reordering attacks.",
-      "predicate": "nonce == lastProcessedNonce + 1",
-      "solidity_assertion": "require(nonce == lastProcessedNonce + 1, \"Non‑sequential nonce\"); lastProcessedNonce = nonce;",
+      "description": "When a refund is processed after timeout, the used flag for the nonce must be cleared to allow future reuse.",
+      "predicate": "refundProcessed => used[nonce] == false",
+      "solidity_assertion": "if (refundProcessed) { assert(!used[nonce]); }",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "timeliness_locked_funds_auto_refund_on_chain_halt",
+      "invariant_id": "timeliness_mint_disallowed_past_timeout",
       "category": "timeliness",
-      "description": "If the bridge contract is paused for longer than two timeouts, any still‑locked funds become automatically refundable.",
-      "predicate": "paused && block.timestamp >= pauseTimestamp + 2 * lockTimeout",
-      "solidity_assertion": "if (paused && block.timestamp >= pauseTimestamp + 2 * lockTimeout) { /* allow refunds for all locks */ }",
+      "description": "Mint via edge e1 must be rejected if the current time exceeds the lock timestamp plus timeout.",
+      "predicate": "block.timestamp < lockTimestamp[nonce] + TIMEOUT",
+      "solidity_assertion": "require(block.timestamp < lockTimestamp[nonce] + TIMEOUT, \"Mint after timeout\");",
       "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_lock_timestamp_immutable",
+      "category": "timeliness",
+      "description": "The lock timestamp recorded for a nonce cannot be altered after initial storage.",
+      "predicate": "lockTimestamp[nonce] == storedLockTimestamp[nonce]",
+      "solidity_assertion": "assert(lockTimestamp[nonce] == storedLockTimestamp[nonce]);",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_fee_accrual_before_timeout",
+      "category": "timeliness",
+      "description": "Protocol fees are only deducted if the mint occurs before the timeout period expires.",
+      "predicate": "block.timestamp < lockTimestamp[nonce] + TIMEOUT => feeCollected == true",
+      "solidity_assertion": "if (block.timestamp < lockTimestamp[nonce] + TIMEOUT) { assert(feeCollected); }",
+      "related_edges": [
+        "e1",
         "e2"
       ]
     },
     {
-      "invariant_id": "authorization_mint_cannot_exceed_max_per_tx",
+      "invariant_id": "authorization_only_legacy_signer_can_sign",
       "category": "authorization",
-      "description": "The amount minted in a single transaction must not exceed the protocol‑defined maximum per‑transaction limit.",
-      "predicate": "amount <= maxMintPerTx",
-      "solidity_assertion": "require(amount <= maxMintPerTx, \"Mint amount exceeds per‑tx limit\");",
+      "description": "The only off‑chain actor allowed to produce valid signatures for edge e1 is the registered LegacySigner.",
+      "predicate": "signer == address(LegacySigner)",
+      "solidity_assertion": "require(signer == address(LegacySigner), \"Unauthorized signer\");",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "asset_conservation_fee_distribution_preserves_total",
+      "invariant_id": "asset_conservation_no_negative_balances",
       "category": "asset_conservation",
-      "description": "When fees are withdrawn to the feeCollector, the sum of feeCollector balance and remaining fees must equal totalFees.",
-      "predicate": "feeCollector.balance + remainingFees == totalFees",
-      "solidity_assertion": "require(feeCollector.balance + remainingFees == totalFees, \"Fee accounting mismatch\");",
+      "description": "Balances of pGALAToken for any address must never become negative.",
+      "predicate": "balanceOf[addr] >= 0",
+      "solidity_assertion": "assert(balanceOf[addr] >= 0);",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_e1_mint_event_emitted_once",
+      "category": "uniqueness",
+      "description": "For each processed nonce on edge e1 exactly one Mint event must be emitted.",
+      "predicate": "mintEventCount[nonce] == 1",
+      "solidity_assertion": "assert(mintEventCount[nonce] == 1);",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "uniqueness_burn_proof_used_once",
-      "category": "uniqueness",
-      "description": "A proof that a token was burned on the destination chain may be submitted to unlock assets on the source chain only once.",
-      "predicate": "!burnProofUsed[burnProofHash]",
-      "solidity_assertion": "require(!burnProofUsed[burnProofHash], \"Burn proof already used\"); burnProofUsed[burnProofHash] = true;",
+      "invariant_id": "timeliness_custodian_refund_not_allowed",
+      "category": "timeliness",
+      "description": "The custodian (edge e2) cannot issue a refund after the timeout; only the original locker may.",
+      "predicate": "msg.sender != custodian => !refundAllowedByCustodian",
+      "solidity_assertion": "require(msg.sender != custodian || !refundAllowedByCustodian, \"Custodian cannot refund\");",
       "related_edges": [
         "e2"
       ]

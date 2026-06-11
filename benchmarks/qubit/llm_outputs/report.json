@@ -1,17 +1,17 @@
 {
   "benchmark": "qubit",
   "artifacts": {
-    "atg": "results/qubit_llm/atg.json",
-    "hypotheses": "results/qubit_llm/hypotheses.json"
+    "atg": "results\\qubit_regen\\atg.json",
+    "hypotheses": "results\\qubit_regen\\hypotheses.json"
   },
   "module1": {
     "contracts_processed": 3,
-    "entities": 4,
-    "edges": 4,
-    "invariants": 20
+    "entities": 5,
+    "edges": 3,
+    "invariants": 18
   },
   "module2": {
-    "scenarios": 20
+    "scenarios": 18
   },
   "module3": {
     "runs_attempted": 0,

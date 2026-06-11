@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="utf-8"><title>ATG — socket</title>
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<style>
+ body{font-family:system-ui,Segoe UI,Arial;margin:0;background:#fafafa}
+ #hdr{padding:10px 16px;background:#263238;color:#fff}
+ #hdr b{font-size:18px} #hdr span{opacity:.8;font-size:13px;margin-left:10px}
+ #net{width:100vw;height:calc(100vh - 110px);border-top:1px solid #ccc}
+ #legend{padding:6px 16px;font-size:12px;background:#eceff1}
+ .chip{display:inline-block;padding:2px 8px;border-radius:10px;color:#fff;margin-right:6px}
+</style></head><body>
+<div id="hdr"><b>ATG — socket</b>
+ <span>4 nodes · 4 edges · 18 invariants — kéo để di chuyển, lăn chuột để zoom, rê chuột vào cạnh để xem guard</span></div>
+<div id="legend">
+ <span class="chip" style="background:#4f86c6">contract</span>
+ <span class="chip" style="background:#e8a33d">user/eoa</span>
+ <span class="chip" style="background:#7d5ba6">relay</span>
+ <span class="chip" style="background:#3aa66f">token</span>
+ <span class="chip" style="background:#2e7d32">lock/mint</span>
+ <span class="chip" style="background:#b71c1c">withdraw/burn</span>
+</div>
+<div id="net"></div>
+<script>
+ const nodes=new vis.DataSet([{"id": "MockToken", "label": "MockToken", "group": "source", "color": "#3aa66f", "title": "MockToken\\ntype: token\\nchain: source"}, {"id": "User", "label": "User", "group": "offchain", "color": "#90a4ae", "title": "User\\ntype: actor\\nchain: offchain"}, {"id": "SocketGateway", "label": "SocketGateway", "group": "source", "color": "#4f86c6", "title": "SocketGateway\\ntype: contract\\nchain: source"}, {"id": "SwapImplementationStub", "label": "SwapImplementationStub", "group": "source", "color": "#4f86c6", "title": "SwapImplementationStub\\ntype: contract\\nchain: source"}]);
+ const edges=new vis.DataSet([{"from": "MockToken", "to": "User", "label": "mint", "color": "#1565c0", "title": "label: mint\\nfn: mint(address,uint256)\\ntoken: MockToken", "arrows": "to"}, {"from": "User", "to": "User", "label": "transfer", "color": "#455a64", "title": "label: transfer\\nfn: transferFrom(address,address,uint256)\\ntoken: MockToken\\nguard: allowance >= amount ; balance >= amount", "arrows": "to"}, {"from": "User", "to": "SocketGateway", "label": "withdraw", "color": "#b71c1c", "title": "label: withdraw\\nfn: performAction(uint32,address,address,uint256,address,address,bytes)\\ntoken: MockToken\\nguard: require(impl != address(0))", "arrows": "to"}, {"from": "SocketGateway", "to": "User", "label": "mint", "color": "#1565c0", "title": "label: mint\\nfn: performAction(uint32,address,address,uint256,address,address,bytes)\\ntoken: MockToken", "arrows": "to"}]);
+ new vis.Network(document.getElementById('net'),{nodes,edges},{
+   nodes:{shape:'box',font:{color:'#fff',size:14},margin:8,borderWidth:0},
+   edges:{font:{size:12,align:'middle',background:'#fff'},smooth:{type:'cubicBezier'}},
+   physics:{stabilization:true,barnesHut:{springLength:160}},
+   layout:{improvedLayout:true}
+ });
+</script></body></html>

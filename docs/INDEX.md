@@ -59,8 +59,23 @@ Files để chuẩn bị data RQ1 cuối cùng.
 
 | File | Mục đích | Khi nào đọc |
 |---|---|---|
-| [BENCHMARK_TEST_GUIDE.md](BENCHMARK_TEST_GUIDE.md) | Test end-to-end **1 benchmark** (4 cấp test, ví dụ Qubit) | Khi muốn verify 1 benchmark cụ thể |
+| [BENCHMARK_TEST_GUIDE.md](BENCHMARK_TEST_GUIDE.md) | Test end-to-end **1 benchmark** (4 cấp test, ví dụ Qubit). Có mục **"Harness contracts trong ATG (MockToken, MockMultisig)"** — đọc khi thấy node lạ trong đồ thị ATG | Khi muốn verify 1 benchmark cụ thể / hiểu node ATG |
 | [SPRINT1_TEST_GUIDE.md](SPRINT1_TEST_GUIDE.md) | Test Sprint 1 (Module 1 + Module 2 LLM pipeline end-to-end) | Khi debug pipeline LLM |
+
+---
+
+## 🛠️ 5b. Tools tiện ích (`tools/`)
+
+Script ngoài `docs/` nhưng nên biết để tìm khi cần.
+
+| Tool | Mục đích | Lệnh |
+|---|---|---|
+| [`tools/atg_viz.py`](../tools/atg_viz.py) | **Trực quan hóa ATG**: sinh HTML tương tác (kéo-thả/zoom) + Mermaid cho 12 bridge. Tự chuẩn hóa node khi đọc (dedup + gom actor `User`/`Recipient`/`ZeroAddress`) | `python tools/atg_viz.py` → mở [`tools/atg_viz_out/index.html`](../tools/atg_viz_out/index.html) |
+| [`tools/atg_viz_out/README.md`](../tools/atg_viz_out/README.md) | Chú giải cách đọc đồ thị (node types, harness node, actor chuẩn hóa) | — |
+| [`tools/repair_atg_conditions.py`](../tools/repair_atg_conditions.py) | One-shot sửa `conditions` bị tách-từng-ký-tự trong atg.json đã sinh (bug Module 1 đã fix ở nguồn) | `python tools/repair_atg_conditions.py` |
+| [`tools/regen_all_atg.sh`](../tools/regen_all_atg.sh) | Regenerate Module 1+2 (atg + hypotheses) cho cả 12 bridge qua LLM (NVIDIA NIM). Output `results/<bridge>_regen/`; backup data cũ ở `benchmarks/_backup_llm_outputs_pre_regen/` | `bash tools/regen_all_atg.sh` |
+
+> **Chuẩn hóa ATG** (dedup node + gom endpoint placeholder về actor `User`/`Recipient`/`ZeroAddress`) nằm ở `normalize_atg_dict()` trong [`src/module1_semantic/atg_builder.py`](../src/module1_semantic/atg_builder.py), chạy tự động trong `ATGBuilder.to_json`.
 
 ---
 

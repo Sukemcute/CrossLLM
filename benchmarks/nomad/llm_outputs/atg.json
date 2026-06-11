@@ -5,43 +5,43 @@
     {
       "node_id": "BridgeRouter",
       "node_type": "router",
-      "chain": "source",
+      "chain": "destination",
       "address": "",
       "functions": []
     },
     {
       "node_id": "Replica",
       "node_type": "relay",
-      "chain": "source",
+      "chain": "destination",
       "address": "",
       "functions": []
     },
     {
       "node_id": "MockToken",
       "node_type": "token",
-      "chain": "source",
+      "chain": "destination",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "User",
+      "node_type": "actor",
+      "chain": "destination",
       "address": "",
       "functions": []
     },
     {
       "node_id": "NomadMessage",
       "node_type": "library",
+      "chain": "offchain",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "ZeroAddress",
+      "node_type": "address",
       "chain": "source",
-      "address": "",
-      "functions": []
-    },
-    {
-      "node_id": "MockToken",
-      "node_type": "token",
-      "chain": "unknown",
-      "address": "0x0",
-      "functions": []
-    },
-    {
-      "node_id": "Replica",
-      "node_type": "bridge",
-      "chain": "unknown",
-      "address": "",
+      "address": "0x0000000000000000000000000000000000000000",
       "functions": []
     }
   ],
@@ -49,621 +49,118 @@
     {
       "edge_id": "e1",
       "src": "BridgeRouter",
-      "dst": "body.recipient",
+      "dst": "User",
       "label": "mint",
       "token": "MockToken",
       "conditions": [
-        "r",
-        "e",
-        "q",
-        "u",
-        "i",
-        "r",
-        "e",
-        "(",
-        "!",
-        "c",
-        "o",
-        "n",
-        "s",
-        "u",
-        "m",
-        "e",
-        "d",
-        "M",
-        "e",
-        "s",
-        "s",
-        "a",
-        "g",
-        "e",
-        "[",
-        "m",
-        "s",
-        "g",
-        "H",
-        "a",
-        "s",
-        "h",
-        "]",
-        ")",
-        " ",
-        "&",
-        "&",
-        " ",
-        "r",
-        "e",
-        "p",
-        "l",
-        "i",
-        "c",
-        "a",
-        ".",
-        "p",
-        "r",
-        "o",
-        "c",
-        "e",
-        "s",
-        "s",
-        "(",
-        "e",
-        "n",
-        "c",
-        "o",
-        "d",
-        "e",
-        "d",
-        ")",
-        " ",
-        "r",
-        "e",
-        "t",
-        "u",
-        "r",
-        "n",
-        "s",
-        " ",
-        "t",
-        "r",
-        "u",
-        "e"
+        "require(!consumedMessage[msgHash], \"already consumed\")",
+        "require(ok, \"replica process failed\")"
       ],
       "condition_objects": [
         {
-          "type": "generic",
-          "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "q"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "u"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "i"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "("
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "!"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "c"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "o"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "n"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "s"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "u"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "m"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "d"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "M"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "s"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "s"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "a"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "g"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "["
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "m"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "s"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "g"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "H"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "a"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "s"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "h"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "]"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": ")"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": " "
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "&"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "&"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": " "
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "p"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "l"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "i"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "c"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "a"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "."
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "p"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "o"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "c"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "s"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "s"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "("
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "n"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "c"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "o"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "d"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "d"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": ")"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": " "
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "t"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "u"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "n"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "s"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": " "
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "t"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
+          "type": "hashlock",
           "params": {
-            "expression": "u"
+            "expression": "require(!consumedMessage[msgHash], \"already consumed\")"
           }
         },
         {
           "type": "generic",
           "params": {
-            "expression": "e"
+            "expression": "require(ok, \"replica process failed\")"
           }
         }
       ],
-      "function_signature": "processAndRelease(NomadMessage.Body)"
+      "function_signature": "mint(address,uint256)"
     },
     {
       "edge_id": "e2",
-      "src": "0x0",
-      "dst": "to",
+      "src": "ZeroAddress",
+      "dst": "User",
       "label": "mint",
       "token": "MockToken",
       "conditions": [],
       "condition_objects": [],
       "function_signature": "mint(address,uint256)"
-    },
-    {
-      "edge_id": "e3",
-      "src": "Replica",
-      "dst": "body.recipient",
-      "label": "transfer",
-      "token": "native",
-      "conditions": [
-        "acceptableRoot(messages[messageHash]) == true",
-        "!processed[messageHash]",
-        "!nonceUsed[body.originDomain][body.nonce]"
-      ],
-      "condition_objects": [
-        {
-          "type": "hashlock",
-          "params": {
-            "expression": "acceptableRoot(messages[messageHash]) == true"
-          }
-        },
-        {
-          "type": "hashlock",
-          "params": {
-            "expression": "!processed[messageHash]"
-          }
-        },
-        {
-          "type": "nonce",
-          "params": {
-            "expression": "!nonceUsed[body.originDomain][body.nonce]"
-          }
-        }
-      ],
-      "function_signature": "process(bytes)"
     }
   ],
   "invariants": [
     {
-      "invariant_id": "asset_conservation_total",
+      "invariant_id": "asset_conservation_total_balance",
       "category": "asset_conservation",
-      "description": "The total amount of source tokens locked must equal the total amount minted on the destination chain minus accumulated bridge fees.",
-      "predicate": "totalLocked == totalMinted - totalFees",
-      "solidity_assertion": "require(totalLocked == totalMinted - totalFees, \"Asset conservation violated: locked != minted - fees\");",
+      "description": "The total amount of tokens locked on the source chain must equal the total amount minted on the destination chain minus accumulated bridge fees.",
+      "predicate": "totalLockedSource == totalMintedDest - totalFeesCollected",
+      "solidity_assertion": "require(totalLockedSource == totalMintedDest - totalFeesCollected, \"Asset conservation violated: locked != minted - fees\");",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_token_balance",
+      "category": "asset_conservation",
+      "description": "The MockToken balance held by the BridgeRouter on the destination chain must match the sum of all successfully processed mint messages.",
+      "predicate": "MockToken.balanceOf(address(BridgeRouter)) == mintedAmount",
+      "solidity_assertion": "require(MockToken.balanceOf(address(BridgeRouter)) == mintedAmount, \"BridgeRouter token balance mismatch\");",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "asset_conservation_per_token",
+      "invariant_id": "asset_conservation_no_negative_mint",
       "category": "asset_conservation",
-      "description": "For each token type, the sum of locked balances on the source chain equals the sum of minted balances on the destination chain for that token.",
-      "predicate": "∀ t: token, locked[t] == minted[t] - fees[t]",
-      "solidity_assertion": "require(locked[token] == minted[token] - fees[token], \"Per‑token asset conservation violated\");",
+      "description": "The total minted amount can never be less than the total fees collected.",
+      "predicate": "totalMintedDest >= totalFeesCollected",
+      "solidity_assertion": "require(totalMintedDest >= totalFeesCollected, \"Minted amount less than fees\");",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "asset_conservation_no_negative",
+      "invariant_id": "asset_conservation_refund_balance",
       "category": "asset_conservation",
-      "description": "Locked, minted and fee counters must never become negative.",
-      "predicate": "totalLocked >= 0 && totalMinted >= 0 && totalFees >= 0",
-      "solidity_assertion": "require(totalLocked >= 0 && totalMinted >= 0 && totalFees >= 0, \"Negative balance detected\");",
+      "description": "When a lock expires without a valid relay, the locked tokens must be returned to the original depositor, preserving overall token supply.",
+      "predicate": "lockedAmount[depositId] == 0 || MockToken.balanceOf(originalDepositor) >= refundedAmount[depositId]",
+      "solidity_assertion": "require(lockedAmount[depositId] == 0 || MockToken.balanceOf(originalDepositor) >= refundedAmount[depositId], \"Refund balance invariant violated\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_zero_address_mint",
+      "category": "asset_conservation",
+      "description": "Minting from the ZeroAddress edge must only affect fee accounting and never increase user balances.",
+      "predicate": "msg.sender == address(ZeroAddress) ? feeMintedOnly : true",
+      "solidity_assertion": "if (msg.sender == address(ZeroAddress)) { require(isFeeMint(msgHash), \"ZeroAddress mint must be fee only\"); }",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "authorization_replica_caller",
+      "category": "authorization",
+      "description": "Only the verified Replica contract may invoke the mint function on BridgeRouter.",
+      "predicate": "msg.sender == address(Replica)",
+      "solidity_assertion": "require(msg.sender == address(Replica), \"Only Replica can call mint\");",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "asset_conservation_pending_sync",
-      "category": "asset_conservation",
-      "description": "The aggregate amount of tokens pending mint (messages not yet processed) must match the aggregate amount of tokens pending unlock (locks not yet refunded).",
-      "predicate": "pendingMint == pendingRefund",
-      "solidity_assertion": "require(pendingMint == pendingRefund, \"Pending sync mismatch\");",
+      "invariant_id": "authorization_replica_process_success",
+      "category": "authorization",
+      "description": "Minting must only proceed if the replica processing flag `ok` is true.",
+      "predicate": "ok == true",
+      "solidity_assertion": "require(ok, \"Replica process failed\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "authorization_message_not_consumed",
+      "category": "authorization",
+      "description": "A message hash must not have been consumed before minting.",
+      "predicate": "!consumedMessage[msgHash]",
+      "solidity_assertion": "require(!consumedMessage[msgHash], \"Message already consumed\");",
       "related_edges": [
         "e1"
       ]
@@ -671,79 +168,60 @@
     {
       "invariant_id": "authorization_valid_signature",
       "category": "authorization",
-      "description": "A mint operation can only be executed if the message was signed by the registered Replica contract for the source chain.",
-      "predicate": "replica.verifySignature(messageHash, signature) == true",
-      "solidity_assertion": "require(replica.verifySignature(messageHash, signature), \"Invalid replica signature\");",
+      "description": "The message must carry a valid bridge signature before being accepted for minting.",
+      "predicate": "verifiedSignature[msgHash] == true",
+      "solidity_assertion": "require(verifiedSignature[msgHash], \"Invalid bridge signature\");",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "authorization_proof_of_lock",
+      "invariant_id": "authorization_lock_before_mint",
       "category": "authorization",
-      "description": "Before unlocking (or refunding) tokens, the bridge must have a verifiable proof that the corresponding lock transaction existed on the source chain.",
-      "predicate": "MerkleProof.verify(proof, root, leaf) == true",
-      "solidity_assertion": "require(MerkleProof.verify(proof, root, leaf), \"Invalid lock proof\");",
+      "description": "A mint on the destination chain is only allowed if a corresponding lock event exists on the source chain.",
+      "predicate": "lockExists[originTxHash] == true",
+      "solidity_assertion": "require(lockExists[originTxHash], \"No corresponding lock found\");",
       "related_edges": [
-        "e1"
+        "e1",
+        "e2"
       ]
     },
     {
-      "invariant_id": "authorization_fee_collector",
-      "category": "authorization",
-      "description": "Only the designated feeCollector address may withdraw accumulated bridge fees.",
-      "predicate": "msg.sender == feeCollector",
-      "solidity_assertion": "require(msg.sender == feeCollector, \"Caller not authorized to withdraw fees\");",
-      "related_edges": [
-        "e1"
-      ]
-    },
-    {
-      "invariant_id": "authorization_owner_update_replica",
-      "category": "authorization",
-      "description": "Only the bridge owner can update the address of the Replica contract.",
-      "predicate": "msg.sender == owner",
-      "solidity_assertion": "require(msg.sender == owner, \"Only owner can update replica\");",
-      "related_edges": [
-        "e1"
-      ]
-    },
-    {
-      "invariant_id": "uniqueness_message_processed_once",
+      "invariant_id": "uniqueness_nonce_processed_once",
       "category": "uniqueness",
-      "description": "A message identified by its hash may be processed (minted) at most once.",
-      "predicate": "processed[messageHash] == false",
-      "solidity_assertion": "require(!processed[messageHash], \"Message already processed\");",
+      "description": "Each nonce used in a cross‑chain message must be processed at most once.",
+      "predicate": "!processedNonce[nonce]",
+      "solidity_assertion": "require(!processedNonce[nonce], \"Nonce already processed\");",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "uniqueness_nonce_per_source",
+      "invariant_id": "uniqueness_no_duplicate_relay",
       "category": "uniqueness",
-      "description": "The nonce emitted by a source chain for a given sender must be unique and cannot be reused.",
-      "predicate": "nonceUsed[srcChain][sender][nonce] == false",
-      "solidity_assertion": "require(!nonceUsed[srcChain][msg.sender][nonce], \"Nonce already used\");",
+      "description": "The replica must not relay the same message more than once.",
+      "predicate": "relayCount[msgHash] == 1",
+      "solidity_assertion": "require(relayCount[msgHash] == 1, \"Duplicate relay detected\");",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "uniqueness_replay_protection_root",
+      "invariant_id": "uniqueness_hash_consistency",
       "category": "uniqueness",
-      "description": "A Merkle root that has already been submitted to the Replica cannot be submitted again.",
-      "predicate": "rootSubmitted[root] == false",
-      "solidity_assertion": "require(!rootSubmitted[root], \"Root already submitted\");",
+      "description": "The stored message hash must equal the hash of the serialized payload.",
+      "predicate": "msgHash == keccak256(abi.encodePacked(payload))",
+      "solidity_assertion": "require(msgHash == keccak256(abi.encodePacked(payload)), \"Message hash mismatch\");",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "uniqueness_no_duplicate_mint",
-      "category": "uniqueness",
-      "description": "The mint function must revert if the same (sender, amount, nonce) tuple has already resulted in a mint.",
-      "predicate": "mintedRecord[sender][nonce] == false",
-      "solidity_assertion": "require(!mintedRecord[msg.sender][nonce], \"Duplicate mint detected\");",
+      "invariant_id": "timeliness_message_before_timeout",
+      "category": "timeliness",
+      "description": "A message must be processed before its expiration timeout.",
+      "predicate": "block.timestamp <= messageTimestamp[msgHash] + MESSAGE_TIMEOUT",
+      "solidity_assertion": "require(block.timestamp <= messageTimestamp[msgHash] + MESSAGE_TIMEOUT, \"Message processing timeout exceeded\");",
       "related_edges": [
         "e1"
       ]
@@ -751,59 +229,39 @@
     {
       "invariant_id": "timeliness_refund_after_timeout",
       "category": "timeliness",
-      "description": "A locked token may be refunded to the original sender only after the lock timeout has elapsed.",
-      "predicate": "block.timestamp >= lockTimestamp + lockTimeout",
-      "solidity_assertion": "require(block.timestamp >= lockTimestamp + lockTimeout, \"Lock period not yet expired\");",
+      "description": "Locked assets become refundable only after the lock timeout has elapsed.",
+      "predicate": "block.timestamp >= lockTimestamp[depositId] + REFUND_TIMEOUT",
+      "solidity_assertion": "require(block.timestamp >= lockTimestamp[depositId] + REFUND_TIMEOUT, \"Refund not yet available\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_refund_not_previously_claimed",
+      "category": "timeliness",
+      "description": "A refund can be claimed only once per deposit.",
+      "predicate": "!refundClaimed[depositId]",
+      "solidity_assertion": "require(!refundClaimed[depositId], \"Refund already claimed\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_stale_message_cleanup",
+      "category": "timeliness",
+      "description": "After a message expires, it must be marked as consumed to prevent later replay.",
+      "predicate": "block.timestamp > messageTimestamp[msgHash] + MESSAGE_TIMEOUT ? consumedMessage[msgHash] == true : true",
+      "solidity_assertion": "if (block.timestamp > messageTimestamp[msgHash] + MESSAGE_TIMEOUT) { require(consumedMessage[msgHash], \"Expired message not marked consumed\"); }",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "timeliness_message_must_be_processed_before_expiry",
+      "invariant_id": "timeliness_fee_distribution_before_timeout",
       "category": "timeliness",
-      "description": "A cross‑chain message must be processed before its expiry block number, otherwise it becomes stale.",
-      "predicate": "block.number <= messageExpiry",
-      "solidity_assertion": "require(block.number <= messageExpiry, \"Message expired\");",
-      "related_edges": [
-        "e1"
-      ]
-    },
-    {
-      "invariant_id": "timeliness_lock_reclaim_max_delay",
-      "category": "timeliness",
-      "description": "If a lock has not been observed by the Replica within maxDelay blocks, the sender may reclaim the locked assets.",
-      "predicate": "block.timestamp >= lockTimestamp + maxDelay",
-      "solidity_assertion": "require(block.timestamp >= lockTimestamp + maxDelay, \"Max delay not reached for reclaim\");",
-      "related_edges": [
-        "e1"
-      ]
-    },
-    {
-      "invariant_id": "timeliness_hashlock_expiration",
-      "category": "timeliness",
-      "description": "When a hash‑locked transfer is used, the preimage must be submitted before the hash‑lock timeout, otherwise the lock can be refunded.",
-      "predicate": "block.timestamp <= hashLockExpiry",
-      "solidity_assertion": "require(block.timestamp <= hashLockExpiry, \"Hash‑lock expired\");",
-      "related_edges": [
-        "e1"
-      ]
-    },
-    {
-      "invariant_id": "timeliness_fee_withdrawal_window",
-      "category": "timeliness",
-      "description": "Bridge fees can only be withdrawn after a fee withdrawal window has opened to prevent premature extraction.",
-      "predicate": "block.timestamp >= lastFeeAccrual + feeWithdrawalDelay",
-      "solidity_assertion": "require(block.timestamp >= lastFeeAccrual + feeWithdrawalDelay, \"Fee withdrawal window not open\");",
-      "related_edges": [
-        "e1"
-      ]
-    },
-    {
-      "invariant_id": "timeliness_message_order_monotonic",
-      "category": "timeliness",
-      "description": "Messages from a given sender must be processed in strictly increasing nonce order.",
-      "predicate": "nonce == lastProcessedNonce[sender] + 1",
-      "solidity_assertion": "require(nonce == lastProcessedNonce[msg.sender] + 1, \"Non‑sequential nonce\");",
+      "description": "Bridge fees must be distributed to the fee collector before the message timeout expires.",
+      "predicate": "feeDistributed[msgHash] == true || block.timestamp > messageTimestamp[msgHash] + MESSAGE_TIMEOUT",
+      "solidity_assertion": "require(feeDistributed[msgHash] || block.timestamp > messageTimestamp[msgHash] + MESSAGE_TIMEOUT, \"Fee not distributed before timeout\");",
       "related_edges": [
         "e1"
       ]

@@ -5,21 +5,35 @@
     {
       "node_id": "EthCrossChainData",
       "node_type": "contract",
-      "chain": "Ethereum",
-      "address": "",
+      "chain": "source",
+      "address": "unknown",
+      "functions": []
+    },
+    {
+      "node_id": "Manager",
+      "node_type": "contract",
+      "chain": "source",
+      "address": "unknown",
       "functions": []
     },
     {
       "node_id": "EthCrossChainManager",
-      "node_type": "contract",
-      "chain": "Ethereum",
+      "node_type": "router",
+      "chain": "source",
       "address": "",
       "functions": []
     },
     {
-      "node_id": "EthCrossChainData",
+      "node_id": "TargetContract",
       "node_type": "contract",
-      "chain": "Ethereum",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "User",
+      "node_type": "actor",
+      "chain": "source",
       "address": "",
       "functions": []
     }
@@ -28,451 +42,27 @@
     {
       "edge_id": "e1",
       "src": "EthCrossChainManager",
-      "dst": "recipient",
+      "dst": "TargetContract",
+      "label": "call",
+      "token": null,
+      "conditions": [],
+      "condition_objects": [],
+      "function_signature": "verifyHeaderAndExecuteTx(address,bytes)"
+    },
+    {
+      "edge_id": "e2",
+      "src": "EthCrossChainManager",
+      "dst": "User",
       "label": "withdraw",
-      "token": "native",
+      "token": "unknown",
       "conditions": [
-        "r",
-        "e",
-        "q",
-        "u",
-        "i",
-        "r",
-        "e",
-        "(",
-        "!",
-        "d",
-        "a",
-        "t",
-        "a",
-        ".",
-        "p",
-        "r",
-        "o",
-        "c",
-        "e",
-        "s",
-        "s",
-        "e",
-        "d",
-        "(",
-        "n",
-        "o",
-        "n",
-        "c",
-        "e",
-        ")",
-        ",",
-        " ",
-        "\"",
-        "E",
-        "t",
-        "h",
-        "C",
-        "r",
-        "o",
-        "s",
-        "s",
-        "C",
-        "h",
-        "a",
-        "i",
-        "n",
-        "M",
-        "a",
-        "n",
-        "a",
-        "g",
-        "e",
-        "r",
-        ":",
-        " ",
-        "r",
-        "e",
-        "p",
-        "l",
-        "a",
-        "y",
-        "\"",
-        ")"
+        "require(!data.processed(nonce), \"EthCrossChainManager: replay\")"
       ],
       "condition_objects": [
         {
-          "type": "generic",
+          "type": "nonce",
           "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "q"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "u"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "i"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "("
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "!"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "d"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "a"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "t"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "a"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "."
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "p"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "o"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "c"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "s"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "s"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "d"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "("
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "n"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "o"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "n"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "c"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": ")"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": ","
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": " "
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "\""
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "E"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "t"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "h"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "C"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "o"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "s"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "s"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "C"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "h"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "a"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "i"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "n"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "M"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "a"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "n"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "a"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "g"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": ":"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": " "
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "r"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "e"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "p"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "l"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "a"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "y"
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": "\""
-          }
-        },
-        {
-          "type": "generic",
-          "params": {
-            "expression": ")"
+            "expression": "require(!data.processed(nonce), \"EthCrossChainManager: replay\")"
           }
         }
       ],
@@ -481,161 +71,184 @@
   ],
   "invariants": [
     {
-      "invariant_id": "asset_conservation_locked_equals_minted_minus_fees",
+      "invariant_id": "asset_conservation_locked_equals_minted",
       "category": "asset_conservation",
-      "description": "For every user, the amount of native tokens locked on Ethereum must equal the amount minted on the destination chain minus accumulated bridge fees.",
-      "predicate": "lockedBalance[user] == mintedBalance[user] - feeBalance[user]",
-      "solidity_assertion": "require(lockedBalance[msg.sender] == mintedBalance[msg.sender] - feeBalance[msg.sender], \"Invariant violation: locked != minted - fees\");",
+      "description": "The total amount of tokens locked on the source chain must equal the total amount minted on the destination chain plus accumulated fees.",
+      "predicate": "totalLockedSource == totalMintedDest + totalFeesCollected",
+      "solidity_assertion": "require(totalLockedSource == totalMintedDest + totalFeesCollected, \"Asset conservation violation: locked != minted+fees\");",
       "related_edges": [
-        "e1"
+        "e1",
+        "e2"
       ]
     },
     {
-      "invariant_id": "asset_conservation_total_supply_consistency",
+      "invariant_id": "asset_conservation_no_negative_balance",
       "category": "asset_conservation",
-      "description": "The total native token supply on Ethereum plus the total minted supply on the destination chain must remain constant, accounting for bridge fees.",
-      "predicate": "totalSupplyEth == totalSupplyDest + totalFeesCollected",
-      "solidity_assertion": "assert(totalSupplyEth == totalSupplyDest + totalFeesCollected);",
+      "description": "No contract balance involved in the bridge may become negative.",
+      "predicate": "balanceOf[contract] >= 0",
+      "solidity_assertion": "require(balanceOf[address(this)] >= 0, \"Negative balance detected\");",
       "related_edges": [
-        "e1"
+        "e1",
+        "e2"
       ]
     },
     {
-      "invariant_id": "asset_conservation_no_negative_balances",
+      "invariant_id": "asset_conservation_refund_preserves_total",
       "category": "asset_conservation",
-      "description": "Locked, minted and fee balances can never become negative.",
-      "predicate": "lockedBalance[user] >= 0 && mintedBalance[user] >= 0 && feeBalance[user] >= 0",
-      "solidity_assertion": "require(lockedBalance[msg.sender] >= 0 && mintedBalance[msg.sender] >= 0 && feeBalance[msg.sender] >= 0, \"Invariant violation: negative balance\");",
+      "description": "When a timeout refund is executed, the refunded amount is subtracted from the locked total and added back to the user's balance, keeping the global total unchanged.",
+      "predicate": "totalLockedSource_after == totalLockedSource_before - refundAmount && userBalance_after == userBalance_before + refundAmount",
+      "solidity_assertion": "assert(totalLockedSource == totalLockedSource - refundAmount && userBalances[user] == userBalances[user] + refundAmount);",
       "related_edges": [
-        "e1"
+        "e2"
       ]
     },
     {
-      "invariant_id": "asset_conservation_fee_non_negative",
+      "invariant_id": "asset_conservation_fee_immutable",
       "category": "asset_conservation",
-      "description": "The bridge fee accumulated for any user must be non‑negative and never exceed the amount locked.",
-      "predicate": "feeBalance[user] >= 0 && feeBalance[user] <= lockedBalance[user]",
-      "solidity_assertion": "assert(feeBalance[msg.sender] >= 0 && feeBalance[msg.sender] <= lockedBalance[msg.sender]);",
+      "description": "The accumulated fee counter can only increase; it must never decrease.",
+      "predicate": "totalFeesCollected_after >= totalFeesCollected_before",
+      "solidity_assertion": "assert(totalFeesCollected >= totalFeesCollected_before);",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "authorization_withdraw_requires_verified_relay",
+      "invariant_id": "authorization_mint_requires_verified_header",
       "category": "authorization",
-      "description": "A withdraw call can only succeed if the relay message has been verified by the EthCrossChainManager contract.",
-      "predicate": "relayVerified[nonce] == true",
-      "solidity_assertion": "require(relayVerified[_nonce], \"Relay not verified\");",
+      "description": "Minting on the destination chain is allowed only after the manager has verified the cross‑chain header.",
+      "predicate": "verifiedHeader[msgHash] == true",
+      "solidity_assertion": "require(verifiedHeader[msgHash], \"Mint not authorized: header not verified\");",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "authorization_withdraw_requires_sufficient_locked",
+      "invariant_id": "authorization_withdraw_requires_processed_deposit",
       "category": "authorization",
-      "description": "The contract must hold at least the amount being withdrawn in its locked balance.",
-      "predicate": "lockedBalance[user] >= withdrawAmount",
-      "solidity_assertion": "require(lockedBalance[msg.sender] >= _amount, \"Insufficient locked balance\");",
+      "description": "A user can withdraw only if the corresponding deposit record has been marked as processed.",
+      "predicate": "data.processed[depositId] == true",
+      "solidity_assertion": "require(data.processed[depositId], \"Withdraw not authorized: deposit not processed\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "authorization_call_from_manager_only",
+      "category": "authorization",
+      "description": "Calls to verifyHeaderAndExecuteTx must originate from the EthCrossChainManager contract.",
+      "predicate": "msg.sender == address(EthCrossChainManager)",
+      "solidity_assertion": "require(msg.sender == address(EthCrossChainManager), \"Unauthorized caller for verifyHeaderAndExecuteTx\");",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "authorization_withdraw_requires_correct_token_type",
+      "invariant_id": "authorization_user_signature_valid",
       "category": "authorization",
-      "description": "Withdraw can only be executed for the token type declared in the edge (native).",
-      "predicate": "token == TokenType.NATIVE",
-      "solidity_assertion": "assert(token == TokenType.NATIVE);",
+      "description": "Withdraw signatures must be cryptographically valid for the claimed user address.",
+      "predicate": "isValidSignature(user, withdrawSig) == true",
+      "solidity_assertion": "require(isValidSignature(user, withdrawSig), \"Invalid withdraw signature\");",
       "related_edges": [
-        "e1"
-      ]
-    },
-    {
-      "invariant_id": "authorization_withdraw_requires_manager_signature",
-      "category": "authorization",
-      "description": "The EthCrossChainManager must have signed the withdraw request; its address must match the stored manager address.",
-      "predicate": "msg.sender == ethCrossChainManager",
-      "solidity_assertion": "require(msg.sender == ethCrossChainManager, \"Caller is not manager\");",
-      "related_edges": [
-        "e1"
+        "e2"
       ]
     },
     {
       "invariant_id": "uniqueness_nonce_processed_once",
       "category": "uniqueness",
-      "description": "Each nonce can be marked as processed at most once.",
-      "predicate": "processedNonce[nonce] == false => processedNonce[nonce] = true",
-      "solidity_assertion": "require(!processedNonce[_nonce], \"Nonce already processed\"); processedNonce[_nonce] = true;",
+      "description": "A nonce may be marked processed only once; replay attempts must fail.",
+      "predicate": "!data.processed[nonce]",
+      "solidity_assertion": "require(!data.processed[nonce], \"EthCrossChainManager: replay\");",
       "related_edges": [
-        "e1"
+        "e2"
       ]
     },
     {
-      "invariant_id": "uniqueness_message_id_processed_once",
+      "invariant_id": "uniqueness_message_id_once",
       "category": "uniqueness",
-      "description": "A relay message identified by its hash may be consumed only a single time.",
-      "predicate": "processedMessage[msgHash] == false => processedMessage[msgHash] = true",
-      "solidity_assertion": "require(!processedMessage[msgHash], \"Message already processed\"); processedMessage[msgHash] = true;",
+      "description": "Each cross‑chain message identifier can be consumed at most once.",
+      "predicate": "!messageConsumed[msgId]",
+      "solidity_assertion": "require(!messageConsumed[msgId], \"Message already consumed\");",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "uniqueness_no_duplicate_withdraw_for_same_nonce",
+      "invariant_id": "uniqueness_withdraw_replay_protection",
       "category": "uniqueness",
-      "description": "Calling withdraw with a previously used nonce must revert.",
-      "predicate": "processedNonce[nonce] == false",
-      "solidity_assertion": "require(!processedNonce[_nonce], \"Duplicate withdraw\");",
+      "description": "A withdraw operation with a given nonce cannot be executed twice.",
+      "predicate": "!withdrawn[nonce]",
+      "solidity_assertion": "require(!withdrawn[nonce], \"Withdraw replay detected\");",
       "related_edges": [
-        "e1"
+        "e2"
       ]
     },
     {
-      "invariant_id": "uniqueness_relay_message_id_unique",
+      "invariant_id": "uniqueness_mint_once_per_deposit",
       "category": "uniqueness",
-      "description": "The combination (chainId, nonce) uniquely identifies a relay message.",
-      "predicate": "uniqueMessage[chainId][nonce] == false => uniqueMessage[chainId][nonce] = true",
-      "solidity_assertion": "require(!uniqueMessage[_chainId][_nonce], \"Message ID not unique\"); uniqueMessage[_chainId][_nonce] = true;",
+      "description": "Minting for a particular deposit identifier occurs only once.",
+      "predicate": "!minted[depositId]",
+      "solidity_assertion": "require(!minted[depositId], \"Deposit already minted\");",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "timeliness_refund_allowed_after_timeout",
+      "invariant_id": "timeliness_refund_after_timeout",
       "category": "timeliness",
-      "description": "A user may call refund only after the lock timeout has elapsed.",
-      "predicate": "block.timestamp >= lockTimestamp[user] + lockTimeout",
-      "solidity_assertion": "require(block.timestamp >= lockTimestamp[msg.sender] + lockTimeout, \"Lock period not expired\");",
+      "description": "A refund can be executed only after the lock timestamp plus the configured timeout has elapsed.",
+      "predicate": "block.timestamp > lockTimestamp[depositId] + timeout",
+      "solidity_assertion": "require(block.timestamp > lockTimestamp[depositId] + timeout, \"Refund not yet eligible\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_no_mint_before_min_delay",
+      "category": "timeliness",
+      "description": "Minting cannot occur before a minimum delay after the lock event, unless the relay is explicitly authorized.",
+      "predicate": "block.timestamp >= lockTimestamp[depositId] + minDelay || authorizedRelay[msg.sender]",
+      "solidity_assertion": "require(block.timestamp >= lockTimestamp[depositId] + minDelay || authorizedRelay[msg.sender], \"Mint attempted too early\");",
       "related_edges": [
         "e1"
       ]
     },
     {
-      "invariant_id": "timeliness_refund_prevented_before_timeout",
+      "invariant_id": "timeliness_withdraw_before_expiry_not_allowed",
       "category": "timeliness",
-      "description": "Refund attempts before the timeout must be rejected.",
-      "predicate": "block.timestamp < lockTimestamp[user] + lockTimeout => revert",
-      "solidity_assertion": "require(block.timestamp < lockTimestamp[msg.sender] + lockTimeout, \"Refund not allowed before timeout\");",
+      "description": "Withdrawals must happen before the expiry window closes; after expiry only refunds are allowed.",
+      "predicate": "block.timestamp <= lockTimestamp[depositId] + expiry",
+      "solidity_assertion": "require(block.timestamp <= lockTimestamp[depositId] + expiry, \"Withdraw window expired\");",
       "related_edges": [
-        "e1"
+        "e2"
       ]
     },
     {
-      "invariant_id": "timeliness_withdraw_not_allowed_past_expiration",
+      "invariant_id": "timeliness_cleanup_processed_data",
       "category": "timeliness",
-      "description": "Withdraw cannot be executed if the lock has already expired and a refund was claimed.",
-      "predicate": "!refundClaimed[user]",
-      "solidity_assertion": "require(!refundClaimed[msg.sender], \"Withdraw after refund\");",
+      "description": "Processed nonce data may be cleared only after a cleanup period has passed.",
+      "predicate": "data.cleanupTimestamp[nonce] == 0 || block.timestamp > data.cleanupTimestamp[nonce] + cleanupPeriod",
+      "solidity_assertion": "require(data.cleanupTimestamp[nonce] == 0 || block.timestamp > data.cleanupTimestamp[nonce] + cleanupPeriod, \"Cleanup period not elapsed\");",
       "related_edges": [
-        "e1"
+        "e2"
       ]
     },
     {
-      "invariant_id": "timeliness_timeout_decrements_locked_balance",
+      "invariant_id": "timeliness_fee_collection_before_timeout",
       "category": "timeliness",
-      "description": "When a timeout triggers a refund, the locked balance for the user must be decreased by the refunded amount.",
-      "predicate": "lockedBalance[user] = lockedBalance[user] - refundAmount",
-      "solidity_assertion": "lockedBalance[msg.sender] -= _refundAmount;",
+      "description": "Bridge fees are deducted at the moment of locking and must be recorded before any timeout logic can be evaluated.",
+      "predicate": "feeCollectedAtLock[depositId] == true",
+      "solidity_assertion": "require(feeCollectedAtLock[depositId], \"Fee not collected at lock time\");",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "authorization_cross_chain_relay_signature",
+      "category": "authorization",
+      "description": "The relay message used in verifyHeaderAndExecuteTx must carry a valid signature from the designated Relayer set.",
+      "predicate": "relayerSet.isValidSignature(relayerSig, headerHash)",
+      "solidity_assertion": "require(relayerSet.isValidSignature(relayerSig, headerHash), \"Invalid relayer signature\");",
       "related_edges": [
         "e1"
       ]

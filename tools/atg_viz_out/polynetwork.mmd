@@ -1,0 +1,9 @@
+%% ATG polynetwork
+flowchart LR
+  n_EthCrossChainData["EthCrossChainData"]
+  n_Manager["Manager"]
+  n_EthCrossChainManager["EthCrossChainManager"]
+  n_TargetContract["TargetContract"]
+  n_User["User"]
+  n_EthCrossChainManager -- "call" --> n_TargetContract
+  n_EthCrossChainManager -- "withdraw" --> n_User

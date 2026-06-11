@@ -1,0 +1,10 @@
+%% ATG ronin
+flowchart LR
+  n_RoninBridgeManager["RoninBridgeManager"]
+  n_WrappedToken["WrappedToken"]
+  n_User["User"]
+  n_User -- "lock" --> n_RoninBridgeManager
+  n_RoninBridgeManager -- "unlock" --> n_User
+  n_WrappedToken -- "mint" --> n_User
+  n_User -- "transfer" --> n_User
+  n_User -- "transfer" --> n_User

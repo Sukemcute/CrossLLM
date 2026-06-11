@@ -1,0 +1,1848 @@
+{
+  "bridge_name": "multichain",
+  "scenarios": [
+    {
+      "scenario_id": "multichain_double_mint_replay",
+      "target_invariant": "asset_conservation_total_balance",
+      "vulnerability_class": "relay_tampering_missing_amount_verification",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address token,uint256 amount,uint16 dstChainId)",
+          "params": {
+            "token": "WrappedToken",
+            "amount": 100,
+            "dstChainId": 56
+          },
+          "mode": "faithful",
+          "waypoint": "MultichainAnyCallV6.totalLocked[WrappedToken] == 100",
+          "description": "Step 1"
+        },
+        {
+          "step": 2,
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "relayMint(address to,uint256 amount,bytes32 nonce)",
+          "params": {
+            "to": "Attacker",
+            "amount": 200,
+            "nonce": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+          },
+          "mode": "tampered,replay",
+          "waypoint": "MultichainAnyCallV6.nonceUsed[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == true && MultichainAnyCallV6.relayVerified[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == true",
+          "description": "Step 2"
+        },
+        {
+          "step": 3,
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "mint(address to,uint256 amount)",
+          "params": {
+            "to": "Attacker",
+            "amount": 200
+          },
+          "mode": "faithful",
+          "waypoint": "MultichainAnyCallV6.totalLocked[WrappedToken] == 100 && MultichainAnyCallV6.mintedAmount[WrappedToken] == 200",
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "meterio_20220205"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_negative_locked_reentrancy_001",
+      "target_invariant": "asset_conservation_no_negative_locked",
+      "vulnerability_class": "reentrancy_logic_bug",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "MaliciousERC777Token",
+          "function": "constructor()",
+          "params": {
+            "name": "BadToken",
+            "symbol": "BTK",
+            "initialSupply": 1000,
+            "hookTarget": "MultichainAnyCallV6"
+          },
+          "description": "Deploy a malicious ERC777 token whose tokensReceived hook calls back into the bridge's unlock function.",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "MaliciousERC777Token",
+            "amount": 100,
+            "dstChainId": 2
+          },
+          "description": "Attacker locks 100 BTK on the source chain. After transferFrom succeeds, totalLocked[BTK] == 100.",
+          "step": 2
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "relayUnlock(address,address,uint256,uint16)",
+          "params": {
+            "token": "MaliciousERC777Token",
+            "recipient": "AttackerEOA",
+            "amount": 100,
+            "srcChainId": 2
+          },
+          "relay_mode": "faithful",
+          "description": "Relay (MockMultisig) delivers a verified unlock message to the router.",
+          "step": 3
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "unlock(address,address,uint256,uint16)",
+          "params": {
+            "token": "MaliciousERC777Token",
+            "recipient": "AttackerEOA",
+            "amount": 100,
+            "srcChainId": 2
+          },
+          "description": "Router calls unlock; before updating totalLocked it transfers 100 BTK to the attacker.",
+          "step": 4
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MaliciousERC777Token",
+          "function": "tokensReceived(address,address,address,uint256,bytes,bytes)",
+          "params": {
+            "operator": "MultichainAnyCallV6",
+            "from": "MultichainAnyCallV6",
+            "to": "AttackerEOA",
+            "amount": 100,
+            "userData": "0x",
+            "operatorData": "0x"
+          },
+          "description": "During the ERC777 transfer, the token's tokensReceived hook re‑enters MultichainAnyCallV6.unlock with the same parameters.",
+          "step": 5
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "unlock(address,address,uint256,uint16)",
+          "params": {
+            "token": "MaliciousERC777Token",
+            "recipient": "AttackerEOA",
+            "amount": 100,
+            "srcChainId": 2
+          },
+          "description": "Re‑entered unlock passes the totalLocked >= amount check (totalLocked still 100) and decrements totalLocked again, resulting in totalLocked[BTK] == -100.",
+          "step": 6
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "wormhole_20220202"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Deploy a malicious ERC777 token whose tokensReceived hook calls back into the bridge's unlock function."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker locks 100 BTK on the source chain. After transferFrom succeeds, totalLocked[BTK] == 100."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Relay (MockMultisig) delivers a verified unlock message to the router."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Router calls unlock; before updating totalLocked it transfers 100 BTK to the attacker."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "During the ERC777 transfer, the token's tokensReceived hook re‑enters MultichainAnyCallV6.unlock with the same parameters."
+        },
+        {
+          "waypoint_id": "w6",
+          "after_step": 6,
+          "predicate": "step_6_executed",
+          "description": "Re‑entered unlock passes the totalLocked >= amount check (totalLocked still 100) and decrements totalLocked again, resulting in totalLocked[BTK] == -100."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_mint_excess_2024_01",
+      "target_invariant": "asset_conservation_mint_not_exceed_locked",
+      "vulnerability_class": "relay_tampering_fake_mint",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock",
+          "params": {
+            "token": "0xAaBbCcDdEeFf0011223344556677889900aAbBcC",
+            "amount": "100",
+            "dstChainId": "56"
+          },
+          "description": "Honest user locks 100 WrappedToken on Ethereum; router records the lock.",
+          "state_predicate": "MultichainAnyCallV6.totalLocked(0xAaBbCcDdEeFf0011223344556677889900aAbBcC) == 100",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "relayMessage",
+          "params": {
+            "nonce": "0x1a2b3c4d5e6f",
+            "srcChainId": "1",
+            "dstChainId": "56",
+            "token": "0xAaBbCcDdEeFf0011223344556677889900aAbBcC",
+            "amount": "1000",
+            "mode": "tampered"
+          },
+          "description": "Attacker with control over the relay emits a tampered cross‑chain message that claims 1000 tokens were locked (instead of the real 100).",
+          "state_predicate": "MockMultisig.relayVerified[0x1a2b3c4d5e6f] == true && MockMultisig.relayAmount[0x1a2b3c4d5e6f] == 1000",
+          "step": 2
+        },
+        {
+          "chain": "bsc",
+          "contract": "MultichainAnyCallV6",
+          "function": "mint",
+          "params": {
+            "to": "0xDeAdBeEfDeAdBeEfDeAdBeEfDeAdBeEfDeAdBeEf",
+            "amount": "1000",
+            "nonce": "0x1a2b3c4d5e6f"
+          },
+          "description": "Router on BSC processes the (tampered) relay and mints 1000 WrappedToken to the attacker.",
+          "state_predicate": "MultichainAnyCallV6.mintedAmount(0xAaBbCcDdEeFf0011223344556677889900aAbBcC) == 1000 && MultichainAnyCallV6.mintedAmount(0xAaBbCcDdEeFf0011223344556677889900aAbBcC) > MultichainAnyCallV6.totalLocked(0xAaBbCcDdEeFf0011223344556677889900aAbBcC)",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "qubit_20220127",
+        "meterio_20220205"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Honest user locks 100 WrappedToken on Ethereum; router records the lock."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker with control over the relay emits a tampered cross‑chain message that claims 1000 tokens were locked (instead of the real 100)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Router on BSC processes the (tampered) relay and mints 1000 WrappedToken to the attacker."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_unlock_replay_underflow_001",
+      "target_invariant": "asset_conservation_unlock_decrements_locked",
+      "vulnerability_class": "replay_without_nonce_check",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "0xTokenAddress00000000000000000000000000000000",
+            "amount": "1000000000000000000000",
+            "dstChainId": 56
+          },
+          "description": "Honest user locks 1,000 WrappedToken on Ethereum for BSC.",
+          "waypoint": "MultichainAnyCallV6.totalLocked(0xTokenAddress00000000000000000000000000000000) == 1000000000000000000000",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "unlock(address,address,uint256,uint16)",
+          "params": {
+            "token": "0xTokenAddress00000000000000000000000000000000",
+            "to": "0xAttackerAddress11111111111111111111111111111111",
+            "amount": "1000000000000000000000",
+            "srcChainId": 56,
+            "nonce": 42
+          },
+          "relay_mode": "faithful",
+          "description": "Bridge processes a correctly verified relay from MockMultisig and unlocks the 1,000 tokens to the attacker.",
+          "waypoint": "MultichainAnyCallV6.totalLocked(0xTokenAddress00000000000000000000000000000000) == 0",
+          "step": 2
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "unlock(address,address,uint256,uint16)",
+          "params": {
+            "token": "0xTokenAddress00000000000000000000000000000000",
+            "to": "0xAttackerAddress11111111111111111111111111111111",
+            "amount": "1000000000000000000000",
+            "srcChainId": 56,
+            "nonce": 42
+          },
+          "relay_mode": "replay",
+          "description": "Attacker re‑plays the same unlock transaction. Because the contract fails to enforce the uniqueness of `nonce` for unlocks, the call succeeds a second time, causing `totalLocked` to underflow.",
+          "waypoint": "MultichainAnyCallV6.totalLocked(0xTokenAddress00000000000000000000000000000000) == 115792089237316195423570985008687907853269984665640564039457584007913129639935",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "orbit_20240101"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Honest user locks 1,000 WrappedToken on Ethereum for BSC."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Bridge processes a correctly verified relay from MockMultisig and unlocks the 1,000 tokens to the attacker."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker re‑plays the same unlock transaction. Because the contract fails to enforce the uniqueness of `nonce` for unlocks, the call succeeds a second time, causing `totalLocked` to underflow."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_fee_negative_tampered_relay_001",
+      "target_invariant": "asset_conservation_fee_nonnegative",
+      "vulnerability_class": "logic_bug_missing_fee_sign_check",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "WrappedToken",
+            "amount": "1000000000000000000",
+            "dstChainId": 56
+          },
+          "description": "User (attacker) locks 1 ETH‑equivalent of WrappedToken to be bridged to BSC. This creates a unique nonce N and records totalLocked[WrappedToken] = 1e18, feeCollected[WrappedToken] = 0.",
+          "state_predicate": "totalLocked[WrappedToken] == 1000000000000000000 && feeCollected[WrappedToken] == 0",
+          "step": 1
+        },
+        {
+          "chain": "bsc",
+          "contract": "MockMultisig",
+          "function": "relayMint(address,uint256,int256,uint256)",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": "1000000000000000000",
+            "fee": "-500000000000000000",
+            "nonce": "N"
+          },
+          "description": "Attacker, controlling the relay, submits a tampered relay message (mode = tampered) that encodes a negative fee of –0.5 WrappedToken. The relay is accepted because the contract only checks nonce uniqueness, not fee sign.",
+          "relay_mode": "tampered",
+          "state_predicate": "nonceUsed[N] == true && relayVerified[N] == true",
+          "step": 2
+        },
+        {
+          "chain": "bsc",
+          "contract": "MultichainAnyCallV6",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": "1000000000000000000"
+          },
+          "description": "The router processes the verified relay and calls mint. Inside mint the contract updates feeCollected[WrappedToken] += fee (where fee = -0.5 WrappedToken from the tampered payload). No non‑negative check is performed, so feeCollected becomes –0.5 WrappedToken.",
+          "state_predicate": "feeCollected[WrappedToken] == -500000000000000000 && mintedAmount[WrappedToken] == 1000000000000000000",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202",
+        "polyNetwork_20210331",
+        "bnbbridge_20221007"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User (attacker) locks 1 ETH‑equivalent of WrappedToken to be bridged to BSC. This creates a unique nonce N and records totalLocked[WrappedToken] = 1e18, feeCollected[WrappedToken] = 0."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker, controlling the relay, submits a tampered relay message (mode = tampered) that encodes a negative fee of –0.5 WrappedToken. The relay is accepted because the contract only checks nonce uniqueness, not fee sign."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "The router processes the verified relay and calls mint. Inside mint the contract updates feeCollected[WrappedToken] += fee (where fee = -0.5 WrappedToken from the tampered payload). No non‑negative check is performed, so feeCollected becomes –0.5 WrappedToken."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_unlock_sender_spoof_001",
+      "target_invariant": "authorization_unlock_sender",
+      "vulnerability_class": "relay_delegatecall_spoof",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "MaliciousRelay",
+          "function": "constructor",
+          "params": {},
+          "mode": "faithful",
+          "waypoint": "MaliciousRelay.deployed == true",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock",
+          "params": {
+            "token": "0xTokenAddress",
+            "amount": "1000e18",
+            "dstChainId": 56
+          },
+          "mode": "faithful",
+          "waypoint": "MultichainAnyCallV6.totalLocked(0xTokenAddress) >= 1000e18",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "executeMessage",
+          "params": {
+            "nonce": 42,
+            "target": "MaliciousRelay",
+            "data": "0x<abi-encoded-unlock(0xTokenAddress,0xAttacker,1000e18,1)>"
+          },
+          "mode": "tampered",
+          "waypoint": "MockMultisig.relayVerified[42] == true && MockMultisig.nonceUsed[42] == true",
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MaliciousRelay",
+          "function": "maliciousUnlock",
+          "params": {
+            "token": "0xTokenAddress",
+            "to": "0xAttacker",
+            "amount": "1000e18",
+            "srcChainId": 1
+          },
+          "mode": "faithful",
+          "waypoint": "MultichainAnyCallV6.unlockedForNonce[42] == true && msg.sender != address(MultichainAnyCallV6)",
+          "step": 4,
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_20220118",
+        "chainswap_20210711"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_auth_mint_bypass_001",
+      "target_invariant": "authorization_mint_sender",
+      "vulnerability_class": "access_control_bypass",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock",
+          "params": {
+            "token": "0x1111111111111111111111111111111111111111",
+            "amount": "1000000000000000000000",
+            "dstChainId": 56
+          },
+          "waypoint": "MultichainAnyCallV6.totalLocked(0x1111111111111111111111111111111111111111) >= 1000000000000000000000",
+          "description": "Step 1"
+        },
+        {
+          "step": 2,
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "relay",
+          "params": {
+            "nonce": 42,
+            "targetChainId": 56,
+            "payload": "mint(0xAttacker,1000000000000000000000)"
+          },
+          "mode": "faithful",
+          "waypoint": "MockMultisig.nonceUsed[42] == true && MockMultisig.relayVerified[42] == true",
+          "description": "Step 2"
+        },
+        {
+          "step": 3,
+          "chain": "bsc",
+          "contract": "WrappedToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "1000000000000000000000"
+          },
+          "mode": "replay",
+          "waypoint": "WrappedToken.balanceOf(0xAttacker) >= 1000000000000000000000 && msg.sender == 0xAttacker",
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202",
+        "evodefi_20220607"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_auth_mint_relay_tamper_001",
+      "target_invariant": "authorization_mint_requires_verified_relay",
+      "vulnerability_class": "relay_storage_manipulation",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "setNonceStatus",
+          "params": {
+            "nonce": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            "used": true,
+            "verified": true
+          },
+          "description": "Compromised relay (MockMultisig) directly writes to its internal mappings, marking the chosen nonce as both used and verified.",
+          "state_predicates": [
+            "nonceUsed[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == true",
+            "relayVerified[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == true"
+          ],
+          "relay_mode": "tampered",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "execute",
+          "params": {
+            "target": "MultichainAnyCallV6",
+            "data": "0x40c10f19000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000000000000000000000000000000000000000000000000000003e8"
+          },
+          "description": "Authorized relay forwards a mint call to the bridge router. The calldata encodes mint(address to, uint256 amount) with `to = 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` and `amount = 1000` (0x3e8). Because msg.sender is MockMultisig, the router treats the call as authorized.",
+          "state_predicates": [
+            "mintedForNonce[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == true",
+            "balanceOf(0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa) >= 1000"
+          ],
+          "relay_mode": "faithful",
+          "step": 2
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "execute",
+          "params": {
+            "target": "MockMultisig",
+            "data": "0x4e71d92d000000000000000000000000000000000000000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+          },
+          "description": "Attacker re‑uses the compromised relay to call its own helper `clearNonce(uint256)` which sets `nonceUsed[nonce] = false`, leaving `relayVerified` true but breaking the invariant that both must be true after a mint.",
+          "state_predicates": [
+            "nonceUsed[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == false",
+            "relayVerified[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == true"
+          ],
+          "relay_mode": "tampered",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "evodefi_20220607",
+        "chainswap_20210711",
+        "qubit_20220127"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Compromised relay (MockMultisig) directly writes to its internal mappings, marking the chosen nonce as both used and verified."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Authorized relay forwards a mint call to the bridge router. The calldata encodes mint(address to, uint256 amount) with `to = 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` and `amount = 1000` (0x3e8). Because msg.sender is MockMultisig, the router treats the call as authorized."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker re‑uses the compromised relay to call its own helper `clearNonce(uint256)` which sets `nonceUsed[nonce] = false`, leaving `relayVerified` true but breaking the invariant that both must be true after a mint."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_unlock_replay_tamper_001",
+      "target_invariant": "authorization_unlock_requires_sufficient_locked",
+      "vulnerability_class": "relay_tampering_and_logic_bug",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "WrappedToken",
+            "amount": 100,
+            "dstChainId": 56
+          },
+          "description": "Attacker locks 100 WrappedToken on Ethereum. TransferFrom succeeds and contract records totalLocked[WrappedToken] = 100.",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "relayUnlock(bytes)",
+          "params": {
+            "payload": {
+              "token": "WrappedToken",
+              "to": "0xAttackerAddress",
+              "amount": 100,
+              "srcChainId": 1,
+              "nonce": 42
+            }
+          },
+          "relay_mode": "tampered",
+          "description": "Malicious relay (MockMultisig) sends a forged unlock message with a fresh nonce. Router calls unlock on itself, transfers 100 tokens to attacker, but due to a missing state update totalLocked[WrappedToken] remains 100.",
+          "step": 2
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "totalLocked(address)",
+          "params": {
+            "token": "WrappedToken"
+          },
+          "description": "Waypoint predicate: totalLocked[WrappedToken] == 100 (unchanged) even though contract balance decreased to 0.",
+          "step": 3
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "relayUnlock(bytes)",
+          "params": {
+            "payload": {
+              "token": "WrappedToken",
+              "to": "0xAttackerAddress",
+              "amount": 100,
+              "srcChainId": 1,
+              "nonce": 43
+            }
+          },
+          "relay_mode": "tampered",
+          "description": "Attacker replays another forged unlock with a new nonce. Require(totalLocked >= amount) still passes (100 >= 100) while contract holds no tokens, violating the invariant.",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "multichain_20220118"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker locks 100 WrappedToken on Ethereum. TransferFrom succeeds and contract records totalLocked[WrappedToken] = 100."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Malicious relay (MockMultisig) sends a forged unlock message with a fresh nonce. Router calls unlock on itself, transfers 100 tokens to attacker, but due to a missing state update totalLocked[WrappedToken] remains 100."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Waypoint predicate: totalLocked[WrappedToken] == 100 (unchanged) even though contract balance decreased to 0."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Attacker replays another forged unlock with a new nonce. Require(totalLocked >= amount) still passes (100 >= 100) while contract holds no tokens, violating the invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_lock_balance_bypass_001",
+      "target_invariant": "authorization_lock_caller_balance",
+      "vulnerability_class": "malicious_token_transferFrom_bypass",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "WrappedToken",
+          "function": "approve",
+          "params": {
+            "spender": "MultichainAnyCallV6",
+            "amount": "1000000000000000000000"
+          },
+          "description": "Attacker approves the bridge router to spend a large amount of a malicious ERC‑20 token they control. The token implements transferFrom to always return true without updating balances.",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock",
+          "params": {
+            "token": "0xMaliciousToken",
+            "amount": "1000000000000000000000",
+            "dstChainId": 56
+          },
+          "description": "User calls lock() with the malicious token. The router invokes WrappedToken.transferFrom(msg.sender, address(this), amount). The call returns true, satisfying the require, but the token's internal ledger does not credit the bridge contract.",
+          "step": 2
+        },
+        {
+          "chain": "ethereum",
+          "contract": "WrappedToken",
+          "function": "balanceOf",
+          "params": {
+            "account": "MultichainAnyCallV6"
+          },
+          "description": "State predicate check after lock: bridge balance unchanged.",
+          "waypoint": "balanceAfter == balanceBefore && transferFromSuccess == true",
+          "step": 3
+        },
+        {
+          "chain": "bsc",
+          "contract": "MultichainAnyCallV6",
+          "function": "mint",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "1000000000000000000000"
+          },
+          "relay_mode": "tampered",
+          "description": "The compromised MockMultisig relay forwards a forged mint message to the destination router, claiming that X tokens were locked. The router mints X wrapped tokens to the attacker despite no real assets being locked on Ethereum.",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_20220118",
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker approves the bridge router to spend a large amount of a malicious ERC‑20 token they control. The token implements transferFrom to always return true without updating balances."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "User calls lock() with the malicious token. The router invokes WrappedToken.transferFrom(msg.sender, address(this), amount). The call returns true, satisfying the require, but the token's internal ledger does not credit the bridge contract."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "State predicate check after lock: bridge balance unchanged."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "The compromised MockMultisig relay forwards a forged mint message to the destination router, claiming that X tokens were locked. The router mints X wrapped tokens to the attacker despite no real assets being locked on Ethereum."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_nonce_replay_double_mint",
+      "target_invariant": "uniqueness_nonce_once",
+      "vulnerability_class": "relay_replay_and_missing_nonce_check",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "0xTokenAddress",
+            "amount": "1000000000000000000",
+            "dstChainId": 56
+          },
+          "description": "Honest user locks 1 ETH‑equivalent token for BSC. The router emits a cross‑chain message containing a fresh nonce N. State predicate after execution: nonceUsed[N] == false && totalLocked[0xTokenAddress] == previous + 1e18",
+          "relay_mode": "faithful",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "executeMint(address,uint256,bytes32)",
+          "params": {
+            "to": "0xAttackerEOA",
+            "amount": "1000000000000000000",
+            "nonce": "0xN"
+          },
+          "description": "Attacker, having compromised the relay private key, replays the signed payload for nonce N *before* the legitimate relay processes it. The router’s mint function is called via the authorized relay. State predicate after execution: nonceUsed[N] == true && mintedAmount[0xTokenAddress] == 1e18",
+          "relay_mode": "replay",
+          "step": 2
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "executeMint(address,uint256,bytes32)",
+          "params": {
+            "to": "0xHonestRecipient",
+            "amount": "1000000000000000000",
+            "nonce": "0xN"
+          },
+          "description": "The original, faithful relay finally processes the pending cross‑chain message with the same nonce N. Due to a bug where the router checks a stale mapping (e.g., `processedNonce` instead of `nonceUsed`) the require(!nonceUsed[_nonce]) passes, allowing a second mint. State predicate after execution: mintedAmount[0xTokenAddress] == 2e18 && nonceUsed[N] == true (invariant violated).",
+          "relay_mode": "faithful",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810",
+        "anyswap_20210710",
+        "anyswap_xscope"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Honest user locks 1 ETH‑equivalent token for BSC. The router emits a cross‑chain message containing a fresh nonce N. State predicate after execution: nonceUsed[N] == false && totalLocked[0xTokenAddress] == previous + 1e18"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker, having compromised the relay private key, replays the signed payload for nonce N *before* the legitimate relay processes it. The router’s mint function is called via the authorized relay. State predicate after execution: nonceUsed[N] == true && mintedAmount[0xTokenAddress] == 1e18"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "The original, faithful relay finally processes the pending cross‑chain message with the same nonce N. Due to a bug where the router checks a stale mapping (e.g., `processedNonce` instead of `nonceUsed`) the require(!nonceUsed[_nonce]) passes, allowing a second mint. State predicate after execution: mintedAmount[0xTokenAddress] == 2e18 && nonceUsed[N] == true (invariant violated)."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_nonce_replay_double_mint",
+      "target_invariant": "uniqueness_mint_once_per_nonce",
+      "vulnerability_class": "relay_nonce_reset_replay",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "setRelayMode(uint256 nonce, uint8 mode)",
+          "params": {
+            "nonce": "N",
+            "mode": "2"
+          },
+          "mode": "delayed",
+          "waypoint": "MockMultisig.relayMode[N] == 2",
+          "description": "Step 1"
+        },
+        {
+          "step": 2,
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address token, uint256 amount, uint16 dstChainId)",
+          "params": {
+            "token": "WrappedToken",
+            "amount": "A",
+            "dstChainId": "42"
+          },
+          "waypoint": "MultichainAnyCallV6.totalLocked[WrappedToken] >= A && emittedNonce == N",
+          "description": "Step 2"
+        },
+        {
+          "step": 3,
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "relayMint(address to, uint256 amount, uint256 nonce)",
+          "params": {
+            "to": "AttackerEOA",
+            "amount": "A",
+            "nonce": "N"
+          },
+          "mode": "delayed",
+          "waypoint": "mintedForNonce[N] == true && nonceUsed[N] == true",
+          "description": "Step 3"
+        },
+        {
+          "step": 4,
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "resetNonce(uint256 nonce)",
+          "params": {
+            "nonce": "N"
+          },
+          "mode": "tampered",
+          "waypoint": "mintedForNonce[N] == false && nonceUsed[N] == false",
+          "description": "Step 4"
+        },
+        {
+          "step": 5,
+          "chain": "destinationchain",
+          "contract": "WrappedToken",
+          "function": "mint(address to, uint256 amount)",
+          "params": {
+            "to": "AttackerEOA",
+            "amount": "A"
+          },
+          "mode": "replay",
+          "waypoint": "totalSupply[WrappedToken] increased by A a second time while mintedForNonce[N] == true",
+          "description": "Step 5"
+        }
+      ],
+      "retrieved_exploits": [
+        "qubit_20220127",
+        "evodefi_20220607"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Step 5"
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_unlock_replay_01",
+      "target_invariant": "uniqueness_unlock_once_per_nonce",
+      "vulnerability_class": "relay_replay",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "0xTokenAddress",
+            "amount": "1000000000000000000",
+            "dstChainId": 56
+          },
+          "state_predicate": "totalLocked[0xTokenAddress] == old(totalLocked[0xTokenAddress]) + 1000000000000000000",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "relay_mode": "tampered",
+          "function": "relayMessage(bytes)",
+          "params": {
+            "data": "0x<encoded_unlock_call_with_nonce_N>"
+          },
+          "state_predicate": "relayVerified[N] == true && nonceUsed[N] == true",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "unlock(address,address,uint256,uint16)",
+          "params": {
+            "token": "0xTokenAddress",
+            "recipient": "0xAttackerAddress",
+            "amount": "1000000000000000000",
+            "nonce": "N"
+          },
+          "state_predicate": "unlockedForNonce[N] == true && totalLocked[0xTokenAddress] == old(totalLocked[0xTokenAddress]) - 1000000000000000000",
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "relay_mode": "replay",
+          "function": "relayMessage(bytes)",
+          "params": {
+            "data": "0x<encoded_unlock_call_with_nonce_N>"
+          },
+          "state_predicate": "relayVerified[N] == true",
+          "step": 4,
+          "description": "Step 4"
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "unlock(address,address,uint256,uint16)",
+          "params": {
+            "token": "0xTokenAddress",
+            "recipient": "0xAttackerAddress",
+            "amount": "1000000000000000000",
+            "nonce": "N"
+          },
+          "state_predicate": "totalLocked[0xTokenAddress] == old(totalLocked[0xTokenAddress]) - 2000000000000000000 && unlockedForNonce[N] == true",
+          "step": 5,
+          "description": "Step 5"
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "polynetwork_20210810"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Step 5"
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_timeliness_refund_early_001",
+      "target_invariant": "timeliness_refund_allowed_after_timeout",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "WrappedToken",
+            "amount": "1000000000000000000",
+            "dstChainId": 56
+          },
+          "mode": "faithful",
+          "waypoint": "lockTimestamp[42] == block.timestamp && totalLocked[WrappedToken] >= 1e18",
+          "description": "Step 1"
+        },
+        {
+          "step": 2,
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "relayMint(uint256,bytes,uint256)",
+          "params": {
+            "nonce": 42,
+            "proof": "0xdeadbeef...validProof",
+            "fakeTimestamp": 0
+          },
+          "mode": "tampered",
+          "waypoint": "lockTimestamp[42] == 0 && relayVerified[42] == true",
+          "description": "Step 2"
+        },
+        {
+          "step": 3,
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "refund(uint256)",
+          "params": {
+            "nonce": 42
+          },
+          "mode": "faithful",
+          "waypoint": "block.timestamp >= lockTimestamp[42] + LOCK_TIMEOUT && refundedAmount[WrappedToken] == 1e18",
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "thorchain_20210628"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_timeliness_refund_unlock_violation_001",
+      "target_invariant": "timeliness_no_unlock_after_refund",
+      "vulnerability_class": "timeliness_logic",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address token, uint256 amount, uint16 dstChainId)",
+          "params": {
+            "token": "0xTokenErc20",
+            "amount": "1000e18",
+            "dstChainId": 56
+          },
+          "waypoint": "MultichainAnyCallV6.totalLocked(0xTokenErc20) >= 1000e18 && MultichainAnyCallV6.nonceUsed[nonce] == false",
+          "description": "User locks 1000 tokens for destination chain BSC, generating a fresh nonce N."
+        },
+        {
+          "step": 2,
+          "chain": "ethereum",
+          "relay": "MockMultisig",
+          "action": "relay_message",
+          "mode": "delayed",
+          "params": {
+            "nonce": "N",
+            "payload": "unlock(0xTokenErc20, 0xAttacker, 1000e18, 1)"
+          },
+          "waypoint": "MockMultisig.messagePending[N] == true && block.timestamp - MultichainAnyCallV6.lockTimestamp[N] > MultichainAnyCallV6.globalTimeout",
+          "description": "Attacker (or compromised relay) withholds the unlock message beyond the timeout period."
+        },
+        {
+          "step": 3,
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "refund(uint256 nonce)",
+          "params": {
+            "nonce": "N"
+          },
+          "waypoint": "MultichainAnyCallV6.refunded[N] == true && MultichainAnyCallV6.totalLocked(0xTokenErc20) == oldTotalLocked - 1000e18",
+          "description": "User calls refund after timeout; contract marks refunded[N] = true and returns tokens."
+        },
+        {
+          "step": 4,
+          "chain": "ethereum",
+          "relay": "MockMultisig",
+          "action": "relay_message",
+          "mode": "replay",
+          "params": {
+            "nonce": "N",
+            "payload": "unlock(0xTokenErc20, 0xAttacker, 1000e18, 1)"
+          },
+          "waypoint": "MockMultisig.messageReplayed[N] == true && MultichainAnyCallV6.unlockedForNonce[N] == true",
+          "description": "Attacker re‑submits the previously delayed unlock message (replay attack). The router, lacking a check that refunded[N] is false, processes the unlock."
+        },
+        {
+          "step": 5,
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "unlock(address token, address to, uint256 amount, uint16 srcChainId)",
+          "params": {
+            "token": "0xTokenErc20",
+            "to": "0xAttacker",
+            "amount": "1000e18",
+            "srcChainId": 1
+          },
+          "waypoint": "MultichainAnyCallV6.unlockedForNonce[N] == true && MultichainAnyCallV6.refunded[N] == true",
+          "description": "Unlock executes, transferring tokens to attacker, violating the invariant that refunded nonces must not be unlocked."
+        }
+      ],
+      "retrieved_exploits": [
+        "thorchain_20210628",
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1000 tokens for destination chain BSC, generating a fresh nonce N."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker (or compromised relay) withholds the unlock message beyond the timeout period."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "User calls refund after timeout; contract marks refunded[N] = true and returns tokens."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Attacker re‑submits the previously delayed unlock message (replay attack). The router, lacking a check that refunded[N] is false, processes the unlock."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Unlock executes, transferring tokens to attacker, violating the invariant that refunded nonces must not be unlocked."
+        }
+      ]
+    },
+    {
+      "scenario_id": "mc_timeliness_timestamp_manipulation_01",
+      "target_invariant": "timeliness_lock_timestamp_set",
+      "vulnerability_class": "timestamp_overwrite_via_malicious_relay",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock",
+          "params": {
+            "token": "WrappedToken",
+            "amount": "1000e18",
+            "dstChainId": 56
+          },
+          "predicate": "lockTimestamp[N] == block.timestamp && totalLocked[WrappedToken] == old(totalLocked[WrappedToken]) + 1000e18",
+          "description": "Attacker initiates a cross‑chain lock. The router emits nonce N and (correctly) stores block.timestamp in lockTimestamp[N].",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "relayVerifyLock",
+          "params": {
+            "nonce": "N",
+            "proof": "0xdeadbeef"
+          },
+          "relay_mode": "tampered",
+          "predicate": "relayVerified[N] == true && lockTimestamp[N] == block.timestamp",
+          "description": "Attacker‑controlled relay calls the router’s off‑chain verification entry. Due to a bug the router overwrites lockTimestamp[N] with the current block.timestamp instead of keeping the original value.",
+          "step": 2
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "refund",
+          "params": {
+            "nonce": "N"
+          },
+          "predicate": "balanceAfter == balanceBefore + 1000e18 && lockTimestamp[N] < block.timestamp - GLOBAL_TIMEOUT == false",
+          "description": "Attacker attempts an immediate refund. Because lockTimestamp[N] was overwritten to a future timestamp, the contract’s timeliness check (refund only after timeout) fails, preventing a legitimate user from reclaiming the funds.",
+          "step": 3
+        },
+        {
+          "chain": "bsc",
+          "contract": "MultichainAnyCallV6",
+          "function": "mint",
+          "params": {
+            "to": "Attacker",
+            "amount": "1000e18",
+            "nonce": "N"
+          },
+          "predicate": "mintedAmount[WrappedToken] == old(mintedAmount[WrappedToken]) + 1000e18 && mintedForNonce[N] == true",
+          "description": "Attacker triggers the mint on the destination chain using the same nonce. The bridge’s replay‑protection relies on the original lock timestamp; the overwritten (future) timestamp bypasses the check, allowing a second mint for the same lock.",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810",
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker initiates a cross‑chain lock. The router emits nonce N and (correctly) stores block.timestamp in lockTimestamp[N]."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker‑controlled relay calls the router’s off‑chain verification entry. Due to a bug the router overwrites lockTimestamp[N] with the current block.timestamp instead of keeping the original value."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker attempts an immediate refund. Because lockTimestamp[N] was overwritten to a future timestamp, the contract’s timeliness check (refund only after timeout) fails, preventing a legitimate user from reclaiming the funds."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Attacker triggers the mint on the destination chain using the same nonce. The bridge’s replay‑protection relies on the original lock timestamp; the overwritten (future) timestamp bypasses the check, allowing a second mint for the same lock."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_timestamp_decrease_2024_09",
+      "target_invariant": "timeliness_lock_timestamp_monotonic",
+      "vulnerability_class": "relay_timestamp_tampering",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "0xTokenAddressABCDEF1234567890abcdef1234567890abcd",
+            "amount": "1000000000000000000",
+            "dstChainId": 56
+          },
+          "description": "User (attacker) locks 1 ETH‑equivalent token to BSC. Router records lockTimestamp[nonce=42] = T_high (current block.timestamp).",
+          "waypoint": "lockTimestamp[42] == T_high",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "relayMint(uint256,uint256,address,uint256)",
+          "params": {
+            "nonce": 42,
+            "timestamp": "T_low",
+            "to": "0xAttackerAddress1111111111111111111111111111111111",
+            "amount": "1000000000000000000"
+          },
+          "relay_mode": "tampered",
+          "description": "Compromised relay (MockMultisig) sends a forged relay message with an older timestamp T_low < T_high for the same nonce. Router processes the mint, overwriting lockTimestamp[42] with T_low.",
+          "waypoint": "lockTimestamp[42] == T_low && T_low < T_high",
+          "step": 2
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_20230715",
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User (attacker) locks 1 ETH‑equivalent token to BSC. Router records lockTimestamp[nonce=42] = T_high (current block.timestamp)."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Compromised relay (MockMultisig) sends a forged relay message with an older timestamp T_low < T_high for the same nonce. Router processes the mint, overwriting lockTimestamp[42] with T_low."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_timeout_zero_exploit_001",
+      "target_invariant": "timeliness_timeout_constant_positive",
+      "vulnerability_class": "governance_relay_manipulation",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "relayMessage(address,bytes)",
+          "params": {
+            "target": "MultichainAnyCallV6",
+            "data": "0x4c5f7365744c6f636b54696d656f757428290000000000000000000000000000000000000000000000000000000000000000",
+            "description": "Attacker, having compromised the authorized relay (MockMultisig), sends a tampered relayMessage that encodes a call to the router's internal setter with timeout = 0.",
+            "mode": "tampered",
+            "waypoint": "MultichainAnyCallV6.pendingRelay[nonce] == true"
+          },
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "_setLockTimeout(uint256)",
+          "params": {
+            "timeout": 0,
+            "description": "Router processes the relayed message and updates the global LOCK_TIMEOUT constant to zero.",
+            "mode": "faithful",
+            "waypoint": "MultichainAnyCallV6.LOCK_TIMEOUT == 0"
+          },
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "WrappedToken",
+            "amount": "1000000000000000000",
+            " // 1 token with 18 decimals": "dstChainId\": 2",
+            "description": "Attacker locks 1 WrappedToken for destination chain id 2. The lock timestamp is recorded, but timeout is now zero.",
+            "mode": "faithful",
+            "waypoint": "MultichainAnyCallV6.totalLocked[WrappedToken] == 1000000000000000000"
+          },
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "refund(uint256)",
+          "params": {
+            "nonce": "nonce_of_previous_lock",
+            "description": "Because LOCK_TIMEOUT == 0, the contract allows an immediate refund, bypassing the intended timeliness check.",
+            "mode": "faithful",
+            "waypoint": "MultichainAnyCallV6.totalLocked[WrappedToken] == 0"
+          },
+          "step": 4,
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "pnetwork_20210919",
+        "polynetwork_20210810"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_relay_immutability_break_001",
+      "target_invariant": "authorization_relay_address_immutable",
+      "vulnerability_class": "relay_address_update_without_proper_guard",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "updateRelay(address)",
+          "params": {
+            "newRelay": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa"
+          },
+          "description": "Replay a previously authorized relay‑update message that was signed by the legitimate MockMultisig. The router accepts the call because msg.sender == current RELAY, but does not enforce immutability of the stored RELAY address.",
+          "relay_manipulation": "replay",
+          "waypoint": "router.RELAY == address(parent) before && router.RELAY == 0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa after",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": "1000000000000000000000000"
+          },
+          "description": "Now that the attacker’s address is stored as RELAY, call mint directly. The contract’s authorization check (msg.sender == address(this) || msg.sender == RELAY) passes, allowing unlimited token creation.",
+          "relay_manipulation": "faithful",
+          "waypoint": "mintedAmount[WrappedToken] > totalLocked[WrappedToken]",
+          "step": 2
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810",
+        "nomad_20220801"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Replay a previously authorized relay‑update message that was signed by the legitimate MockMultisig. The router accepts the call because msg.sender == current RELAY, but does not enforce immutability of the stored RELAY address."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Now that the attacker’s address is stored as RELAY, call mint directly. The contract’s authorization check (msg.sender == address(this) || msg.sender == RELAY) passes, allowing unlimited token creation."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_refund_state_mismatch_2024_04_30",
+      "target_invariant": "asset_conservation_refund_restores_locked",
+      "vulnerability_class": "logic_bug_refund_state_mismatch",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address token,uint256 amount,uint16 dstChainId)",
+          "params": {
+            "token": "0xTokenAddress",
+            "amount": "1000000000000000000",
+            "dstChainId": 56
+          },
+          "mode": "faithful",
+          "state_predicate": "totalLocked[0xTokenAddress] == L0 + 1e18",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "relayMessage(bytes payload)",
+          "params": {
+            "payload": "0xdeadbeef... (encoded refundMessage: {user: attacker, amount: 1e18, nonce: 42})"
+          },
+          "mode": "tampered",
+          "state_predicate": "nonceUsed[42] == true && relayVerified[42] == true",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "processRefund(address user,uint256 amount,uint256 nonce)",
+          "params": {
+            "user": "0xAttackerAddress",
+            "amount": "1000000000000000000",
+            "nonce": 42
+          },
+          "mode": "faithful",
+          "state_predicate": "refundedAmount[0xTokenAddress] == 1e18 && totalLocked[0xTokenAddress] == L0 + 1e18",
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "bsc",
+          "contract": "MultichainAnyCallV6_BSC",
+          "function": "mint(address to,uint256 amount)",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": "1000000000000000000"
+          },
+          "mode": "faithful",
+          "state_predicate": "mintedAmount[0xTokenAddress] == 1e18 && totalLocked[0xTokenAddress] == L0 + 1e18",
+          "step": 4,
+          "description": "Step 4"
+        },
+        {
+          "chain": "bsc",
+          "contract": "MultichainAnyCallV6_BSC",
+          "function": "unlock(address token,address to,uint256 amount,uint16 srcChainId)",
+          "params": {
+            "token": "0xTokenAddress",
+            "to": "0xAttackerAddress",
+            "amount": "1000000000000000000",
+            "srcChainId": 1
+          },
+          "mode": "faithful",
+          "state_predicate": "balanceOf(0xAttackerAddress,0xTokenAddress) == previousBalance + 1e18",
+          "step": 5,
+          "description": "Step 5"
+        }
+      ],
+      "retrieved_exploits": [
+        "thorchain_20210629",
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Step 5"
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_refund_replay_01",
+      "target_invariant": "uniqueness_refund_once_per_nonce",
+      "vulnerability_class": "replay_attack_due_to_state_reset",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock",
+          "params": {
+            "token": "0xBadToken000000000000000000000000000000001",
+            "amount": "1000000000000000000",
+            "dstChainId": 56,
+            "nonce": "0xdeadbeef01"
+          },
+          "description": "User locks 1 BadToken for BSC, creating nonce 0xdeadbeef01; totalLocked[BadToken] increases, refunded[0xdeadbeef01] == false.",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "relayMessage",
+          "params": {
+            "srcChainId": 1,
+            "dstChainId": 56,
+            "nonce": "0xdeadbeef01",
+            "payload": "mint(0xAttacker,1000000000000000000,0xdeadbeef01)"
+          },
+          "mode": "faithful",
+          "description": "Relay posts a faithful verified message to BSC, setting nonceUsed[0xdeadbeef01]=true and relayVerified[0xdeadbeef01]=true.",
+          "step": 2
+        },
+        {
+          "chain": "bsc",
+          "contract": "MultichainAnyCallV6_BSC",
+          "function": "mint",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "1000000000000000000",
+            "nonce": "0xdeadbeef01"
+          },
+          "description": "Destination router mints 1 BadToken to attacker, marking mintedForNonce[0xdeadbeef01]=true.",
+          "step": 3
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "refund",
+          "params": {
+            "nonce": "0xdeadbeef01"
+          },
+          "description": "After timeout, attacker calls refund; require(!refunded[nonce]) passes (refunded == false), tokens are returned, and refunded[0xdeadbeef01] is set to true.",
+          "step": 4
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MockMultisig",
+          "function": "relayMessage",
+          "params": {
+            "srcChainId": 1,
+            "dstChainId": 56,
+            "nonce": "0xdeadbeef01",
+            "payload": "resetRefundFlag(0xdeadbeef01)"
+          },
+          "mode": "replay",
+          "description": "Attacker replays the same relay message with a tampered payload that (due to a bug) overwrites refunded[0xdeadbeef01] back to false.",
+          "step": 5
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "refund",
+          "params": {
+            "nonce": "0xdeadbeef01"
+          },
+          "description": "Second refund call succeeds because refunded[0xdeadbeef01] was reset, violating the uniqueness_refund_once_per_nonce invariant.",
+          "step": 6
+        }
+      ],
+      "retrieved_exploits": [
+        "thorchain_20210628",
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1 BadToken for BSC, creating nonce 0xdeadbeef01; totalLocked[BadToken] increases, refunded[0xdeadbeef01] == false."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Relay posts a faithful verified message to BSC, setting nonceUsed[0xdeadbeef01]=true and relayVerified[0xdeadbeef01]=true."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Destination router mints 1 BadToken to attacker, marking mintedForNonce[0xdeadbeef01]=true."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "After timeout, attacker calls refund; require(!refunded[nonce]) passes (refunded == false), tokens are returned, and refunded[0xdeadbeef01] is set to true."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Attacker replays the same relay message with a tampered payload that (due to a bug) overwrites refunded[0xdeadbeef01] back to false."
+        },
+        {
+          "waypoint_id": "w6",
+          "after_step": 6,
+          "predicate": "step_6_executed",
+          "description": "Second refund call succeeds because refunded[0xdeadbeef01] was reset, violating the uniqueness_refund_once_per_nonce invariant."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+%% ATG fegtoken
+flowchart LR
+  n_FEGSwap["FEGSwap"]
+  n_FEGToken["FEGToken"]
+  n_MockToken["MockToken"]
+  n_UserFrom["UserFrom"]
+  n_UserTo["UserTo"]
+  n_Migrator["Migrator"]
+  n_User["User"]
+  n_FlashLoanProvider["FlashLoanProvider"]
+  n_ZeroAddress["ZeroAddress"]
+  n_UserFrom -- "transfer" --> n_UserTo
+  n_FEGToken -- "mint" --> n_User
+  n_User -- "transfer" --> n_User
+  n_User -- "transferFrom" --> n_User
+  n_FlashLoanProvider -- "withdraw" --> n_User
+  n_User -- "repay" --> n_FlashLoanProvider
+  n_ZeroAddress -- "mint" --> n_User
+  n_User -- "transfer" --> n_User

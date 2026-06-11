@@ -1,0 +1,10 @@
+%% ATG qubit
+flowchart LR
+  n_MockToken["MockToken"]
+  n_User["User"]
+  n_QBridgeBSC["QBridgeBSC"]
+  n_OffchainRelay["OffchainRelay"]
+  n_QBridgeETH["QBridgeETH"]
+  n_MockToken -- "mint" --> n_User
+  n_MockToken -- "mint" --> n_User
+  n_User -- "lock" --> n_QBridgeETH

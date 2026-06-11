@@ -239,11 +239,11 @@ ta nhận thiếu sót thành thật.
 |---|---|---|---|
 | **X1-X6** XScope re-impl + sweep | Member B | 2 tuần | ✅ DONE — 10/12 PASS, `cf62229` |
 | **SA1-SA8** SmartAxe re-impl + sweep | Member A (Python) | 4 tuần | ✅ DONE — all 8 sub-tasks; detected=12/12, strict=4/12 |
-| **VS1-VS7** VulSEye re-impl + sweep | Member B | 3 tuần | 🔄 VS1-VS5 done (impl + honest fix `3532c73`) — VS6 (sweep) + VS7 (self_run JSON) TODO |
-| **SS1-SS7** SmartShot re-impl + sweep | Member B (or Member A nếu B kẹt) | 3 tuần | 🔄 SS1-SS5 done (impl + double-validate fix `3532c73`) — SS6 (sweep) + SS7 (self_run JSON) TODO |
+| **VS1-VS7** VulSEye re-impl + sweep | Member B | 3 tuần | ✅ DONE — 240 lab runs (40h) + verifier 9/12 strict, 12/12 detected; self_run JSON `2026-06-06` |
+| **SS1-SS7** SmartShot re-impl + sweep | Member B (or Member A nếu B kẹt) | 3 tuần | ✅ DONE — 239 lab runs (40h, 1 BSC RPC reset trên fegtoken/002) + verifier 12/12 strict; self_run JSON `2026-06-06` |
 | **D1** BridgeSentry sweep | (đang chạy) | ~40h | ✅ DONE — 240/240 lab `2026-04-29` |
-| **D2** Aggregate re-impl + ItyFuzz + GPTScan + 4 self-run JSONs | Member A | 1 ngày | ⏸ Partial — XScope + SmartAxe self_run JSONs ready; VulSEye/SmartShot đợi VS7/SS7 |
-| **D3** LaTeX RQ1 table render | Member A | 2 ngày | ❌ Blocked |
+| **D2** Aggregate re-impl + ItyFuzz + GPTScan + 4 self-run JSONs | Member A | 1 ngày | ✅ DONE — XScope, SmartAxe, VulSEye, SmartShot, GPTScan, **ItyFuzz** self_run JSONs đầy đủ. IT sweep 240/240 (`2026-06-06→07`, 29h24m): 0/12 detected = legitimate (8 fuzz no-trigger, 4 no-ABI fast-exit) |
+| **D3** LaTeX RQ1 table render | Member A | 2 ngày | ⏸ Sẵn sàng — 6/7 self-run cols hoàn chỉnh (XScope+SmartAxe+VulSEye+SmartShot+GPTScan+ItyFuzz) + BridgeSentry baseline |
 
 ---
 

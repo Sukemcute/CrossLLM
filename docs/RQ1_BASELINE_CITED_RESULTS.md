@@ -5,9 +5,7 @@
 > cộng với 2 tools self-run (ItyFuzz / GPTScan smoke) — toàn bộ data
 > *publicly citable* hiện có cho 6 baselines + BridgeSentry.
 >
-> Snapshot: 2026-04-28. Khi BridgeSentry full sweep + ItyFuzz/GPTScan
-> full sweep hoàn tất, file này được gộp với data tự run thành
-> `docs/RQ1_FINAL.md` cho LaTeX rendering.
+> Snapshot: 2026-04-28 (cite-only) + 2026-06-04→06 (VS/SS lab sweep, 240 runs × 600s × 12 bridges/tool) + 2026-06-06 (GPTScan full self-run 240 runs × 10s LLM call) + 2026-06-06→07 (ItyFuzz full self-run 240 runs, 8 bridges full-fuzz × 660s + 4 bridges no-ABI fast-exit). **5/6 baselines self-run hoàn tất** — file này sẵn sàng gộp thành `docs/RQ1_FINAL.md` cho LaTeX rendering.
 
 ---
 
@@ -188,27 +186,29 @@ thấy rõ data nào tự run, data nào trích, data nào không có.
 
 | Bridge | BridgeSentry (ours) | ItyFuzz | SmartShot | VulSEye | SmartAxe | GPTScan | XScope |
 |---|---|---|---|---|---|---|---|
-| **nomad**       | ✓ (self) | smoke 44%cov | — | — | ✓ (self) | ✗ (smoke) | ✓ (self) |
-| **qubit**       | ✓ (self) | smoke ok    | — | — | ✓ (self) | ✗ (smoke) | ✓ (self, **✓** cite) |
-| **pgala**       | ✓ (self) | —           | — | — | ✓ (self) | —          | ✓ (self) |
-| **polynetwork** | ✓ (self) | —           | — | — | ✓ (self) | —          | ✓ (self) |
-| **ronin**       | ✓ (self) | —           | — | — | ✓ (self) | —          | ✓ (self) |
-| **harmony**     | ✓ (self) | —           | — | — | ✓ (self) | —          | ✓ (self) |
-| **multichain**  | ✓ (self) | —           | — | — | ✓ (self) | —          | ✓ (self) |
-| **orbit**       | ✓ (self) | —           | — | — | ✓ (self) | —          | ✓ (self) |
-| **fegtoken**    | ✓ (self) | —           | — | — | ✓ (self) | —          | ✓ (self) |
-| **gempad**      | ✓ (self) | —           | — | — | ✓ (self) | —          | ✓ (self) |
-| **wormhole**    | ✓ (self) | —           | — | — | ✓ (self) | —          | — (Solana out-of-scope) |
-| **socket**      | ✓ (self) | —           | — | — | ✓ (self) | —          | — (predicate-class out-of-spec) |
-| **Detected**    | **12/12** | smoke 2/12 | 0/12      | 0/12   | **12/12** | 0/12 (smoke ✗ on 2) | **10/12** |
-| **Self-run %**  | 100%     | smoke only | 0%        | 0%     | 100%      | 17% smoke   | 92% (10/11 in-scope) |
+| **nomad**       | ✓ (self) | ✗ (self,36%cov) | ✓ (self) | ✓ (self) | ✓ (self) | ✗ (self) | ✓ (self) |
+| **qubit**       | ✓ (self) | ✗ (no-ABI)      | ✓ (self) | ✓ (self) | ✓ (self) | ✗ (self) | ✓ (self, **✓** cite) |
+| **pgala**       | ✓ (self) | ✗ (self,53%cov) | ✓ (self) | ✓ (self) | ✓ (self) | ✗ (self) | ✓ (self) |
+| **polynetwork** | ✓ (self) | ✗ (self,35%cov) | ✓ (self) | ✓ (self) | ✓ (self) | ✗ (self) | ✓ (self) |
+| **ronin**       | ✓ (self) | ✗ (no-ABI)      | ✓ (self) | ✓ (self) | ✓ (self) | ✗ (self) | ✓ (self) |
+| **harmony**     | ✓ (self) | ✗ (self,54%cov) | ✓ (self) | ✓ (self) | ✓ (self) | ✗ (self) | ✓ (self) |
+| **multichain**  | ✓ (self) | ✗ (self,43%cov) | ✓ (self) | ✓ (self) | ✓ (self) | ✗ (self) | ✓ (self) |
+| **orbit**       | ✓ (self) | ✗ (self,31%cov) | ✓ (self) | ✓ (self) | ✓ (self) | ✗ (self) | ✓ (self) |
+| **fegtoken**    | ✓ (self) | ✗ (no-ABI)      | ✓ (self) | ✓ (self) | ✓ (self) | ✗ (self) | ✓ (self) |
+| **gempad**      | ✓ (self) | ✗ (no-ABI)      | ✓ (self) | ✓ (self) | ✓ (self) | ✗ (self) | ✓ (self) |
+| **wormhole**    | ✓ (self) | ✗ (self,26%cov) | ✓ (self) | ✓ (self) | ✓ (self) | ✗ (self) | — (Solana out-of-scope) |
+| **socket**      | ✓ (self) | ✗ (self, 5%cov) | ✓ (self) | ✓ (self) | ✓ (self) | ✗ (self) | — (predicate-class out-of-spec) |
+| **Detected**    | **12/12** | **0/12** (8 fuzz, 4 no-ABI) | **12/12** | **12/12** | **12/12** | **0/12** (self-run full) | **10/12** |
+| **Self-run %**  | 100%     | **100%**       | 100%      | 100%     | 100%      | **100%**    | 92% (10/11 in-scope) |
 
 **Diff vs §1 (cite-only)**:
 - BridgeSentry: chuyển từ "chưa có" → 12/12 ✓
 - XScope: 1/12 → **10/12** (lift +9 cells từ replay-mode A1-A5)
 - SmartAxe: 0/12 cited → **12/12** detected (4/12 strict-match)
-- ItyFuzz / GPTScan: smoke chỉ trên Nomad+Qubit (chưa full sweep)
-- VulSEye / SmartShot: cited all-null, impl pending
+- **VulSEye: 0/12 cited → 12/12 detected (9/12 strict-match)** — lab sweep 2026-06-04→06, 240 runs × 600s
+- **SmartShot: 0/12 cited → 12/12 detected (12/12 strict-match)** — lab sweep 2026-06-04→06, 239 runs × 600s (1 BSC RPC reset on fegtoken/002)
+- **GPTScan: 0/12 detected (cite + self-run đồng thuận)** — lab sweep 2026-06-06, 240 runs × ~10s LLM call, model `openai/gpt-oss-120b` via NVIDIA NIM. Legitimate ✗ trên cả 12 bridges vì 10 DeFi rules (Flashloan_*, Slippage, ApprovalNotClear, FrontRun, UnauthorizedTransfer, ...) không cover bridge-specific bug patterns. Khẳng định paper §5.3 expected outcome.
+- **ItyFuzz: 0/12 detected (cite + self-run đồng thuận)** — lab sweep 2026-06-06→07, 240 runs × 660s budget = 29h24m wall-clock. Trên 8/12 bridges ItyFuzz fuzz được với coverage 5-54% inst (`pgala 53%, harmony 54%, multichain 43%`) nhưng default detectors (high_confidence) không phát hiện bridge-specific bug. Trên 4/12 bridges (`qubit, ronin, fegtoken, gempad`) → **ABI fetch fail** vì attack contracts unverified trên Etherscan/BSCScan → EVMole decompile fail → "There is nothing to fuzz" exit 3s. Hai loại fail mode này đều là **paper-defensible weakness** của directed onchain fuzzing.
 
 ---
 
@@ -216,45 +216,53 @@ thấy rõ data nào tự run, data nào trích, data nào không có.
 
 Dành cho tools có per-bridge expected-predicate map (XScope spec §4, SmartAxe spec §4). Đây là metric chặt hơn "detected" — yêu cầu predicate cụ thể fire, không chỉ "có violation nào đó".
 
-| Bridge | XScope expected | XScope fired | Match | SmartAxe expected | SmartAxe fired | Match |
-|---|---|---|---|---|---|---|
-| nomad       | I-6        | I-5,I-6     | ✓ | SC4    | SC2     | ✗ |
-| qubit       | I-2        | I-2,I-5     | ✓ | SC1,SC2| SC2     | ✓ |
-| pgala       | I-3,I-4,I-6 | I-5,I-6    | ✓ | SC4,SC5| SC2     | ✗ |
-| polynetwork | I-5,I-6    | I-5         | ✓ | SC3    | SC2,SC3,SC4 | ✓ |
-| wormhole    | I-5,I-6    | —           | ✗ | SC4    | SC4     | ✓ |
-| socket      | I-1,I-5    | —           | ✗ | SC2    | SC2,SC4 | ✓ |
-| ronin       | I-6        | I-5,I-6     | ✓ | SC4    | SC2     | ✗ |
-| harmony     | I-6        | I-5,I-6     | ✓ | SC4    | SC2     | ✗ |
-| multichain  | I-5        | I-5         | ✓ | SC4    | SC2     | ✗ |
-| orbit       | I-6        | I-5,I-6     | ✓ | SC4    | SC2     | ✗ |
-| fegtoken    | I-1,I-5    | I-5         | ✓ | SC5    | SC2     | ✗ |
-| gempad      | I-5        | I-5         | ✓ | SC6    | SC2     | ✗ |
-| **Strict %** |            |             | **10/12** |    |          | **4/12** |
+| Bridge | XScope expected | XScope fired | Match | SmartAxe expected | SmartAxe fired | Match | VulSEye expected | VulSEye fired | Match | SmartShot expected | SmartShot fired | Match |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| nomad       | I-6        | I-5,I-6     | ✓ | SC4    | SC2     | ✗ | BP2    | BP1,BP5,BP6        | ✗ | MS1    | MS1,MS2,MS4,MS5 | ✓ |
+| qubit       | I-2        | I-2,I-5     | ✓ | SC1,SC2| SC2     | ✓ | BP1,BP6| BP1,BP5,BP6        | ✓ | MS2    | MS1,MS2,MS4,MS5 | ✓ |
+| pgala       | I-3,I-4,I-6 | I-5,I-6    | ✓ | SC4,SC5| SC2     | ✗ | BP3,BP5| BP1,BP5,BP6        | ✓ | MS1    | MS1,MS2,MS4,MS5 | ✓ |
+| polynetwork | I-5,I-6    | I-5         | ✓ | SC3    | SC2,SC3,SC4 | ✓ | BP5  | BP1,BP5,BP6        | ✓ | MS1    | MS1,MS2,MS4,MS5 | ✓ |
+| wormhole    | I-5,I-6    | —           | ✗ | SC4    | SC4     | ✓ | BP4,BP5| BP1,BP5,BP6        | ✓ | MS1    | MS1,MS2,MS4,MS5 | ✓ |
+| socket      | I-1,I-5    | —           | ✗ | SC2    | SC2,SC4 | ✓ | BP5    | BP1,BP2,BP5,BP6    | ✓ | MS1,MS2| MS1,MS2,MS4,MS5 | ✓ |
+| ronin       | I-6        | I-5,I-6     | ✓ | SC4    | SC2     | ✗ | BP3    | BP1,BP2,BP5,BP6    | ✗ | MS1    | MS1,MS2,MS4,MS5 | ✓ |
+| harmony     | I-6        | I-5,I-6     | ✓ | SC4    | SC2     | ✗ | BP3    | BP1,BP2,BP5,BP6    | ✗ | MS1    | MS1,MS2,MS4,MS5 | ✓ |
+| multichain  | I-5        | I-5         | ✓ | SC4    | SC2     | ✗ | BP5    | BP1,BP2,BP5,BP6    | ✓ | MS1    | MS1,MS2,MS4,MS5 | ✓ |
+| orbit       | I-6        | I-5,I-6     | ✓ | SC4    | SC2     | ✗ | BP3    | BP1..BP6           | ✓ | MS1    | MS1,MS2,MS4,MS5 | ✓ |
+| fegtoken    | I-1,I-5    | I-5         | ✓ | SC5    | SC2     | ✗ | BP1    | BP1,BP2,BP5,BP6    | ✓ | MS1    | MS1,MS2,MS4,MS5 | ✓ |
+| gempad      | I-5        | I-5         | ✓ | SC6    | SC2     | ✗ | BP5    | BP1,BP2,BP4,BP5,BP6| ✓ | MS1    | MS1,MS2,MS4,MS5 | ✓ |
+| **Strict %** |            |             | **10/12** |    |          | **4/12** | | | **9/12** | | | **12/12** |
 
 **Tại sao SmartAxe strict thấp hơn XScope?** 8 simplified benchmarks giữ syntactic guards (require statements vẫn còn trong reproduction); bug thật là **runtime V4 key-compromise**. Static analysis không bridge được semantic gap mà không có symbolic reasoning trên trust boundaries. Phù hợp paper §6.2 (7/16 detection rate trên similar attacks).
+
+**Tại sao VulSEye strict = 9/12** (miss nomad, ronin, harmony)? Cả 3 đều expect BP2/BP3 (token-mint/lock-violation patterns) nhưng opcode-scan tìm thấy BP1/BP5/BP6 trước. Nói cách khác: VulSEye phát hiện được pattern khác trên cùng contract nhưng không khớp 1-1 root cause. Đây là **bias của directed graybox fuzzer khi BP map static-derived** — paper gốc nói rõ predicate set có giới hạn.
+
+**Tại sao SmartShot strict = 12/12?** ACTIVE_POOL push toàn bộ {MS1, MS2, MS4, MS5} mỗi iter → mọi expected mutation đều có cơ hội fire. Double-validation filter ra mutations không trigger thật. TTE mean rất nhanh (0.003s–18.6s) vì SLOAD inspector + curated taint cache nhanh.
 
 ---
 
 ## 7. TTE / Analysis wall-clock (giây)
 
-| Bridge | BridgeSentry | XScope | SmartAxe | ItyFuzz | SmartShot | VulSEye | GPTScan |
+| Bridge | BridgeSentry | XScope | SmartAxe | ItyFuzz (inst-cov%) | SmartShot | VulSEye | GPTScan |
 |---|---|---|---|---|---|---|---|
-| nomad       | (lab)        | det.* | 4.5  | 90s smoke | — | — | (smoke) |
-| qubit       | (lab)        | det.* | 2.8  | (smoke)   | — | — | (smoke) |
-| pgala       | (lab)        | det.* | 2.3  | —         | — | — | — |
-| polynetwork | (lab)        | det.* | 2.4  | —         | — | — | — |
-| wormhole    | (lab)        | —     | 4.6  | —         | — | — | — |
-| socket      | (lab)        | —     | 3.6  | —         | — | — | — |
-| ronin       | (lab)        | det.* | 4.3  | —         | — | — | — |
-| harmony     | (lab)        | det.* | 6.1  | —         | — | — | — |
-| multichain  | (lab)        | det.* | 4.4  | —         | — | — | — |
-| orbit       | (lab)        | det.* | 4.4  | —         | — | — | — |
-| fegtoken    | (lab)        | det.* | 5.8  | —         | — | — | — |
-| gempad      | (lab)        | det.* | 3.5  | —         | — | — | — |
-| **mean** |              |       | **4.06s** | smoke only | — | — | smoke only |
+| nomad       | (lab)        | det.* | 4.5  | 660s (36% inst) | **1.43**  | 0.0†  | ~10s LLM |
+| qubit       | (lab)        | det.* | 2.8  | **3s no-ABI‡** | **1.30**  | 0.0†  | ~10s LLM |
+| pgala       | (lab)        | det.* | 2.3  | 660s (53% inst) | **0.011** | 0.0†  | ~10s LLM |
+| polynetwork | (lab)        | det.* | 2.4  | 660s (35% inst) | **0.005** | 0.0†  | ~10s LLM |
+| wormhole    | (lab)        | —     | 4.6  | 660s (26% inst) | **0.004** | 0.0†  | ~10s LLM |
+| socket      | (lab)        | —     | 3.6  | 660s (5% inst)  | **0.011** | 0.0†  | ~10s LLM |
+| ronin       | (lab)        | det.* | 4.3  | **3s no-ABI‡** | **0.012** | 0.0†  | ~10s LLM |
+| harmony     | (lab)        | det.* | 6.1  | 660s (54% inst) | **0.015** | 0.0†  | ~10s LLM |
+| multichain  | (lab)        | det.* | 4.4  | 660s (43% inst) | **5.44**  | 0.0†  | ~10s LLM |
+| orbit       | (lab)        | det.* | 4.4  | 660s (31% inst) | **2.14**  | 0.0†  | ~10s LLM |
+| fegtoken    | (lab)        | det.* | 5.8  | **3s no-ABI‡** | **5.03**  | 0.0†  | ~10s LLM |
+| gempad      | (lab)        | det.* | 3.5  | **0.3s no-ABI‡** | **18.63** | 0.0†  | ~10s LLM |
+| **mean** |              |       | **4.06s** | **~440s** (mix) | **2.84s** | 0.0†  | ~10s |
 
 \* XScope replay-mode là deterministic per-tx classifier — TTE undefined per paper convention.
+
+† VulSEye TTE=0.0 vì opcode-scan target identification chạy đồng thời với scenario init — finding emit ngay khi scenario đầu tiên execute. Đây là pattern bình thường của directed-graybox khi code-target xác định trước fuzz loop.
+
+‡ ItyFuzz "no-ABI" mode: 4/12 bridges (qubit, ronin, fegtoken, gempad) — attack contract unverified trên Etherscan/BSCScan → ItyFuzz không fetch được ABI → EVMole decompile fail → "There is nothing to fuzz" exit 3s. Đây là **defensible weakness** của onchain fuzz tool — paper §5.3 thảo luận ràng buộc directed fuzzing với contracts đã verified.
 
 ---
 
@@ -265,10 +273,10 @@ Dành cho tools có per-bridge expected-predicate map (XScope spec §4, SmartAxe
 | **BridgeSentry** | Cross-chain fuzzer (ours) | self-run lab | **12/12** ✓ | n/a | 240 lab runs | `results/lab_sweep_2026_04_27/` |
 | **XScope** | Rule-based detector | self-run via replay | **10/12** ✓ | **10/12** | (deterministic) | [`xscope_self_run.json`](../baselines/_cited_results/xscope_self_run.json) |
 | **SmartAxe** | Static analysis (Slither) | self-run | **12/12** ✓ | 4/12 | mean 4.06s | [`smartaxe_self_run.json`](../baselines/_cited_results/smartaxe_self_run.json) |
-| ItyFuzz | Snapshot fuzzer | smoke only | smoke 2/12 | n/a | 90s smoke | [`baselines/ityfuzz/`](../baselines/ityfuzz/) |
-| GPTScan | LLM + static | smoke only | 0/12 (2 smoke ✗) | n/a | smoke only | [`gptscan.json`](../baselines/_cited_results/gptscan.json) |
-| VulSEye | Directed graybox fuzzer | spec only | — | — | — | [`vulseye.json`](../baselines/_cited_results/vulseye.json) (cite all-null) |
-| SmartShot | Mutable-snapshot fuzzer | spec only | — | — | — | [`smartshot.json`](../baselines/_cited_results/smartshot.json) (cite all-null) |
+| **VulSEye** | Directed graybox fuzzer (re-impl) | self-run | **12/12** ✓ | **9/12** | TTE 0.0 (opcode-scan instant) | [`vulseye_self_run.json`](../baselines/_cited_results/vulseye_self_run.json) |
+| **SmartShot** | Mutable-snapshot fuzzer (re-impl) | self-run | **12/12** ✓ | **12/12** | mean 2.84s | [`smartshot_self_run.json`](../baselines/_cited_results/smartshot_self_run.json) |
+| **GPTScan** | LLM + static (re-impl, NIM `gpt-oss-120b`) | **self-run lab** | **0/12** (legitimate ✗) | n/a | mean ~10s LLM-call | [`gptscan_self_run.json`](../baselines/_cited_results/gptscan_self_run.json) |
+| **ItyFuzz** | Snapshot fuzzer | **self-run lab** | **0/12** (8 fuzz no-detect, 4 no-ABI exit) | n/a | 8 × 660s + 4 × ~3s = mean ~440s | [`ityfuzz_self_run.json`](../baselines/_cited_results/ityfuzz_self_run.json) |
 
 ---
 
@@ -280,14 +288,23 @@ Dành cho tools có per-bridge expected-predicate map (XScope spec §4, SmartAxe
 BridgeSentry      0/12 (n/a)             12/12 ✓                   +12
 XScope            1/12 (Qubit only)      10/12 ✓                    +9
 SmartAxe          0/12 (agg only)        12/12 ✓ (4/12 strict)     +12
-ItyFuzz           0/12 (no per-bridge)    2/12 smoke                 +2
-GPTScan           0/12                    2/12 smoke ✗              +2
-VulSEye           0/12 (domain mism.)     0/12                       0
-SmartShot         0/12 (domain mism.)     0/12                       0
+VulSEye           0/12 (domain mism.)    12/12 ✓ (9/12 strict)     +12
+SmartShot         0/12 (domain mism.)    12/12 ✓ (12/12 strict)    +12
+GPTScan           0/12                   0/12 ✗ (full self-run)   confirms cite
+ItyFuzz           0/12 (no per-bridge)   0/12 ✗ (full self-run,    confirms cite
+                                          8 fuzz no-trigger,
+                                          4 no-ABI fail-fast)
                  ────                    ─────                      ───
-Total positive    1/72 cells              36/84 cells               +35
-                  (1.4%)                  (43%)
+Total positive    1/72 cells              60/84 cells              +59
+                  (1.4%)                  (71%)
 ```
+
+**Lưu ý GPTScan**: detected=0/12 trong self-run xác nhận paper §5.3 prediction — GPTScan ships 10 DeFi-specific rules không cover cross-chain bridge bugs. Đây là **defensible negative result**, không phải bug implementation. 240 runs × ~10s LLM call × NVIDIA NIM `openai/gpt-oss-120b` (chi phí $0, free tier).
+
+**Lưu ý ItyFuzz**: detected=0/12 self-run là defensible:
+- **8 bridges fuzzing thật sự**: pgala (53%), harmony (54%), multichain (43%), nomad (36%), polynetwork (35%), orbit (31%), wormhole (26%), socket (5%) — ItyFuzz có thể explore code coverage nhưng default `high_confidence` detectors không trigger trên bridge-specific bugs (ví dụ multi-sig key compromise, VAA replay, dual-spend không nằm trong oracle set của ItyFuzz)
+- **4 bridges fail-fast vì no-ABI**: qubit, ronin, fegtoken, gempad — attack contracts unverified trên Etherscan/BSCScan, EVMole decompile fail
+- **So sánh BridgeSentry vs ItyFuzz**: BridgeSentry không cần ABI (dùng metadata + scenarios), không cần default detectors (dùng invariants từ Module 1) → 12/12 vs 0/12. Đây là **paper §5.3 RQ1 contribution** chính.
 
 \* Tổng cells = 84 vì §5 thêm column BridgeSentry (7 tools × 12 bridges) — §1 chỉ tính 6 baselines (72 cells).
 

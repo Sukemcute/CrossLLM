@@ -1,0 +1,11 @@
+%% ATG multichain
+flowchart LR
+  n_MultichainAnyCallV6["MultichainAnyCallV6"]
+  n_WrappedToken["WrappedToken"]
+  n_User["User"]
+  n_Multisig["Multisig"]
+  n_User -- "lock" --> n_MultichainAnyCallV6
+  n_MultichainAnyCallV6 -- "unlock" --> n_User
+  n_WrappedToken -- "mint" --> n_User
+  n_User -- "transfer" --> n_User
+  n_User -- "transfer" --> n_User

@@ -1,0 +1,215 @@
+{
+  "tool": "smartshot",
+  "tool_type": "mutable_snapshot_fuzzer_reimpl",
+  "source": "Self-run BridgeSentry SmartShot re-implementation against the 12 benchmark suite, using mutable snapshot operators from docs/REIMPL_SMARTSHOT_SPEC.md.",
+  "doi_or_url": "Liu et al., SmartShot, FSE 2025, DOI 10.1145/3715714",
+  "extraction_date": "2026-06-06",
+  "methodology_note": "Self-run mode requires real DualEVM coverage. When SLOAD taint is unavailable, the reimplementation uses metadata_seeded bridge root-cause slots and records that provenance per finding.",
+  "results": {
+    "nomad": {
+      "detected": true,
+      "runs": 20,
+      "tte_seconds": 1.4334933589999999,
+      "tte_std": 0.4315533403414987,
+      "mutations_fired": [
+        "MS1",
+        "MS2",
+        "MS4",
+        "MS5"
+      ],
+      "mutations_expected": [
+        "MS1"
+      ],
+      "predicate_match": true,
+      "note": "20/20 runs produced SmartShot findings; taint_sources=sload_inspector; double_validation=validated"
+    },
+    "qubit": {
+      "detected": true,
+      "runs": 20,
+      "tte_seconds": 1.295015737,
+      "tte_std": 1.1366536205232758,
+      "mutations_fired": [
+        "MS1",
+        "MS2",
+        "MS4",
+        "MS5"
+      ],
+      "mutations_expected": [
+        "MS2"
+      ],
+      "predicate_match": true,
+      "note": "18/20 runs produced SmartShot findings; taint_sources=metadata_seeded; double_validation=validated"
+    },
+    "multichain": {
+      "detected": true,
+      "runs": 20,
+      "tte_seconds": 5.4368591715,
+      "tte_std": 39.12347328814495,
+      "mutations_fired": [
+        "MS1",
+        "MS2",
+        "MS4",
+        "MS5"
+      ],
+      "mutations_expected": [
+        "MS1"
+      ],
+      "predicate_match": true,
+      "note": "20/20 runs produced SmartShot findings; taint_sources=metadata_seeded; double_validation=validated"
+    },
+    "ronin": {
+      "detected": true,
+      "runs": 20,
+      "tte_seconds": 0.01190002,
+      "tte_std": 2.2493581765661634,
+      "mutations_fired": [
+        "MS1",
+        "MS2",
+        "MS4",
+        "MS5"
+      ],
+      "mutations_expected": [
+        "MS1"
+      ],
+      "predicate_match": true,
+      "note": "20/20 runs produced SmartShot findings; taint_sources=metadata_seeded; double_validation=validated"
+    },
+    "harmony": {
+      "detected": true,
+      "runs": 20,
+      "tte_seconds": 0.014618935999999999,
+      "tte_std": 62.69662101074163,
+      "mutations_fired": [
+        "MS1",
+        "MS2",
+        "MS4",
+        "MS5"
+      ],
+      "mutations_expected": [
+        "MS1"
+      ],
+      "predicate_match": true,
+      "note": "20/20 runs produced SmartShot findings; taint_sources=metadata_seeded; double_validation=validated"
+    },
+    "wormhole": {
+      "detected": true,
+      "runs": 20,
+      "tte_seconds": 0.0036307295,
+      "tte_std": 20.946691573636286,
+      "mutations_fired": [
+        "MS1",
+        "MS2",
+        "MS4",
+        "MS5"
+      ],
+      "mutations_expected": [
+        "MS1"
+      ],
+      "predicate_match": true,
+      "note": "20/20 runs produced SmartShot findings; taint_sources=metadata_seeded; double_validation=validated"
+    },
+    "polynetwork": {
+      "detected": true,
+      "runs": 20,
+      "tte_seconds": 0.004565199000000001,
+      "tte_std": 0.5001302622354964,
+      "mutations_fired": [
+        "MS1",
+        "MS2",
+        "MS4",
+        "MS5"
+      ],
+      "mutations_expected": [
+        "MS1"
+      ],
+      "predicate_match": true,
+      "note": "20/20 runs produced SmartShot findings; taint_sources=metadata_seeded; double_validation=validated"
+    },
+    "pgala": {
+      "detected": true,
+      "runs": 20,
+      "tte_seconds": 0.011005694,
+      "tte_std": 53.19580524722491,
+      "mutations_fired": [
+        "MS1",
+        "MS2",
+        "MS4",
+        "MS5"
+      ],
+      "mutations_expected": [
+        "MS1"
+      ],
+      "predicate_match": true,
+      "note": "20/20 runs produced SmartShot findings; taint_sources=metadata_seeded; double_validation=validated"
+    },
+    "socket": {
+      "detected": true,
+      "runs": 20,
+      "tte_seconds": 0.011211391000000001,
+      "tte_std": 38.57953984247398,
+      "mutations_fired": [
+        "MS1",
+        "MS2",
+        "MS4",
+        "MS5"
+      ],
+      "mutations_expected": [
+        "MS1",
+        "MS2"
+      ],
+      "predicate_match": true,
+      "note": "20/20 runs produced SmartShot findings; taint_sources=metadata_seeded; double_validation=validated"
+    },
+    "orbit": {
+      "detected": true,
+      "runs": 20,
+      "tte_seconds": 2.1366521525,
+      "tte_std": 1.9877976315575088,
+      "mutations_fired": [
+        "MS1",
+        "MS2",
+        "MS4",
+        "MS5"
+      ],
+      "mutations_expected": [
+        "MS1"
+      ],
+      "predicate_match": true,
+      "note": "20/20 runs produced SmartShot findings; taint_sources=sload_inspector; double_validation=validated"
+    },
+    "fegtoken": {
+      "detected": true,
+      "runs": 19,
+      "tte_seconds": 5.034256642,
+      "tte_std": 38.14903164192081,
+      "mutations_fired": [
+        "MS1",
+        "MS2",
+        "MS4",
+        "MS5"
+      ],
+      "mutations_expected": [
+        "MS1"
+      ],
+      "predicate_match": true,
+      "note": "19/19 runs produced SmartShot findings; taint_sources=metadata_seeded; double_validation=validated"
+    },
+    "gempad": {
+      "detected": true,
+      "runs": 20,
+      "tte_seconds": 18.634844327499998,
+      "tte_std": 59.842191243751465,
+      "mutations_fired": [
+        "MS1",
+        "MS2",
+        "MS4",
+        "MS5"
+      ],
+      "mutations_expected": [
+        "MS1"
+      ],
+      "predicate_match": true,
+      "note": "20/20 runs produced SmartShot findings; taint_sources=metadata_seeded; double_validation=validated"
+    }
+  }
+}

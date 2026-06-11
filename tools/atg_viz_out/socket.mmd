@@ -1,0 +1,10 @@
+%% ATG socket
+flowchart LR
+  n_MockToken["MockToken"]
+  n_User["User"]
+  n_SocketGateway["SocketGateway"]
+  n_SwapImplementationStub["SwapImplementationStub"]
+  n_MockToken -- "mint" --> n_User
+  n_User -- "transfer" --> n_User
+  n_User -- "withdraw" --> n_SocketGateway
+  n_SocketGateway -- "mint" --> n_User

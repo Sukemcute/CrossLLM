@@ -1,0 +1,21 @@
+{
+  "benchmark": "wormhole",
+  "artifacts": {
+    "atg": "results/wormhole_llm/atg.json",
+    "hypotheses": "results/wormhole_llm/hypotheses.json"
+  },
+  "module1": {
+    "contracts_processed": 3,
+    "entities": 5,
+    "edges": 2,
+    "invariants": 19
+  },
+  "module2": {
+    "scenarios": 19
+  },
+  "module3": {
+    "runs_attempted": 0,
+    "runs_completed": 0,
+    "violations_total": 0
+  }
+}
