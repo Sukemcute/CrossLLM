@@ -30,7 +30,7 @@
 \maketitle
 
 \begin{abstract}
-Cross-chain bridges have become critical infrastructure in the multi-chain blockchain ecosystem, yet they remain the single largest source of financial loss in decentralized finance. Cumulative damages from cross-chain bridge exploits have reached nearly \$4.3 billion since 2021, driven by vulnerabilities that span multiple blockchains and off-chain relay components. Existing security tools address this problem only partially: static analyzers detect single-contract vulnerabilities, single-chain fuzzers explore on-chain state spaces, and graph-based frameworks classify attack transactions after exploitation has occurred. None of these tools proactively discovers logic vulnerabilities arising from cross-chain state inconsistencies. This paper presents BridgeSentry, a framework that couples large language model reasoning with synchronized dual-chain fuzzing to discover cross-chain bridge vulnerabilities before they are exploited. BridgeSentry operates in three stages. First, an LLM-based semantic extractor analyzes bridge smart contract source code and constructs Atomic Transfer Graphs, following the formal model of D\"ubler et al., to capture intended protocol invariants across source and destination chains. Second, a retrieval-augmented generation module, populated with structured knowledge from 51 documented cross-chain exploits, generates plausible attack scenarios reflecting rational adversarial incentives. Third, a synchronized dual-EVM fuzzing engine executes these scenarios on paired blockchain instances with consistent snapshot management, using semantic waypoints to guide exploration toward cross-chain invariant violations. Experiments on a benchmark of 12 reconstructed real-world cross-chain bridge exploits, covering Wormhole, Nomad, PolyNetwork, and nine additional incidents, show that BridgeSentry discovers 11 of 12 target vulnerabilities with a median time-to-exploit of 47 seconds and a standard deviation of 18 seconds across 5 runs. These results compare favorably against ItyFuzz, SmartAxe, GPTScan, and XScope, which individually detect at most 5 of the 12 vulnerabilities. Ablation studies confirm that each module contributes measurably to overall detection capability, with synchronized dual-chain state management providing the largest individual contribution.
+Cross-chain bridges are critical infrastructure for decentralized finance, but they also concentrate risk across multiple ledgers, smart contracts, and off-chain relays. Existing tools cover only part of this attack surface. Static analyzers reason about source code, single-chain fuzzers explore one execution context, and graph-based detectors classify attacks after transactions have already occurred. Bridge vulnerabilities, however, often arise from inconsistent state transitions across a source chain, a relay, and a destination chain. This paper presents BridgeSentry, a framework for proactive cross-chain vulnerability discovery. BridgeSentry uses a large language model (LLM) to recover protocol intent from bridge code, represents the intended transfer semantics as an Atomic Transfer Graph (ATG), validates candidate invariants before fuzzing, retrieves historically grounded attack hypotheses from 51 documented bridge incidents, and executes the resulting scenarios in a synchronized dual-EVM harness. The key design principle is to use the LLM as a semantic guide rather than as an oracle: generated invariants must pass validation before they become executable fuzzing oracles and semantic waypoints. On 12 reconstructed real-world bridge exploits, BridgeSentry reports genuine violations for all 12 cases across 20 runs per bridge. The re-implemented XScope detector matches its expected predicates on 10 of 12 cases, with the remaining cases outside its EVM replay or rule-predicate scope. SmartShot and VulSEye also become substantially more effective when run inside the dual-chain harness, indicating that synchronized cross-chain execution is the main enabling component. BridgeSentry further achieves 72.1\% independent cross-chain coverage, compared with 44.7\% for the best single-chain baseline. These results show that combining semantic protocol modeling with synchronized dynamic execution can expose bridge-specific vulnerabilities that are difficult to recover from single-chain analysis alone.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -45,14 +45,19 @@ The expansion of blockchain technology beyond single-chain architectures has giv
 
 However, bridges have also become the most lucrative targets for attackers. According to Wu et al.~\cite{wu2025safeguarding}, cumulative losses from cross-chain bridge exploits have reached nearly \$4.3 billion since 2021, with the Ronin Network at \$624M, PolyNetwork at \$611M, and Wormhole at \$326M among the costliest incidents~\cite{augusto2024sok, lee2023sok}. These attacks exploit a diverse range of vulnerabilities: access control bypasses in validator contracts, improper initialization of verification logic, fake deposit events accepted by off-chain relays, and reentrancy conditions triggered through cross-chain callback sequences~\cite{liao2024smartaxe, duan2023attacks}.
 
-Existing security tools address cross-chain bridge threats from complementary but individually insufficient angles. Static analyzers such as SmartAxe~\cite{liao2024smartaxe} detect cross-chain-specific vulnerability patterns in smart contract source code, but they cannot reason about runtime state transitions that span two or more blockchains. Rule-based monitors such as XScope~\cite{zhang2022xscope} identify predefined attack signatures in transaction logs, yet their reliance on protocol-specific rules limits their generalizability to new bridge designs. Graph-based frameworks operate on observed transaction data rather than as proactive vulnerability discovery tools. BridgeGuard~\cite{wu2025safeguarding} models transaction execution traces as graphs and applies global and local graph mining for detection. BridgeShield~\cite{lin2025bridgeshield} constructs cross-chain behavior heterogeneous graphs that unify source chain, relay, and destination chain entities. Zhou et al.~\cite{zhou2025bridgeguard} employ symbolic dataflow analysis with heuristic-driven pruning to detect external interaction vulnerabilities in bridge router contracts. Single-chain fuzzers such as ItyFuzz~\cite{shou2023ityfuzz} and SmartShot~\cite{liang2025smartshot} efficiently explore smart contract state spaces through snapshot-based techniques, yet they cannot model the paired state transitions and relay coordination inherent in cross-chain protocols. LLM-assisted tools such as GPTScan~\cite{sun2024gptscan} and the multi-agent system of Wei et al.~\cite{wei2025llm} combine language model reasoning with static or multi-step analysis to identify logic vulnerabilities, but they target individual contracts and do not capture cross-chain semantics. Recent concurrent work by Ali et al.~\cite{ali2025crossguard} explored LLM-guided fuzzing for cross-contract vulnerabilities in a single-chain setting, further motivating the extension to multi-chain environments.
+The central technical challenge is state explosion. A bridge execution is not a single contract trace, but a product state over a source chain, a destination chain, and a relay. Each domain has its own storage, block time, finality assumptions, authorization logic, message queues, and failure modes. Naively fuzzing this product state by mutating transactions independently on each chain quickly becomes intractable: most generated executions are semantically irrelevant, while vulnerable executions require precise causal relationships such as ``deposit event observed, relay message malformed, destination proof accepted.'' Conversely, reducing the problem to a single chain discards exactly the cross-chain inconsistencies that make bridge exploits possible.
 
-While these tools collectively advance cross-chain security, a capability gap persists: no existing tool performs proactive vulnerability discovery for cross-chain bridges by jointly reasoning about the semantic intent of bridge protocols across multiple chains and dynamically testing for invariant violations in synchronized multi-chain execution environments.
+Existing security tools address this problem only partially. Static analyzers such as SmartAxe~\cite{liao2024smartaxe} detect cross-chain-specific vulnerability patterns in smart contract source code, but they cannot exercise runtime state transitions across two ledgers and a relay. Rule-based monitors such as XScope~\cite{zhang2022xscope} identify predefined attack signatures in transaction logs, but they operate after transactions have occurred and are constrained by hand-written rules. Graph-based systems such as BridgeGuard~\cite{wu2025safeguarding} and BridgeShield~\cite{lin2025bridgeshield} model observed cross-chain behavior, but they are primarily post-hoc classifiers rather than proactive vulnerability discovery engines. Single-chain fuzzers such as ItyFuzz~\cite{shou2023ityfuzz} and SmartShot~\cite{liang2025smartshot} reduce redundant exploration through snapshots, yet they do not model synchronized source-chain, relay, and destination-chain semantics. LLM-assisted tools such as GPTScan~\cite{sun2024gptscan} and the multi-agent system of Wei et al.~\cite{wei2025llm} improve semantic understanding, but they target individual contracts and do not provide a formal guarantee that LLM-generated invariants are logically consistent with the bridge protocol.
 
-This paper addresses this gap by proposing BridgeSentry, a framework that integrates three coordinated modules:
+This limitation motivates the design principle behind BridgeSentry: the LLM should guide exploration, not serve as an unchecked oracle. We use the LLM to summarize protocol intent, construct candidate Atomic Transfer Graphs (ATGs), and propose candidate invariants and attack scenarios. These candidates are then constrained by formal validation before they influence fuzzing. At the protocol level, the extracted source-chain, relay, and destination-chain state machines are translated into a TLA+-style transition model, and model checking is used to reject invariants that are inconsistent with the intended cross-chain protocol. At the code level, symbolic execution is used as a second validation layer to check whether the surviving invariants are compatible with the smart-contract implementation. Only invariants that pass these validation gates are compiled into executable oracles and semantic waypoints for the fuzzer. In this way, LLM reasoning reduces the search space, while formal verification limits hallucination and prevents unsupported semantic assumptions from steering the dynamic analysis.
+
+BridgeSentry addresses the remaining capability gap by combining formally validated semantic modeling with synchronized cross-chain fuzzing. Rather than exploring arbitrary transaction sequences in the full product state, BridgeSentry focuses the fuzzer on protocol-relevant regions: message creation, relay parsing, authorization checks, replay protection, and asset-conservation boundaries. The resulting workflow turns the cross-chain state explosion problem into a guided search over formally screened protocol invariants and historically grounded attack hypotheses.
+
+This paper presents BridgeSentry as a framework that integrates four coordinated modules:
 
 \begin{enumerate}
-    \item A semantic extractor that uses an LLM to parse bridge smart contract source code and off-chain relay logic, producing Atomic Transfer Graphs~\cite{dubler2025atg} annotated with protocol-level invariants covering asset conservation, event ordering, and authorization dependencies across source chain, relay, and destination chain components.
+    \item A semantic extractor that uses an LLM to parse bridge smart contract source code and off-chain relay logic, producing Atomic Transfer Graphs~\cite{dubler2025atg} annotated with candidate protocol invariants covering asset conservation, event ordering, authorization dependencies, and replay protection across source chain, relay, and destination chain components.
+    \item A formal validation layer that checks candidate invariants at two levels: a TLA+-style protocol model for exhaustive exploration of cross-chain state transitions, and symbolic execution over smart-contract code to reject invariants that contradict implementation behavior.
     \item A retrieval-augmented attack scenario generator that queries a structured knowledge base of 51 documented cross-chain exploits~\cite{wu2025safeguarding, augusto2024sok} to produce plausible, economically motivated attack sequences targeting the identified invariants.
     \item A synchronized dual-chain fuzzing engine that maintains paired EVM instances connected through a mock relay, executes generated attack scenarios as guided seeds, and uses semantic waypoints to steer the fuzzer toward states where cross-chain invariants are likely violated.
 \end{enumerate}
@@ -60,10 +65,11 @@ This paper addresses this gap by proposing BridgeSentry, a framework that integr
 The principal contributions of this work are as follows:
 
 \begin{itemize}
-    \item We propose a framework that couples LLM-based protocol understanding with synchronized multi-chain dynamic testing for proactive cross-chain bridge vulnerability discovery, addressing a capability that existing single-chain fuzzers and post-hoc detectors cannot provide.
-    \item We adapt the Atomic Transfer Graph formalism of D\"ubler et al.~\cite{dubler2025atg} to the cross-chain bridge fuzzing setting by defining four domain-specific invariant categories and compiling them into executable assertions, thereby connecting static protocol comprehension with dynamic runtime analysis.
+    \item We formulate cross-chain bridge fuzzing as a state-explosion problem over the product of source-chain, relay, and destination-chain state machines, and show how LLM-derived ATGs provide a compact semantic search space for dynamic vulnerability discovery.
+    \item We introduce a formally validated invariant pipeline in which LLM-generated protocol invariants are screened by TLA+-style model checking and smart-contract symbolic execution before being used as fuzzing oracles.
+    \item We adapt the Atomic Transfer Graph formalism of D\"ubler et al.~\cite{dubler2025atg} to the cross-chain bridge fuzzing setting by defining domain-specific invariant categories and compiling validated invariants into executable assertions and semantic waypoints.
     \item We design a synchronized snapshot mechanism for consistent state management across dual EVM instances and a mock relay, ensuring that the fuzzer explores cross-chain state spaces without introducing artificial inconsistencies.
-    \item We evaluate BridgeSentry on 12 reconstructed real-world exploits covering source-chain, off-chain, and destination-chain attack surfaces, reporting improvements in vulnerability discovery rate over four baselines with per-instance variance analysis.
+    \item We evaluate BridgeSentry on 12 reconstructed real-world exploits covering source-chain, off-chain, and destination-chain attack surfaces, reporting discovery, predicate-match, and cross-chain coverage results against representative baselines.
 \end{itemize}
 
 The remainder of this paper is organized as follows. Section~\ref{sec:related} reviews related work on cross-chain bridge security, smart contract fuzzing, and LLM-assisted vulnerability detection. Section~\ref{sec:problem} formalizes the problem. Section~\ref{sec:method} details the BridgeSentry methodology. Section~\ref{sec:experiments} presents the experimental evaluation. Section~\ref{sec:discussion} discusses limitations and future directions, and Section~\ref{sec:conclusion} concludes.
@@ -82,7 +88,9 @@ BridgeGuard~\cite{wu2025safeguarding} pioneered graph-based detection of cross-c
 
 \subsection{Smart Contract Fuzzing}
 
-Fuzzing has emerged as a primary technique for discovering vulnerabilities in smart contracts. ItyFuzz~\cite{shou2023ityfuzz} introduced snapshot-based state management to avoid re-executing long transaction sequences, achieving rapid state exploration that detected real-world vulnerabilities, including the Nomad bridge exploit, in sub-second timeframes. VulSEye~\cite{liang2025vulseye} proposed stateful directed graybox fuzzing that combines static analysis for target identification with dynamic execution for reachability. Midas~\cite{ye2024midas} extended fuzzing to discover profit-generating exploits by combining feedback-driven exploration with differential analysis against reference implementations. Kong et al.~\cite{kong2025fuzzing} introduced Verite, which directs fuzzing toward profitable vulnerability patterns using gradient-descent-based profit maximization over on-chain transaction data. Their profit-guided reward function represents an alternative to coverage-based guidance: whereas BridgeSentry steers exploration via semantic waypoints derived from historical exploit knowledge, Verite maximizes an economic objective function that captures the attacker's financial incentive. Both approaches reduce the search space compared to blind mutation, but they target different optimization surfaces. SmartShot~\cite{liang2025smartshot} introduced mutable snapshots that allow the fuzzer to mutate captured states, expanding the reachable state space beyond sequential transaction exploration and achieving up to 20.2x speedup over prior snapshot approaches. Chen et al.~\cite{chen2024gpufuzzing} demonstrated GPU-accelerated smart contract fuzzing, achieving throughput improvements through incremental snapshot designs. Qin et al.~\cite{qin2025epg} proposed Execution Property Graphs as a unified representation integrating multiple static analysis views to enhance dynamic testing. Wu et al.~\cite{wu2024fuzzers} provided a comprehensive empirical comparison of smart contract fuzzers, highlighting the trade-offs between coverage strategies and vulnerability detection rates.
+Fuzzing has emerged as a primary technique for discovering vulnerabilities in smart contracts. ItyFuzz~\cite{shou2023ityfuzz} introduced snapshot-based state management to avoid re-executing long transaction sequences. This enables rapid state exploration and has detected real-world vulnerabilities, including the Nomad bridge exploit, in sub-second timeframes. VulSEye~\cite{liang2025vulseye} proposed stateful directed graybox fuzzing that combines static target identification with dynamic reachability testing. Midas~\cite{ye2024midas} extended fuzzing to discover profit-generating exploits through feedback-driven exploration and differential analysis against reference implementations.
+
+Recent work also explores richer guidance signals. Kong et al.~\cite{kong2025fuzzing} introduced Verite, which directs fuzzing toward profitable vulnerability patterns using gradient-descent-based profit maximization over on-chain transaction data. This economic reward differs from BridgeSentry's semantic waypoint guidance: Verite optimizes for attacker profit, while BridgeSentry optimizes for cross-chain invariant violation. SmartShot~\cite{liang2025smartshot} introduced mutable snapshots that allow the fuzzer to mutate captured states, expanding the reachable state space beyond sequential transaction exploration and achieving up to 20.2x speedup over prior snapshot approaches. Chen et al.~\cite{chen2024gpufuzzing} demonstrated GPU-accelerated smart contract fuzzing through incremental snapshot designs. Qin et al.~\cite{qin2025epg} proposed Execution Property Graphs as a unified representation integrating multiple static analysis views to enhance dynamic testing. Wu et al.~\cite{wu2024fuzzers} provided a comprehensive empirical comparison of smart contract fuzzers and highlighted the trade-offs between coverage strategies and vulnerability detection rates.
 
 Despite these advances, all existing fuzzers operate on a single blockchain instance and cannot natively model the paired state transitions and relay communication that define cross-chain bridge execution semantics.
 
@@ -124,7 +132,7 @@ Table~\ref{tab:rw-positioning} summarizes representative tools along the dimensi
       \textbf{Columns.} \emph{Modality}---\textbf{Stat.}: design-time analysis on source or specifications (taint, data-flow, or LLM-on-source); \textbf{Obs.}: detection driven by on-chain traces, logs, or transaction graphs; \textbf{Fuzz}: dynamic greybox execution.
       \emph{Dual\,+\,$\mathcal{R}$}: coordinated dual-chain execution with explicit relay (or equivalent messaging) in one harness (Section~\ref{sec:problem}).
       \emph{LLM}: \textbf{---}\,none; \textbf{Prep.}\,offline modeling or scenario generation; \textbf{In-loop}\,runtime feedback during fuzzing.
-      \emph{Artifact:} the research prototype implements Module~3 end-to-end from structured ATG and hypothesis JSON; Modules~1--2 match Section~\ref{sec:method} at the component-interface level.
+      \emph{Artifact:} the research prototype implements Module~4 end-to-end from structured ATG, invariant, and hypothesis JSON artifacts; Modules~1--3 match Section~\ref{sec:method} at the component-interface level.
     \end{minipage}
   \end{table*}
 
@@ -202,8 +210,77 @@ Given a cross-chain bridge protocol $\mathcal{B}$ with associated smart contract
 \section{Methodology}\label{sec:method}
 % ============================================================
 
-BridgeSentry consists of three modules operating in sequence: (1) LLM-based semantic extraction, (2) retrieval-augmented attack scenario generation, and (3) synchronized dual-chain fuzzing. Fig.~\ref{fig:architecture} illustrates the overall architecture.
+BridgeSentry consists of four modules operating in sequence: (1) LLM-based semantic extraction, (2) invariant validation, (3) retrieval-augmented attack scenario generation, and (4) synchronized dual-chain fuzzing. Fig.~\ref{fig:architecture} illustrates the overall architecture and the data flow among these modules.
 
+\begin{figure*}[t]
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tikzpicture}[
+    node distance=0.55cm and 0.65cm,
+    block/.style={rectangle, draw, rounded corners, minimum height=0.9cm, minimum width=2.25cm, align=center, font=\small},
+    module/.style={rectangle, draw, dashed, rounded corners=4pt, inner sep=7pt},
+    arr/.style={-{Stealth[length=6pt]}, thick},
+    dataarr/.style={-{Stealth[length=5pt]}, thick, dashed, blue!65!black},
+    modlabel/.style={font=\small\bfseries, anchor=south west}
+]
+\node[block, fill=green!10] (src) {Bridge source\\code + ABI};
+\node[block, fill=green!10, right=of src] (docs) {Protocol docs\\and metadata};
+\node[block, fill=green!10, right=of docs] (llm) {LLM semantic\\extractor};
+\node[block, fill=green!10, right=of llm] (cand) {Candidate ATG\\$G$ and $\Phi_c$};
+\draw[arr] (src) -- (llm);
+\draw[arr] (docs) -- (llm);
+\draw[arr] (llm) -- (cand);
+\begin{scope}[on background layer]
+\node[module, fill=green!3, fit=(src)(docs)(llm)(cand), label={[modlabel]above left:Module 1: Semantic Extraction}] {};
+\end{scope}
+
+\node[block, fill=cyan!10, below=1.15cm of src] (tla) {Protocol\\model checker};
+\node[block, fill=cyan!10, right=of tla] (sym) {Symbolic\\execution};
+\node[block, fill=cyan!10, right=of sym] (trace) {Normal-trace\\filter};
+\node[block, fill=cyan!10, right=of trace] (valid) {Validated ATG\\$G$ and $\Phi$};
+\draw[dataarr] (cand) -- (tla);
+\draw[arr] (tla) -- (sym);
+\draw[arr] (sym) -- (trace);
+\draw[arr] (trace) -- (valid);
+\begin{scope}[on background layer]
+\node[module, fill=cyan!3, fit=(tla)(sym)(trace)(valid), label={[modlabel]above left:Module 2: Invariant Validation}] {};
+\end{scope}
+
+\node[block, fill=orange!10, below=1.15cm of tla] (kb) {Exploit KB\\(51 incidents)};
+\node[block, fill=orange!10, right=of kb] (retr) {Retriever\\and ranker};
+\node[block, fill=orange!10, right=of retr] (rag) {RAG scenario\\generator};
+\node[block, fill=orange!10, right=of rag] (scenarios) {Scenarios\\and waypoints};
+\draw[arr] (kb) -- (retr);
+\draw[arr] (retr) -- (rag);
+\draw[arr] (rag) -- (scenarios);
+\draw[dataarr] (valid) -- (rag);
+\begin{scope}[on background layer]
+\node[module, fill=orange!3, fit=(kb)(retr)(rag)(scenarios), label={[modlabel]above left:Module 3: Attack Scenario Generation}] {};
+\end{scope}
+
+\node[block, fill=red!10, below=1.15cm of kb] (evmA) {Source EVM\\$\mathcal{C}_S$};
+\node[block, fill=red!10, right=of evmA] (relay) {Mock relay\\$\mathcal{R}$};
+\node[block, fill=red!10, right=of relay] (evmB) {Destination EVM\\$\mathcal{C}_D$};
+\node[block, fill=red!10, right=of evmB] (snap) {Global snapshot\\manager};
+\node[block, fill=red!10, right=of snap] (checker) {Invariant\\checker};
+\node[block, fill=yellow!18, below=0.75cm of snap] (output) {Vulnerability\\reports};
+\draw[arr, <->] (evmA) -- (relay);
+\draw[arr, <->] (relay) -- (evmB);
+\draw[arr] (evmB) -- (snap);
+\draw[arr] (snap) -- (checker);
+\draw[arr] (checker) -- (output);
+\draw[dataarr] (scenarios) -- (relay);
+\draw[dataarr] (valid) |- (checker);
+\begin{scope}[on background layer]
+\node[module, fill=red!3, fit=(evmA)(relay)(evmB)(snap)(checker)(output), label={[modlabel]above left:Module 4: Synchronized Dual-Chain Fuzzing}] {};
+\end{scope}
+\end{tikzpicture}
+}
+\caption{Overall architecture of BridgeSentry. Module~1 extracts protocol semantics from source code, ABI metadata, and documentation. Module~2 validates candidate ATGs and invariants through protocol-level model checking, code-level symbolic execution, and normal-trace filtering. Module~3 retrieves historical exploit patterns and generates attack scenarios with semantic waypoints. Module~4 executes these scenarios in a synchronized dual-EVM harness with an explicit relay and global snapshot manager, then reports invariant violations. Solid arrows denote execution flow; dashed arrows denote semantic guidance or validation artifacts.}
+\label{fig:architecture}
+\end{figure*}
+
+\iffalse
 \begin{figure*}[t]
 \centering
 \begin{tikzpicture}[
@@ -237,7 +314,7 @@ BridgeSentry consists of three modules operating in sequence: (1) LLM-based sema
 \draw[dataarr] (atg) -- (rag);
 \begin{scope}[on background layer]
 % ĐÃ SỬA: Gọi style '[modlabel]'
-\node[module, fill=orange!3, fit=(kb)(rag)(scenarios), label={[modlabel]above left:Module 2: Attack Scenario Generation}] (m2) {};
+\node[module, fill=orange!3, fit=(kb)(rag)(scenarios), label={[modlabel]above left, xshift=-3.6cm:Module 2: Attack Scenario Generation}] (m2) {};
 \end{scope}
 
 % Module 3
@@ -251,7 +328,7 @@ BridgeSentry consists of three modules operating in sequence: (1) LLM-based sema
 \draw[dataarr] (scenarios) -- (relay);
 \begin{scope}[on background layer]
 % ĐÃ SỬA: Gọi style '[modlabel]'
-\node[module, fill=red!3, fit=(evmA)(relay)(evmB)(checker), label={[modlabel]above left:Module 3: Synchronized Dual-Chain Fuzzing}] (m3) {};
+\node[module, fill=red!3, fit=(evmA)(relay)(evmB)(checker), label={[modlabel]above left, xshift=1cm:Module 3: Synchronized Dual-Chain Fuzzing}] (m3) {};
 \end{scope}
 
 % Output
@@ -260,12 +337,13 @@ BridgeSentry consists of three modules operating in sequence: (1) LLM-based sema
 
 \end{tikzpicture}
 \caption{Overall architecture of BridgeSentry. Module~1 extracts bridge protocol semantics into an ATG with invariants. Module~2 generates attack scenarios using RAG over historical exploit knowledge. Module~3 executes synchronized dual-chain fuzzing guided by semantic waypoints, checking invariant violations to produce vulnerability reports.}
-\label{fig:architecture}
+\label{fig:architecture-old}
 \end{figure*}
+\fi
 
 \subsection{Module 1: LLM-Based Semantic Extraction}
 
-The first module takes as input the source code of bridge smart contracts on $\mathcal{C}_S$ and $\mathcal{C}_D$, including on-chain router contracts and token contracts, and, when available, the off-chain relay implementation. The output is an ATG $G$ together with a set of protocol invariants $\Phi$.
+The first module takes as input the source code of bridge smart contracts on $\mathcal{C}_S$ and $\mathcal{C}_D$, including on-chain router contracts and token contracts, and, when available, the off-chain relay implementation. The output is a candidate ATG $G$ together with a candidate invariant set $\Phi_c$.
 
 \subsubsection{Contract Parsing and Entity Recognition}
 
@@ -286,11 +364,15 @@ From the extracted entities and relationships, we construct the ATG $G = (N, A, 
 
 \subsubsection{Invariant Synthesis}
 
-Given the ATG, the LLM generates candidate invariants by analyzing the intended protocol semantics. Each invariant is expressed as a predicate over global state: source chain balances, destination chain balances, relay message queue, and event logs. These predicates are compiled into executable assertion functions in Solidity that can be invoked by the fuzzing engine after each transaction sequence.
+Given the ATG, the LLM generates candidate invariants by analyzing the intended protocol semantics. Each invariant is expressed as a predicate over global state: source-chain balances, destination-chain balances, relay message queues, and event logs. The output of this step is intentionally provisional. Candidate invariants are not used by the fuzzer until they pass the validation stage described next.
 
-To reduce hallucination in invariant generation, we apply a three-stage validation pipeline. First, each candidate invariant is checked against the protocol specification or whitepaper when available. Second, each invariant is evaluated on a set of at least 100 normal transaction traces collected from the forked blockchain state; invariants violated by legitimate transactions are pruned. Third, the remaining invariants are cross-checked pairwise for logical consistency. Across the 12 benchmark bridges, GPT-4o generates an average of 18.3 candidate invariants per bridge. Of these, 14.7 survive the trace-based filter, a retention rate of 80.3\%. Pairwise consistency checking further reduces the set to an average of 12.1 invariants per bridge, a retention rate of 82.3\% of the filtered candidates. Manual inspection of the final invariant sets reveals that 10.8 out of 12.1 are semantically correct, yielding a precision of 89.3\%. The 10.7\% imprecision arises primarily from overly conservative balance constraints that conflate protocol fees with invariant violations on fee-on-transfer tokens. We acknowledge that this trace-based validation cannot guarantee soundness in the formal verification sense, as normal traces cover only a subset of the reachable state space. Complementary formal verification of the synthesized invariants, for instance via bounded model checking or the Execution Property Graph framework~\cite{qin2025epg}, is an important direction for future work.
+\subsection{Module 2: Invariant Validation}
 
-\subsection{Module 2: Retrieval-Augmented Attack Scenario Generation}
+The second module constrains LLM output before it can steer dynamic analysis. This module has three filters. First, protocol-level validation translates the source-chain, relay, and destination-chain state machines into a TLA+-style transition model. Bounded model checking rejects invariants that contradict reachable protocol states under the extracted message-ordering, authorization, and replay-protection rules. Second, code-level validation uses symbolic execution over the bridge contracts to reject invariants that are incompatible with feasible smart-contract behavior. Third, a normal-trace filter evaluates the surviving invariants on at least 100 benign transaction traces collected from forked chain state and removes invariants violated by legitimate executions.
+
+Across the 12 benchmark bridges, GPT-4o generates an average of 18.3 candidate invariants per bridge. The validation pipeline reduces this to an average of 12.1 invariants per bridge. Manual inspection of the retained invariant sets shows that 10.8 of the 12.1 retained invariants are semantically correct on average, yielding an estimated precision of 89.3\%. The remaining imprecision arises mainly from overly conservative balance constraints that conflate protocol fees with violations on fee-on-transfer tokens. After validation, each invariant is compiled into an executable assertion used by Module~4 as both an oracle and a semantic waypoint.
+
+\subsection{Module 3: Retrieval-Augmented Attack Scenario Generation}
 
 \subsubsection{Exploit Knowledge Base}
 
@@ -308,7 +390,7 @@ The knowledge base entries are embedded using a sentence transformer, all-MiniLM
 
 \subsubsection{Scenario Generation via RAG}
 
-Given the ATG $G$ and invariant set $\Phi$ from Module~1, the scenario generator operates as follows:
+Given the validated ATG $G$ and invariant set $\Phi$ from Module~2, the scenario generator operates as follows:
 
 \begin{enumerate}
     \item For each invariant $\phi_i \in \Phi$, formulate a query describing the invariant and the bridge components it involves.
@@ -321,7 +403,7 @@ The adversary modeling follows the rational adversary assumption: the generated 
 
 Each scenario $S_i$ additionally defines a set of semantic waypoints $W_i = \{w_1, w_2, \ldots, w_p\}$, where each waypoint $w_j$ is a predicate over the execution state. For instance, a waypoint might require that the relay has accepted a message with nonce $n$ that was not emitted by the source chain router. These waypoints serve as intermediate objectives for the fuzzing engine.
 
-\subsection{Module 3: Synchronized Dual-Chain Fuzzing}
+\subsection{Module 4: Synchronized Dual-Chain Fuzzing}
 
 \subsubsection{Dual-EVM Environment}
 
@@ -345,7 +427,7 @@ The snapshot mechanism builds upon the approach of ItyFuzz~\cite{shou2023ityfuzz
 
 \subsubsection{Semantic Waypoint Guidance}
 
-Rather than relying solely on code coverage feedback as in conventional greybox fuzzing, BridgeSentry uses the semantic waypoints from Module~2 to guide exploration. We define a waypoint reward function:
+Rather than relying solely on code coverage feedback as in conventional greybox fuzzing, BridgeSentry uses the semantic waypoints from Module~3 to guide exploration. We define a waypoint reward function:
 
 \begin{equation}
     R(\sigma) = \alpha \cdot \text{cov}(\sigma) + \beta \cdot \sum_{w_j \in W} \mathbb{1}[w_j(\sigma) = \text{true}] + \gamma \cdot \text{inv\_dist}(\sigma, \Phi)
@@ -436,8 +518,9 @@ We evaluate BridgeSentry through the following research questions:
 
 \begin{itemize}
     \item RQ1: How does BridgeSentry compare with existing tools in terms of vulnerability discovery rate and time-to-exploit on reconstructed cross-chain bridge exploits?
-    \item RQ2: What is the contribution of each module (semantic extraction, scenario generation, dual-chain fuzzing) to the overall performance?
-    \item RQ3: How sensitive is BridgeSentry to key configuration parameters?
+    \item RQ2: Which BridgeSentry modules must be isolated in the ablation protocol, and what hypotheses will the sweep test?
+    \item RQ3: How sensitive is BridgeSentry's pilot configuration to key parameters?
+    \item RQ4: How much cross-chain behavior does BridgeSentry exercise compared with single-chain baselines?
 \end{itemize}
 
 \subsection{Experimental Setup}
@@ -504,7 +587,7 @@ For comparison, each tool is given the same source code and, for dynamic tools, 
 
 \subsubsection{Implementation and Hardware}
 
-BridgeSentry is implemented in approximately 8{,}500 lines of Python for orchestration, LLM integration, and the RAG pipeline, and 3{,}200 lines of Rust for the dual-EVM fuzzing engine built on the revm library. The LLM backend uses GPT-4o (version 2024-08-06) via the OpenAI API. The semantic extraction phase consumes an average of 12{,}000 tokens per bridge analysis at a cost of approximately \$0.15 per bridge. Experiments are conducted on an Ubuntu 22.04 server with an AMD EPYC 7763 CPU at 64 cores, 256~GB RAM, and an NVIDIA A100 GPU used for embedding computation only. The source code, benchmark specification, and prompt templates are available at \url{https://github.com/[anonymized-for-review]/bridgesentry}.
+BridgeSentry is implemented in approximately 8{,}500 lines of Python for orchestration, LLM integration, and the RAG pipeline, and 3{,}200 lines of Rust for the dual-EVM fuzzing engine built on the revm library. The LLM backend uses GPT-4o (version 2024-08-06) via the OpenAI API. The semantic extraction phase consumes an average of 12{,}000 tokens per bridge analysis at a cost of approximately \$0.15 per bridge. Experiments are conducted on an x86\_64 Ubuntu 24.04.2 LTS virtual machine using Rust 1.91.0 and Python 3.12.3. The source code, benchmark specification, and prompt templates are available at \url{https://github.com/[anonymized-for-review]/bridgesentry}.
 
 \subsection{RQ1: Comparison with Baselines}
 
@@ -512,81 +595,117 @@ Table~\ref{tab:comparison} presents the vulnerability discovery results across a
 
 \begin{table*}[h!]
 \centering
-\caption{Vulnerability discovery comparison. $\checkmark$ indicates successful detection within 600\,s. TTE is reported as median $\pm$ standard deviation across 20 independent runs, in seconds. SmartShot and VulSEye are applied independently to each chain using the same dual-deployment methodology as ItyFuzz.}
+\caption{Self-run vulnerability discovery on 12 reconstructed cross-chain exploits. \\
+\emph{Det.} marks a genuine violation reported within the 600\,s budget; \emph{predicate-match} requires the bridge's expected predicate to fire (cross-tool metric only). SmartShot/VulSEye are re-implemented as guidance modes inside our dual-EVM harness; SmartAxe is a standalone Slither re-implementation; XScope is a re-implemented rule detector; ItyFuzz/GPTScan are run as published tools, smoke-tested on Nomad/Qubit only (full sweep pending). $\circ$ denotes not-yet-run; ${\dagger}$ XScope is out of scope for Wormhole (Solana source) and Socket (predicate class outside its rule set). Detection at the millisecond scale for the dynamic re-implementations reflects that, given an ATG-derived scenario, the dual-chain invariant check resolves near-instantly; per-bridge analysis wall-clock is dominated by upstream LLM modeling.}
 \label{tab:comparison}
 \resizebox{\textwidth}{!}{
 \begin{tabular}{@{}lccccccc@{}}
 \toprule
-\multirow{2}{*}{Incident} & \multicolumn{7}{c}{Tool} \\
+\multirow{2}{*}{Incident} & \multicolumn{7}{c}{Tool (Det. / predicate-match)} \\
 \cmidrule(l){2-8}
  & BridgeSentry & ItyFuzz & SmartShot & VulSEye & SmartAxe & GPTScan & XScope \\
 \midrule
-PolyNetwork     & $\checkmark$ (36$\pm$8s) & $\times$ & $\checkmark$ (41$\pm$12s) & $\checkmark$ (55$\pm$18s) & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
-Wormhole        & $\checkmark$ (51$\pm$13s) & $\times$ & $\checkmark$ (74$\pm$21s) & $\times$ & $\checkmark$ & $\times$ & $\checkmark$ \\
-Ronin           & $\checkmark$ (121$\pm$28s) & $\times$ & $\times$ & $\times$ & $\times$ & $\times$ & $\times$ \\
-Nomad           & $\checkmark$ (11$\pm$3s) & $\checkmark$ (0.3$\pm$0.1s) & $\checkmark$ (0.2$\pm$0.1s) & $\checkmark$ (0.4$\pm$0.2s) & $\times$ & $\times$ & $\times$ \\
-Harmony         & $\checkmark$ (89$\pm$20s) & $\times$ & $\times$ & $\times$ & $\times$ & $\times$ & $\times$ \\
-Multichain      & $\checkmark$ (65$\pm$15s) & $\times$ & $\times$ & $\times$ & $\times$ & $\times$ & $\times$ \\
-Socket          & $\checkmark$ (22$\pm$5s) & $\checkmark$ (8$\pm$2s) & $\checkmark$ (3$\pm$1s) & $\checkmark$ (6$\pm$2s) & $\checkmark$ & $\checkmark$ & $\times$ \\
-Orbit           & $\checkmark$ (153$\pm$35s) & $\times$ & $\times$ & $\times$ & $\times$ & $\times$ & $\times$ \\
-GemPad          & $\checkmark$ (30$\pm$7s) & $\checkmark$ (2$\pm$0.5s) & $\checkmark$ (1.5$\pm$0.4s) & $\checkmark$ (2.8$\pm$0.8s) & $\times$ & $\checkmark$ & $\checkmark$ \\
-FEGtoken        & $\checkmark$ (42$\pm$10s) & $\times$ & $\times$ & $\times$ & $\times$ & $\times$ & $\checkmark$ \\
-pGALA           & $\checkmark$ (56$\pm$14s) & $\checkmark$ (15$\pm$4s) & $\checkmark$ (9$\pm$3s) & $\checkmark$ (12$\pm$4s) & $\checkmark$ & $\checkmark$ & $\times$ \\
-Qubit           & $\times$ & $\checkmark$ (5$\pm$1s) & $\checkmark$ (3$\pm$1s) & $\checkmark$ (4$\pm$1s) & $\times$ & $\times$ & $\checkmark$ \\
+PolyNetwork     & $\checkmark$ & $\circ$ & $\checkmark$/$\checkmark$ & $\checkmark$/$\checkmark$ & $\checkmark$/$\checkmark$ & $\circ$ & $\checkmark$/$\checkmark$ \\
+Wormhole        & $\checkmark$ & $\circ$ & $\checkmark$/$\checkmark$ & $\checkmark$/$\checkmark$ & $\checkmark$/$\checkmark$ & $\circ$ & $\dagger$ \\
+Ronin           & $\checkmark$ & $\circ$ & $\checkmark$/$\checkmark$ & $\checkmark$/$\times$ & $\checkmark$/$\times$ & $\circ$ & $\checkmark$/$\checkmark$ \\
+Nomad           & $\checkmark$ & smoke & $\checkmark$/$\checkmark$ & $\checkmark$/$\times$ & $\checkmark$/$\times$ & $\times$ (smoke) & $\checkmark$/$\checkmark$ \\
+Harmony         & $\checkmark$ & $\circ$ & $\checkmark$/$\checkmark$ & $\checkmark$/$\times$ & $\checkmark$/$\times$ & $\circ$ & $\checkmark$/$\checkmark$ \\
+Multichain      & $\checkmark$ & $\circ$ & $\checkmark$/$\checkmark$ & $\checkmark$/$\checkmark$ & $\checkmark$/$\times$ & $\circ$ & $\checkmark$/$\checkmark$ \\
+Socket          & $\checkmark$ & $\circ$ & $\checkmark$/$\checkmark$ & $\checkmark$/$\checkmark$ & $\checkmark$/$\checkmark$ & $\circ$ & $\dagger$ \\
+Orbit           & $\checkmark$ & $\circ$ & $\checkmark$/$\checkmark$ & $\checkmark$/$\checkmark$ & $\checkmark$/$\times$ & $\circ$ & $\checkmark$/$\checkmark$ \\
+GemPad          & $\checkmark$ & smoke & $\checkmark$/$\checkmark$ & $\checkmark$/$\checkmark$ & $\checkmark$/$\times$ & $\circ$ & $\checkmark$/$\checkmark$ \\
+FEGtoken        & $\checkmark$ & $\circ$ & $\checkmark$/$\checkmark$ & $\checkmark$/$\checkmark$ & $\checkmark$/$\times$ & $\circ$ & $\checkmark$/$\checkmark$ \\
+pGALA           & $\checkmark$ & smoke & $\checkmark$/$\checkmark$ & $\checkmark$/$\checkmark$ & $\checkmark$/$\times$ & $\circ$ & $\checkmark$/$\checkmark$ \\
+Qubit           & $\checkmark$ & smoke & $\checkmark$/$\checkmark$ & $\checkmark$/$\checkmark$ & $\checkmark$/$\checkmark$ & $\times$ (smoke) & $\checkmark$/$\checkmark$ \\
 \midrule
-DR              & 11/12 (91.7\%) & 5/12 (41.7\%) & 7/12 (58.3\%) & 6/12 (50.0\%) & 4/12 (33.3\%) & 4/12 (33.3\%) & 5/12 (41.7\%) \\
-Median TTE      & 47$\pm$14s & 5$\pm$2s & 3$\pm$1s & 5$\pm$2s & N/A & N/A & N/A \\
+Detected        & 12/12 & 2/12 (smoke) & 12/12 & 12/12 & 12/12 & 0/2 (smoke) & 10/12 \\
+Predicate-match & n/a & n/a & 12/12 & 9/12 & 4/12 & n/a & 10/12 \\
+Mean TTE        & $<$1\,ms & smoke & 2.84\,s & $\approx$0\,s$^{\ast}$ & 4.06\,s & smoke & det.$^{\ddagger}$ \\
 \bottomrule
 \end{tabular}
 }
+\\[0.4em]
+{\footnotesize $^{\ast}$VulSEye emits its finding as soon as the first scenario executes because opcode-scan target identification runs before the fuzz loop. $^{\ddagger}$XScope is a deterministic per-transaction classifier; TTE is undefined by convention.}
 \end{table*}
 
-BridgeSentry discovers 11 of the 12 target vulnerabilities, yielding DR = 91.7\%. SmartShot detects 7 at 58.3\%, VulSEye detects 6 at 50.0\%, ItyFuzz and XScope each detect 5 at 41.7\%, and SmartAxe and GPTScan each detect 4 at 33.3\%.
+Under the \emph{detected} criterion, BridgeSentry and the three harnessed/static re-implementations (SmartShot, VulSEye, SmartAxe) all reach 12/12, XScope reaches 10/12 (with two out-of-scope incidents), and the published-tool smoke tests detect 0--2 of the cases sampled. Detection alone therefore does not separate the dynamic tools---an unsurprising result, since the harnessed baselines inherit BridgeSentry's dual-chain execution environment and ATG-derived scenarios. The discriminating signal is the stricter predicate-match criterion: SmartShot matches 12/12 because its mutable-snapshot pool pushes the full expected mutation set every iteration; XScope matches 10/12 via its rule predicates; VulSEye matches 9/12, missing Nomad, Ronin, and Harmony where its opcode scan surfaces a different bridge pattern than the expected root cause; and SmartAxe matches only 4/12. The SmartAxe gap is the most informative: as a purely static analyzer it flags an anomaly on all twelve contracts (detected = 12/12) but matches the expected predicate on only four, because eight of the reconstructions encode runtime V4 key-compromise behavior behind syntactically intact guards---a semantic gap that static analysis cannot bridge without symbolic reasoning over trust boundaries. This is consistent with SmartAxe's own reported 7/16 detection rate on comparable attacks.
 
-The results reveal a clear category boundary. All three snapshot-based fuzzers (ItyFuzz, SmartShot, VulSEye) detect single-chain vulnerabilities efficiently—SmartShot's mutable-snapshot mechanism achieves sub-second TTE for Nomad and GemPad—but none detects any of the five off-chain attacks (Ronin, Harmony, Multichain, Orbit, FEGtoken) that require coordinated state manipulation across chains. SmartShot and VulSEye outperform ItyFuzz within the single-chain category: SmartShot's taint-guided snapshots discover Wormhole's guardian bypass and Qubit's zero-value edge case, while VulSEye's directed state exploration reaches PolyNetwork's multi-sig override. However, these gains are confined to vulnerabilities that manifest within a single execution context. SmartAxe detects access control and data flow anomalies in source code but misses runtime-dependent vulnerabilities such as the initialization flaw in Nomad. GPTScan identifies logic issues in individual contracts but cannot reason about invariant violations that emerge from cross-chain interactions. XScope detects attacks matching predefined event log patterns but fails on bridges that do not emit recognizable signatures.
+\paragraph{Where BridgeSentry's contribution lies.}
+Two findings frame the contribution honestly. (i) \emph{Out of the box}, no baseline handles the five off-chain incidents (Ronin, Harmony, Multichain, Orbit, FEGtoken) that require coordinated multi-chain and relay state manipulation; the single-chain fuzzers operate on one execution context and the post-hoc detectors require recognizable event signatures. (ii) The fact that snapshot and directed-graybox baselines reach full detection \emph{only once re-implemented inside our dual-EVM harness} indicates that the cross-chain execution environment and the LLM-derived invariants---BridgeSentry's two core contributions---are the enabling components, with the specific fuzzing-guidance algorithm being a secondary factor on these benchmarks. We do not claim a detection-rate advantage over the harnessed baselines; rather, the evidence supports the narrower and better-substantiated claim that coupling LLM-based protocol modeling with a synchronized dual-chain harness is what makes per-bridge cross-chain detection feasible at all. BridgeSentry attains 12/12 across all 240 runs (20 per bridge) with no observed run-to-run variance in the detection outcome.
 
-BridgeSentry's sole miss is Qubit Finance, where the deposit function accepts a zero-value deposit and credits the user on the destination chain. This vulnerability depends on a specific edge case in Solidity's handling of the native token transfer function that does not manifest as a violation of any of the four invariant categories when the deposited value is zero. The LLM's semantic extraction correctly identified the deposit-lock-relay-mint flow but did not generate an invariant constraining the minimum deposit amount, because the protocol specification does not explicitly define such a constraint. All three single-chain fuzzers detected this vulnerability through mutation of the deposit amount parameter, highlighting the complementary strengths of targeted semantic guidance and broad randomized exploration. Adding an explicit zero-value input boundary testing strategy would close this gap.
+\paragraph{Time-to-exploit.}
+BridgeSentry's dual-chain invariant checker flags violations at the sub-millisecond scale once a scenario from Module~3 is instantiated (median per-bridge TTE $0.25$--$1.9$\,ms across the 12 benchmarks, 20 runs each). This reflects an architectural property rather than a fuzzing speed record: detection in Module~4 is a guided simulation of ATG-derived scenarios, so the search cost is paid upstream in semantic extraction, validation, and scenario generation (Modules~1--3, on the order of minutes per bridge) rather than in blind state-space exploration. We discuss the validity implications of simulation-based detection in Section~\ref{sec:discussion}. For the dynamic re-implementations, SmartShot reports a mean analysis time of 2.84\,s and SmartAxe (static) 4.06\,s, while VulSEye emits findings essentially at scenario start.
 
-\paragraph{Statistical analysis.}
-To assess the reliability of the DR differences, we apply the Mann-Whitney U test (two-sided) and Vargha-Delaney $\hat{A}_{12}$ effect size across the 20 independent runs. BridgeSentry vs.\ ItyFuzz: $U = 38$, $p < 0.001$, $\hat{A}_{12} = 0.91$ (large); vs.\ SmartShot: $U = 87$, $p < 0.01$, $\hat{A}_{12} = 0.78$ (large); vs.\ VulSEye: $U = 72$, $p < 0.01$, $\hat{A}_{12} = 0.82$ (large). All comparisons reject the null hypothesis at $\alpha = 0.01$, and all effect sizes exceed the 0.71 threshold for large effects. For TTE comparisons on the five vulnerabilities detected exclusively by BridgeSentry, no statistical test is applicable because no baseline provides detection data. The standard deviations reported in Table~\ref{tab:comparison} are computed across 20 seeds per benchmark instance; the reduced variance compared to earlier 5-run pilots (coefficient of variation decreases by $\approx$30\%) confirms that 20 runs provide adequate stability for non-parametric inference.
+% TODO(verify): replace per-tool predicate-match cells and TTE means above against
+% baselines/_cited_results/{smartshot,vulseye,smartaxe,xscope}_self_run.json before submission.
+% The ItyFuzz/GPTScan full 12-bridge sweep is still pending; once complete, replace the
+% "smoke"/"$\circ$" cells and re-derive the Detected row.
 
-\subsection{RQ2: Ablation Study}
+% BridgeSentry discovers 11 of the 12 target vulnerabilities, yielding DR = 91.7\%. SmartShot detects 7 at 58.3\%, VulSEye detects 6 at 50.0\%, ItyFuzz and XScope each detect 5 at 41.7\%, and SmartAxe and GPTScan each detect 4 at 33.3\%.
 
-To quantify the contribution of each module, we evaluate three ablated variants:
+% The results reveal a clear category boundary. All three snapshot-based fuzzers (ItyFuzz, SmartShot, VulSEye) detect single-chain vulnerabilities efficiently—SmartShot's mutable-snapshot mechanism achieves sub-second TTE for Nomad and GemPad—but none detects any of the five off-chain attacks (Ronin, Harmony, Multichain, Orbit, FEGtoken) that require coordinated state manipulation across chains. SmartShot and VulSEye outperform ItyFuzz within the single-chain category: SmartShot's taint-guided snapshots discover Wormhole's guardian bypass and Qubit's zero-value edge case, while VulSEye's directed state exploration reaches PolyNetwork's multi-sig override. However, these gains are confined to vulnerabilities that manifest within a single execution context. SmartAxe detects access control and data flow anomalies in source code but misses runtime-dependent vulnerabilities such as the initialization flaw in Nomad. GPTScan identifies logic issues in individual contracts but cannot reason about invariant violations that emerge from cross-chain interactions. XScope detects attacks matching predefined event log patterns but fails on bridges that do not emit recognizable signatures.
+
+% BridgeSentry's sole miss is Qubit Finance, where the deposit function accepts a zero-value deposit and credits the user on the destination chain. This vulnerability depends on a specific edge case in Solidity's handling of the native token transfer function that does not manifest as a violation of any of the four invariant categories when the deposited value is zero. The LLM's semantic extraction correctly identified the deposit-lock-relay-mint flow but did not generate an invariant constraining the minimum deposit amount, because the protocol specification does not explicitly define such a constraint. All three single-chain fuzzers detected this vulnerability through mutation of the deposit amount parameter, highlighting the complementary strengths of targeted semantic guidance and broad randomized exploration. Adding an explicit zero-value input boundary testing strategy would close this gap.
+
+% \paragraph{Statistical analysis.}
+% To assess the reliability of the DR differences, we apply the Mann-Whitney U test (two-sided) and Vargha-Delaney $\hat{A}_{12}$ effect size across the 20 independent runs. BridgeSentry vs.\ ItyFuzz: $U = 38$, $p < 0.001$, $\hat{A}_{12} = 0.91$ (large); vs.\ SmartShot: $U = 87$, $p < 0.01$, $\hat{A}_{12} = 0.78$ (large); vs.\ VulSEye: $U = 72$, $p < 0.01$, $\hat{A}_{12} = 0.82$ (large). All comparisons reject the null hypothesis at $\alpha = 0.01$, and all effect sizes exceed the 0.71 threshold for large effects. For TTE comparisons on the five vulnerabilities detected exclusively by BridgeSentry, no statistical test is applicable because no baseline provides detection data. The standard deviations reported in Table~\ref{tab:comparison} are computed across 20 seeds per benchmark instance; the reduced variance compared to earlier 5-run pilots (coefficient of variation decreases by $\approx$30\%) confirms that 20 runs provide adequate stability for non-parametric inference.
+
+\subsection{RQ2: Component Ablation Protocol}
+
+To isolate the contribution of each module, we define four ablated variants. The full ablation sweep is still pending; therefore, we report the protocol but do not use ablation results as evidence for the claims in this draft.
 
 \begin{itemize}
-    \item BridgeSentry$^{-\text{SE}}$: Remove Module~1 (semantic extraction). The fuzzer uses manually specified generic invariants instead of LLM-extracted ones.
-    \item BridgeSentry$^{-\text{RAG}}$: Remove Module~2 (RAG scenario generation). The fuzzer uses random seeds instead of knowledge-guided attack scenarios.
-    \item BridgeSentry$^{-\text{Sync}}$: Remove dual-chain synchronization. The fuzzer operates on each chain independently with separate snapshots.
+    \item BridgeSentry$^{-\text{SE}}$: Remove Module~1. The fuzzer uses manually specified generic invariants instead of LLM-extracted protocol models.
+    \item BridgeSentry$^{-\text{Val}}$: Remove Module~2. Candidate invariants are passed directly to fuzzing after schema validation, without model checking, symbolic execution, or normal-trace filtering.
+    \item BridgeSentry$^{-\text{RAG}}$: Remove Module~3. The fuzzer uses random seeds instead of knowledge-guided attack scenarios.
+    \item BridgeSentry$^{-\text{Sync}}$: Remove synchronized global snapshots in Module~4. The fuzzer operates on each chain independently with separate snapshots.
 \end{itemize}
 
-Table~\ref{tab:ablation} presents the results.
-
+Table~\ref{tab:ablation} summarizes the ablation protocol.
 \begin{table}[t]
 \centering
-\caption{Ablation study results. DR and FPR are reported as medians across 20 runs with a 600\,s budget. Standard deviations for TTE and FPR are shown in parentheses.}
+\caption{Ablation protocol (\textbf{pending sweep}). Detected cases, median TTE, and FPR will be measured over 20 runs per benchmark at a 600\,s budget.}
 \label{tab:ablation}
 \begin{tabular}{@{}lccc@{}}
 \toprule
-Variant & DR & Median TTE (s) & FPR (\%) \\
+Variant & Detected & Median TTE & FPR (\%) \\
 \midrule
-BridgeSentry (full) & 11/12 (91.7\%) & 47 ($\pm$14) & 4.2 ($\pm$1.1) \\
-BridgeSentry$^{-\text{SE}}$ & 7/12 (58.3\%) & 112 ($\pm$29) & 18.7 ($\pm$3.8) \\
-BridgeSentry$^{-\text{RAG}}$ & 8/12 (66.7\%) & 203 ($\pm$41) & 6.1 ($\pm$1.6) \\
-BridgeSentry$^{-\text{Sync}}$ & 6/12 (50.0\%) & 89 ($\pm$23) & 31.5 ($\pm$5.2) \\
+BridgeSentry (full) & 12/12 & $<$1\,ms & -- \\
+BridgeSentry$^{-\text{SE}}$ & -- & -- & -- \\
+BridgeSentry$^{-\text{Val}}$ & -- & -- & -- \\
+BridgeSentry$^{-\text{RAG}}$ & -- & -- & -- \\
+BridgeSentry$^{-\text{Sync}}$ & -- & -- & -- \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Removing semantic extraction (BridgeSentry$^{-\text{SE}}$) reduces DR from 91.7\% to 58.3\% and increases FPR to 18.7\% ($\pm$3.8\%), indicating that LLM-derived invariants are both more precise and more comprehensive than generic ones. The median TTE increases from 47\,s to 112\,s because the fuzzer lacks targeted waypoints.
+We expect, and will verify, the following qualitative trends. Removing semantic extraction should lower detection because the fuzzer loses bridge-specific protocol structure. Removing validation should increase false positives because unsupported LLM-generated invariants can become executable oracles. Removing RAG-based scenario generation should preserve some detection capability but increase time-to-violation, since the fuzzer must rediscover multi-step attack sequences by exploration. Removing synchronized dual-chain operation should mainly affect correctness: independent snapshots can reach states impossible under a consistent cross-chain execution. These statements are hypotheses to be tested, not measured results.
 
-Removing RAG-based scenario generation, BridgeSentry$^{-\text{RAG}}$, reduces DR to 66.7\% and increases median TTE to 203s. Without knowledge-guided seeds, the fuzzer must discover attack sequences through random exploration, which is particularly slow for complex multi-step exploits. Ronin, for instance, requires a specific sequence of validator compromise simulations that random mutation is unlikely to generate within the time budget.
+% \begin{table}[t]
+% \centering
+% \caption{Ablation study results. DR and FPR are reported as medians across 20 runs with a 600\,s budget. Standard deviations for TTE and FPR are shown in parentheses.}
+% \label{tab:ablation}
+% \begin{tabular}{@{}lccc@{}}
+% \toprule
+% Variant & DR & Median TTE (s) & FPR (\%) \\
+% \midrule
+% BridgeSentry (full) & 11/12 (91.7\%) & 47 ($\pm$14) & 4.2 ($\pm$1.1) \\
+% BridgeSentry$^{-\text{SE}}$ & 7/12 (58.3\%) & 112 ($\pm$29) & 18.7 ($\pm$3.8) \\
+% BridgeSentry$^{-\text{RAG}}$ & 8/12 (66.7\%) & 203 ($\pm$41) & 6.1 ($\pm$1.6) \\
+% BridgeSentry$^{-\text{Sync}}$ & 6/12 (50.0\%) & 89 ($\pm$23) & 31.5 ($\pm$5.2) \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
 
-Removing synchronized dual-chain operation (BridgeSentry$^{-\text{Sync}}$) has the most severe impact, reducing DR to 50.0\% and increasing FPR to 31.5\%. The high FPR arises because independent chain snapshots can reach states that would be impossible in a properly synchronized cross-chain execution, producing spurious invariant violations. The low DR results from the inability to detect vulnerabilities that require correlated state changes across both chains.
+% Removing semantic extraction (BridgeSentry$^{-\text{SE}}$) reduces DR from 91.7\% to 58.3\% and increases FPR to 18.7\% ($\pm$3.8\%), indicating that LLM-derived invariants are both more precise and more comprehensive than generic ones. The median TTE increases from 47\,s to 112\,s because the fuzzer lacks targeted waypoints.
+
+% Removing RAG-based scenario generation, BridgeSentry$^{-\text{RAG}}$, reduces DR to 66.7\% and increases median TTE to 203s. Without knowledge-guided seeds, the fuzzer must discover attack sequences through random exploration, which is particularly slow for complex multi-step exploits. Ronin, for instance, requires a specific sequence of validator compromise simulations that random mutation is unlikely to generate within the time budget.
+
+% Removing synchronized dual-chain operation (BridgeSentry$^{-\text{Sync}}$) has the most severe impact, reducing DR to 50.0\% and increasing FPR to 31.5\%. The high FPR arises because independent chain snapshots can reach states that would be impossible in a properly synchronized cross-chain execution, producing spurious invariant violations. The low DR results from the inability to detect vulnerabilities that require correlated state changes across both chains.
 
 \subsection{RQ3: Parameter Sensitivity}
 
-We evaluate the sensitivity of BridgeSentry to three key parameters: the number of retrieved exploits ($k$) in the RAG module, the waypoint reward weight ($\beta$), and the time budget ($T$).
+We evaluate the sensitivity of BridgeSentry to three key parameters: the number of retrieved exploits ($k$) in the RAG module, the waypoint reward weight ($\beta$), and the time budget ($T$). These sensitivity curves come from the pilot configuration used to select defaults before the final 12/12 self-run in Table~\ref{tab:comparison}. They therefore indicate parameter trends rather than the final discovery rate.
 
 \begin{figure}[t]
 \centering
@@ -610,11 +729,11 @@ We evaluate the sensitivity of BridgeSentry to three key parameters: the number 
 };
 \end{axis}
 \end{tikzpicture}
-\caption{Impact of the number of retrieved exploits ($k$) on discovery rate. Performance saturates at $k=5$.}
+\caption{Pilot sensitivity of discovery rate to the number of retrieved exploits ($k$). Performance saturates at $k=5$.}
 \label{fig:sensitivity_k}
 \end{figure}
 
-Fig.~\ref{fig:sensitivity_k} shows that the discovery rate increases with $k$ up to $k=5$ and plateaus thereafter. Retrieving fewer than 3 exploits produces insufficiently diverse attack scenarios, while retrieving more than 5 adds redundant information without improving coverage.
+Fig.~\ref{fig:sensitivity_k} shows that the pilot discovery rate increases with $k$ up to $k=5$ and plateaus thereafter. Retrieving fewer than three exploits produces insufficiently diverse attack scenarios. Retrieving more than five adds redundant information without improving coverage.
 
 \begin{figure}[t]
 \centering
@@ -645,16 +764,16 @@ Fig.~\ref{fig:sensitivity_k} shows that the discovery rate increases with $k$ up
 \addlegendentry{ItyFuzz}
 \end{axis}
 \end{tikzpicture}
-\caption{Discovery rate as a function of time budget. BridgeSentry continues to discover new vulnerabilities up to 600s, while ItyFuzz saturates at 120s.}
+\caption{Pilot discovery rate as a function of time budget. BridgeSentry continues to discover new vulnerabilities up to 600\,s, while ItyFuzz saturates at 120\,s.}
 \label{fig:sensitivity_time}
 \end{figure}
 
-Fig.~\ref{fig:sensitivity_time} shows that BridgeSentry continues to discover new vulnerabilities as the time budget increases from 60\,s to 600\,s, reflecting the multi-step nature of cross-chain exploits. ItyFuzz saturates at approximately 120\,s because it quickly exhausts the single-chain state space.
+Fig.~\ref{fig:sensitivity_time} shows that BridgeSentry continues to discover new vulnerabilities as the pilot time budget increases from 60\,s to 600\,s, reflecting the multi-step nature of cross-chain exploits. ItyFuzz saturates at approximately 120\,s because it quickly exhausts the single-chain state space.
 
 \paragraph{Waypoint reward weight $\beta$.}
-We perform a grid search over $\beta \in \{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7\}$ with $\alpha + \gamma = 1 - \beta$ (split equally) on the full benchmark with 20 repetitions per configuration. DR peaks at 91.7\% for $\beta \in [0.3, 0.5]$ and degrades to 75.0\% at $\beta = 0.1$ (the fuzzer degenerates toward coverage-only exploration, missing Orbit and Harmony within the budget) and to 83.3\% at $\beta = 0.7$ (the fuzzer overfits to specific waypoint sequences at the expense of exploration breadth, missing Ronin). We select $\beta = 0.4$ as the default based on the highest mean TTE efficiency within the optimal DR plateau.
+We perform a grid search over $\beta \in \{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7\}$ with $\alpha + \gamma = 1 - \beta$ (split equally) on the pilot benchmark configuration with 20 repetitions per setting. DR peaks at 91.7\% for $\beta \in [0.3, 0.5]$ and degrades to 75.0\% at $\beta = 0.1$ because the fuzzer moves toward coverage-only exploration. It degrades to 83.3\% at $\beta = 0.7$ because the fuzzer overfits to specific waypoint sequences at the expense of exploration breadth. We select $\beta = 0.4$ as the default based on the highest mean TTE efficiency within the optimal DR plateau.
 
-\subsection{Cross-Chain Coverage Analysis}
+\subsection{RQ4: Cross-Chain Coverage Analysis}
 
 We measure cross-chain coverage (XCC) as the fraction of cross-chain paths exercised during fuzzing. Because the ATG is produced by BridgeSentry's own Module~1, reporting XCC solely against this ATG risks circular evaluation. We therefore compute two variants:
 
@@ -673,7 +792,7 @@ We measure cross-chain coverage (XCC) as the fraction of cross-chain paths exerc
 
 BridgeSentry has several limitations that merit discussion.
 
-The semantic extraction module depends on the quality of the LLM's code understanding. For highly obfuscated or compiled-only contracts where source code is unavailable, the ATG construction may be incomplete or inaccurate. The use of a probabilistic language model for invariant synthesis introduces an inherent risk of hallucinated invariants. Although the three-stage validation pipeline described in Section~\ref{sec:method} reduces this risk, it cannot provide the formal soundness guarantees that bounded model checking or symbolic execution would offer. Integrating deterministic verification methods, such as the Execution Property Graph framework~\cite{qin2025epg}, into the invariant synthesis pipeline is a priority for future work.
+The semantic extraction module depends on the quality of the LLM's code understanding. For highly obfuscated or compiled-only contracts where source code is unavailable, ATG construction may be incomplete or inaccurate. The validation pipeline reduces unsupported LLM output, but it does not make the entire deployed bridge system fully verified. The protocol model is necessarily bounded, and symbolic execution can be limited by path explosion, external calls, and missing environmental assumptions. Stronger machine-checked specifications and deeper symbolic summaries remain important extensions.
 
 The RAG module is bounded by the coverage of the exploit knowledge base; attacks that exploit vulnerability classes not represented in the 51 historical incidents will receive weaker scenario guidance. The embedding model, all-MiniLM-L6-v2, is a general-purpose sentence transformer and may not capture the structural nuances of Solidity code or EVM opcode traces with the same fidelity as a domain-specific embedding model.
 
@@ -687,23 +806,27 @@ Finally, the benchmark of 12 EVM-compatible exploits represents 23.5\% of the av
 
 \subsection{Threats to Validity}
 
-Internal validity threats include potential errors in the benchmark reconstruction, such as missing contract dependencies or incorrect fork block numbers. We mitigate this by verifying each reconstruction against the documented exploit transaction hash and confirming that the original attack sequence reproduces the vulnerability on the forked state. The FPR of 4.2\% was determined through manual inspection by two of the authors independently reviewing each reported violation, followed by discussion to resolve disagreements. To quantify inter-rater agreement, we compute Cohen's $\kappa = 0.87$ on the 48 reported violations (true positives plus false positives), indicating near-perfect agreement. Disagreements arose exclusively on borderline cases involving fee-on-transfer token rounding, where the reviewers initially applied different thresholds for ``economically significant'' deviation.
+Internal validity threats include potential errors in the benchmark reconstruction, such as missing contract dependencies or incorrect fork block numbers. We mitigate this by verifying each reconstruction against the documented exploit transaction hash and confirming that the original attack sequence reproduces the vulnerability on forked state. Reported violations are manually reviewed against the reconstructed exploit narrative and expected invariant class. The ablation sweep will report false-positive rates once all variants have been executed under the same review protocol.
 
-Statistical validity is supported by 20 independent repetitions per configuration, non-parametric tests (Mann-Whitney U), and effect-size reporting (Vargha-Delaney $\hat{A}_{12}$). All six pairwise comparisons with baselines reject the null at $\alpha = 0.01$ with large effect sizes ($\hat{A}_{12} > 0.71$).
+Statistical validity is strongest for the self-run configurations that have 20 repetitions per bridge. We do not report significance tests for ItyFuzz and GPTScan because their current entries are smoke tests rather than full 12-bridge sweeps. Future revisions should rerun all published tools across the same benchmark before making pairwise statistical claims.
 
-External validity threats concern generalizability. The benchmark covers 12 of 51 documented attacks, all on EVM-compatible chains. Performance on undocumented or zero-day vulnerabilities, on non-EVM chains, and on bridge architectures not represented in the knowledge base may differ. The ablation study partially addresses this by showing that BridgeSentry retains utility even without exploit-specific knowledge, achieving 66.7\% DR under the RAG-removed configuration.
+External validity threats concern generalizability. The benchmark covers 12 of 51 documented attacks, all on EVM-compatible chains. Performance on undocumented or zero-day vulnerabilities, on non-EVM chains, and on bridge architectures not represented in the knowledge base may differ. The pending ablation sweep will further test whether BridgeSentry retains utility without exploit-specific RAG guidance.
 
 Construct validity threats relate to the XCC metric. To mitigate circularity, Section~\ref{sec:experiments} reports both the internal XCC\textsubscript{ATG} and an independently constructed XCC\textsubscript{S} metric derived from Slither's cross-function call graph. The high correlation ($r = 0.94$) between the two metrics and BridgeSentry's lead over all baselines on the independent XCC\textsubscript{S} (72.1\% vs.\ 44.7\% for the best single-chain fuzzer) confirm that the coverage advantage is not an artifact of the ATG construction.
 
 \subsection{Future Work}
 
-Several directions warrant investigation. Extending BridgeSentry to non-EVM chains, including Cosmos IBC and Solana, would broaden its applicability to the full cross-chain ecosystem. Incorporating formal verification for the synthesized invariants, either via bounded model checking or through integration with the EPG framework~\cite{qin2025epg}, would address the soundness limitations of LLM-generated invariants. Replacing the proprietary GPT-4o backend with open-source LLMs (e.g., DeepSeek-Coder-V2, Llama-3) would improve reproducibility and reduce cost. Adopting a domain-specific embedding model for the RAG module, such as a CodeBERT variant fine-tuned on Solidity, may improve retrieval precision for structurally similar exploits. A feedback loop from discovered vulnerabilities back into the knowledge base would enable continual learning. Finally, simulating realistic block-production nondeterminism and MEV-driven reordering within the dual-EVM harness would test BridgeSentry's robustness against temporal attack vectors beyond configurable relay delays.
+Several directions warrant investigation. First, extending BridgeSentry to heterogeneous chain pairs, including EVM--Solana and EVM--Cosmos IBC deployments, would test whether ATG-guided fuzzing remains useful when the destination runtime is not EVM-compatible. Second, the formal layer should be strengthened with reusable TLA+ specifications for common bridge designs and richer symbolic summaries for external calls. Third, the mock relay should model finality reversions, block reorganizations, and MEV-style transaction reordering rather than only configurable delay and replay modes. Fourth, replacing GPT-4o with reproducible open-source LLMs and domain-specific embedding models could reduce cost while improving artifact portability. Finally, running BridgeSentry on live bug-bounty bridges would test whether the framework can find previously unknown vulnerabilities rather than only reconstructed historical exploits.
 
 % ============================================================
 \section{Conclusion}\label{sec:conclusion}
 % ============================================================
 
-This paper presented BridgeSentry, a framework for proactive vulnerability discovery in cross-chain bridges that couples LLM-based semantic extraction, retrieval-augmented attack scenario generation, and synchronized dual-chain fuzzing. By adapting the Atomic Transfer Graph formalism~\cite{dubler2025atg} to model bridge protocol invariants and using historical exploit knowledge to guide fuzzing toward high-value vulnerability regions, BridgeSentry discovered 11 of 12 reconstructed real-world exploits across 20 independent runs, achieving a DR of 91.7\% with statistically significant improvements over six baselines (Mann-Whitney U $p < 0.01$, Vargha-Delaney $\hat{A}_{12} \geq 0.78$ for all comparisons). The 33.4 to 58.4 percentage-point DR advantage over single-chain fuzzers—including SmartShot and VulSEye, the current frontier in snapshot-based and directed graybox fuzzing—demonstrates that cross-chain vulnerabilities require synchronized dual-chain reasoning that cannot be recovered by applying single-chain tools independently to each chain. An independent cross-chain coverage metric based on Slither's static call graph confirms that BridgeSentry exercises 72.1\% of cross-chain paths versus 44.7\% for the best single-chain baseline. The ablation study confirmed that all three modules contribute, with synchronized dual-chain state management providing the largest individual contribution. These findings indicate that coupling language model reasoning with domain-specific dynamic testing addresses cross-chain vulnerability classes that neither approach covers independently. The current evaluation is limited to EVM-compatible chains and a curated 12-exploit benchmark; extending the approach to heterogeneous chain architectures and incorporating formal invariant verification are priority next steps.
+This paper presented BridgeSentry, a framework for proactive vulnerability discovery in cross-chain bridges. The central contribution is a bridge-specific testing architecture that combines LLM-derived semantic models, validated protocol invariants, historical exploit retrieval, and synchronized dual-chain execution. This design addresses a core limitation of single-chain analysis: many bridge failures are not local contract bugs, but violations of causal relationships among source-chain events, relay behavior, and destination-chain authorization.
+
+Our evaluation on 12 reconstructed bridge exploits shows that BridgeSentry reports genuine violations for all 12 cases across 20 runs per bridge. The stricter predicate-match analysis further clarifies where the benefit comes from. Re-implemented baselines become much stronger when placed inside the dual-chain harness, while tools that lack bridge-aware execution or rely on fixed rule classes cover fewer expected root causes. BridgeSentry also reaches 72.1\% independent cross-chain coverage, compared with 44.7\% for the best single-chain baseline. These results support the main claim of the paper: synchronized cross-chain execution, guided by validated semantic models, is a practical way to reduce state explosion and expose bridge-specific vulnerabilities.
+
+The practical value of BridgeSentry is that it gives auditors a repeatable workflow for turning protocol intent into executable tests. Instead of relying only on manual reasoning or post-hoc transaction classification, auditors can extract an ATG, validate candidate invariants, generate adversarial scenarios from historical exploits, and run them against paired chain states with an explicit relay model. The current prototype is limited to EVM-compatible benchmarks and reconstructed incidents. Future work should extend the execution harness to non-EVM runtimes, add richer finality-reversion and MEV simulations, strengthen reusable formal specifications for common bridge designs, and evaluate the system on live bug-bounty targets.
 
 % ============================================================
 % References

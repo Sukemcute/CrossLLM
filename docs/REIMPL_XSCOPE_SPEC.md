@@ -310,6 +310,16 @@ BUDGET=60 RUNS=1 BASELINE=xscope OUTDIR=/tmp/xscope_smoke \
 
 # Verify ≥ 11/12 bridges have at least one violation in the predicted class
 python3 scripts/verify_xscope_acceptance.py /tmp/xscope_smoke/
+
+# Verify the cached self-run replay artifact used by the paper tables.
+# Official X4 bar remains 11/12; the current self-run artifact is 10/12.
+python3 scripts/verify_xscope_acceptance.py \
+    --cited-json baselines/_cited_results/xscope_self_run.json
+
+# In-scope replay smoke, excluding the known Wormhole/Solana and Socket
+# predicate-class gaps documented in REIMPL_XSCOPE_X4_OUTCOME.md.
+python3 scripts/verify_xscope_acceptance.py \
+    --cited-json baselines/_cited_results/xscope_self_run.json --bar 10
 ```
 
 Expected verifier output:
@@ -327,9 +337,9 @@ gempad       I-5  ✓ (1 violation)
 
 ## 8. Tracking in the bigger plan
 
-This file fulfils sub-task **X1** of
+This file originally fulfilled sub-task **X1** of
 [docs/PLAN_REIMPL_BASELINES.md §2.1](PLAN_REIMPL_BASELINES.md). Updates
-the tracking matrix:
+the original tracking matrix below for historical context; current status follows it.
 
 | Sub-task | Status |
 |---|---|
@@ -339,3 +349,25 @@ the tracking matrix:
 | X4 validation against per-bridge map (§4) | ⏳ |
 | X5 lab sweep (12 × 20) | ⏳ |
 | X6 update cited JSON → self-run | ⏳ |
+
+Current status:
+
+| Sub-task | Status |
+|---|---|
+| X1 spec | Done: this file |
+| X2 Rust module + 6 predicates | Done: `src/module3_fuzzing/src/baselines/xscope.rs` implements I-1..I-6 with unit coverage |
+| X3 wiring + CLI | Done: `--baseline-mode xscope`, `--baseline-mode xscope-replay`, `xscope_adapter`, `MockRelay::parsed_log`, and `StorageTracker` are wired |
+| X4 validation against per-bridge map (section 4) | Implemented, but official acceptance is **10/12**, below the 11/12 bar; see `docs/REIMPL_XSCOPE_X4_OUTCOME.md` |
+| X5 lab sweep (12 x 20) | Partial/recorded: deterministic replay self-run is captured in `baselines/_cited_results/xscope_self_run.json`; full live `/tmp/xscope_smoke` artifact is not present in this checkout |
+| X6 update cited JSON to self-run | Done: `baselines/_cited_results/xscope_self_run.json` records the current 10/12 replay result |
+
+Current blocker: not predicate implementation. The remaining acceptance gap is
+Wormhole (Solana/source-side replay outside the EVM replay scope) and Socket
+(approval-drain bug class outside XScope's bridge-protocol predicate set). The
+verifier now supports both raw run directories and the cached cited/self-run
+artifact:
+
+```bash
+python3 scripts/verify_xscope_acceptance.py \
+    --cited-json baselines/_cited_results/xscope_self_run.json
+```
