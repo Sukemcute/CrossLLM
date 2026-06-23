@@ -12,6 +12,9 @@ Usage:
         [--strict]    # require *all* predicted predicates per bridge,
                        # not just at least one (default: any-of).
 
+    python3 scripts/verify_xscope_acceptance.py \
+        --cited-json baselines/_cited_results/xscope_self_run.json
+
 The expected map below is a verbatim transcription of the spec §4
 table; any change to the spec must be reflected here so the verifier
 remains the source of truth for X4 acceptance.
@@ -24,7 +27,6 @@ import glob
 import json
 import os
 import sys
-from collections import defaultdict
 from typing import Dict, List, Set
 
 
@@ -93,25 +95,10 @@ def verify_bridge(
     }
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("outdir", help="results dir containing <bridge>/run_*.json")
-    ap.add_argument(
-        "--strict",
-        action="store_true",
-        help="require ALL predicted predicates per bridge, not just any-of",
-    )
-    ap.add_argument(
-        "--bar",
-        type=int,
-        default=11,
-        help="number of bridges that must pass (default 11/12 per spec §4)",
-    )
-    args = ap.parse_args()
-
+def rows_from_run_dir(outdir: str, strict: bool) -> List[Dict[str, object]]:
     rows: List[Dict[str, object]] = []
     for bridge, expected in EXPECTED_PREDICATES.items():
-        bridge_dir = os.path.join(args.outdir, bridge)
+        bridge_dir = os.path.join(outdir, bridge)
         run_files = sorted(glob.glob(os.path.join(bridge_dir, "run_*.json")))
         if not run_files:
             rows.append(
@@ -128,7 +115,60 @@ def main() -> int:
             )
             continue
         fired = collect_predicates(run_files)
-        rows.append(verify_bridge(bridge, fired, expected, args.strict))
+        rows.append(verify_bridge(bridge, fired, expected, strict))
+    return rows
+
+
+def rows_from_cited_json(path: str, strict: bool) -> List[Dict[str, object]]:
+    with open(path, encoding="utf-8") as f:
+        payload = json.load(f)
+    results = payload.get("results", {}) or {}
+
+    rows: List[Dict[str, object]] = []
+    for bridge, expected in EXPECTED_PREDICATES.items():
+        cell = results.get(bridge, {}) or {}
+        fired = {
+            str(pred)
+            for pred in (cell.get("predicates_fired", []) or [])
+            if str(pred).startswith("I-")
+        }
+        row = verify_bridge(bridge, fired, expected, strict)
+        if int(cell.get("runs", 0) or 0) == 0 and not fired:
+            row["rule"] = "missing-results"
+            row["passed"] = False
+        else:
+            row["rule"] = "cited-json strict" if strict else "cited-json any-of"
+        rows.append(row)
+    return rows
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("outdir", nargs="?", help="results dir containing <bridge>/run_*.json")
+    ap.add_argument(
+        "--cited-json",
+        help="verify an aggregated cited/self-run JSON instead of a run directory",
+    )
+    ap.add_argument(
+        "--strict",
+        action="store_true",
+        help="require ALL predicted predicates per bridge, not just any-of",
+    )
+    ap.add_argument(
+        "--bar",
+        type=int,
+        default=11,
+        help="number of bridges that must pass (default 11/12 per spec §4)",
+    )
+    ap.add_argument("--summary", help="path to write verification summary JSON")
+    args = ap.parse_args()
+
+    if args.cited_json:
+        rows = rows_from_cited_json(args.cited_json, args.strict)
+    elif args.outdir:
+        rows = rows_from_run_dir(args.outdir, args.strict)
+    else:
+        ap.error("provide either <outdir> or --cited-json")
 
     # ----- Print per-bridge table -----
     print(
@@ -154,13 +194,24 @@ def main() -> int:
     print(f"Bridges passing: {pass_count}/{total}  (acceptance bar: {args.bar}/{total})")
     overall_pass = pass_count >= args.bar
 
-    # ----- JSON summary written next to outdir for the LaTeX pipeline -----
-    summary_path = os.path.join(args.outdir, "_x4_verification.json")
+    # ----- JSON summary written for the LaTeX pipeline -----
+    if args.summary:
+        summary_path = args.summary
+    elif args.outdir:
+        summary_path = os.path.join(args.outdir, "_x4_verification.json")
+    else:
+        summary_path = os.path.join(
+            "docs", "baseline_x4_artifacts", "xscope_self_run_verification.json"
+        )
     try:
+        parent = os.path.dirname(summary_path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
         with open(summary_path, "w", encoding="utf-8") as f:
             json.dump(
                 {
                     "rule": "strict" if args.strict else "any-of",
+                    "source": args.cited_json or args.outdir,
                     "bar": args.bar,
                     "passing": pass_count,
                     "total": total,
