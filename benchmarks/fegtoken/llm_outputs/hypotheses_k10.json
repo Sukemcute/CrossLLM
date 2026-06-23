@@ -1,0 +1,1404 @@
+{
+  "bridge_name": "fegtoken",
+  "scenarios": [
+    {
+      "scenario_id": "fegtoken_mock_total_supply_exploit_01",
+      "target_invariant": "asset_conservation_mock_total_supply_constant",
+      "vulnerability_class": "fake_deposit + logic_bug",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "source",
+          "contract": "Relay",
+          "function": "submitMessage",
+          "params": {
+            "msgHash": "0xdeadbeefcafebabefeedface12345678",
+            "srcChainId": 1,
+            "dstChainId": 2,
+            "payload": "0x010000000000000000000000UserFrom00000000000000000000000000000000000000000000000000000000000f4240",
+            "signature": "0x00"
+          },
+          "mode": "tampered",
+          "waypoint": "relayMessageVerified == false && mockLockClaimed == true",
+          "description": "Step 1"
+        },
+        {
+          "step": 2,
+          "chain": "destination",
+          "contract": "FEGToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAttackerAddress0000000000000000000000000000",
+            "amount": 1000000
+          },
+          "mode": "faithful",
+          "waypoint": "balanceFEG[0xAttackerAddress0000000000000000000000000000] == balanceBefore + 1000000",
+          "description": "Step 2"
+        },
+        {
+          "step": 3,
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "transferFrom",
+          "params": {
+            "from": "0xUserFromAddress0000000000000000000000000000",
+            "to": "0xAttackerAddress0000000000000000000000000000",
+            "amount": 1000000
+          },
+          "mode": "faithful",
+          "waypoint": "totalSupplyMock_after == totalSupplyMock_before + 1000000",
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_xscope",
+        "nomad_20220801"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "destRouter.totalMinted() >= 1000000",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "feg_mint_replay_exploit_001",
+      "target_invariant": "asset_conservation_feg_mint_equals_locked_mock",
+      "vulnerability_class": "relay_replay_without_nonce",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "transferFrom(address,address,uint256)",
+          "params": {
+            "from": "UserFrom",
+            "to": "UserTo",
+            "amount": "1000"
+          },
+          "description": "Migrator (msg.sender == feg.migrator()) locks 1,000 MockToken, emitting a signed relay message H that contains msgHash and amount=1000.",
+          "state_predicate": "sourceRouter.totalLocked() == 1000 && lockedAmountMock == 1000",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "FEGToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "User",
+            "amount": "1000"
+          },
+          "relay_mode": "faithful",
+          "description": "Bridge relayer verifies signature of H (verifyRelay == true) and mints 1,000 FEG to the intended user.",
+          "state_predicate": "mintedAmountFEG == 1000 && mintedAmountFEG == lockedAmountMock",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "FEGToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "Attacker",
+            "amount": "1000"
+          },
+          "relay_mode": "replay",
+          "description": "Attacker re‑submits the same signed relay message H (replay attack). The contract only checks signature validity, not whether the msgHash has been processed before, so a second mint of 1,000 FEG succeeds.",
+          "state_predicate": "mintedAmountFEG == 2000 && lockedAmountMock == 1000",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_double_mint_2022",
+        "nomad_key_reuse_2021"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Migrator (msg.sender == feg.migrator()) locks 1,000 MockToken, emitting a signed relay message H that contains msgHash and amount=1000."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Bridge relayer verifies signature of H (verifyRelay == true) and mints 1,000 FEG to the intended user."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker re‑submits the same signed relay message H (replay attack). The contract only checks signature validity, not whether the msgHash has been processed before, so a second mint of 1,000 FEG succeeds."
+        }
+      ]
+    },
+    {
+      "scenario_id": "flashloan_unrestricted_mint_balance_invariant_break",
+      "target_invariant": "asset_conservation_flashloan_balance_restored",
+      "vulnerability_class": "unrestricted_mint",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "FlashLoanProvider",
+          "function": "flashLoan(uint256,bytes)",
+          "params": {
+            "amount": "1000e18",
+            "data": "0x",
+            "callback": [
+              {
+                "contract": "FEGToken",
+                "function": "mint(address,uint256)",
+                "params": {
+                  "to": "0xFlashLoanProviderAddress",
+                  "amount": "500e18"
+                },
+                "description": "Attacker mints 500 FEG directly to the FlashLoanProvider, increasing its token balance."
+              },
+              {
+                "contract": "FlashLoanProvider",
+                "function": "repayFlashLoan(uint256)",
+                "params": {
+                  "amount": "1000e18"
+                },
+                "description": "Attacker returns the original loan amount."
+              }
+            ]
+          },
+          "description": "Initiate flash loan of 1000 FEG; during the loan callback, mint extra tokens to the provider and then repay the loan.",
+          "step": 1
+        }
+      ],
+      "retrieved_exploits": [
+        "anyswap_20210710",
+        "gempad_20240419"
+      ],
+      "state_waypoints": [
+        {
+          "predicate": "flashLoanProvider.balanceBefore == B0",
+          "description": "Record provider balance before flash loan."
+        },
+        {
+          "predicate": "flashLoanProvider.balanceAfter == B0 + 500e18",
+          "description": "Provider balance after repay includes minted extra tokens, violating invariant."
+        }
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Initiate flash loan of 1000 FEG; during the loan callback, mint extra tokens to the provider and then repay the loan."
+        }
+      ]
+    },
+    {
+      "scenario_id": "fegtoken_reentrancy_negative_balance_01",
+      "target_invariant": "asset_conservation_no_negative_balance",
+      "vulnerability_class": "reentrancy_logic_bug",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "FlashLoanProvider",
+          "function": "flashLoan(uint256,bytes)",
+          "params": {
+            "amount": "1000e18",
+            "data": "0xabcdef",
+            "callback": "AttackerContract.executeAttack(uint256)"
+          },
+          "description": "Attacker initiates a flash loan of 1000 FEG tokens; the provider transfers the tokens to AttackerContract and expects repayment within the same transaction.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "AttackerContract",
+          "function": "executeAttack(uint256)",
+          "params": {
+            "loanAmount": "1000e18",
+            "firstTransfer": {
+              "to": "MaliciousReceiver",
+              "amount": "500e18"
+            }
+          },
+          "description": "AttackerContract receives the loaned FEG and calls FEG.transfer to MaliciousReceiver with 500 FEG. This triggers the ERC777‑style tokensReceived hook on MaliciousReceiver.",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "MaliciousReceiver",
+          "function": "tokensReceived(address,address,uint256,bytes,bytes)",
+          "params": {
+            "operator": "AttackerContract",
+            "from": "AttackerContract",
+            "amount": "500e18",
+            "data": "0x",
+            "reenterTransfer": {
+              "to": "MaliciousReceiver",
+              "amount": "500e18"
+            }
+          },
+          "description": "During the hook, MaliciousReceiver re‑enters FEG.transfer, moving another 500 FEG from AttackerContract to itself before AttackerContract's balance is fully updated.",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "FlashLoanProvider",
+          "function": "repay(uint256)",
+          "params": {
+            "amount": "1000e18"
+          },
+          "description": "Attacker attempts to repay the flash loan. The repayment may succeed because the provider only checks its own balance, but AttackerContract’s balance is now negative.",
+          "step": 4
+        }
+      ],
+      "state_predicates": [
+        {
+          "predicate": "sourceFEG.balanceOf(attacker) < 0",
+          "explanation": "After the re‑entrant second transfer (edge e3), the attacker’s FEG balance underflows, violating the invariant that balanceAfter[account] >= 0."
+        }
+      ],
+      "retrieved_exploits": [
+        "chainswap_20210711",
+        "nomad_20220801",
+        "thorchain_20210628"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker initiates a flash loan of 1000 FEG tokens; the provider transfers the tokens to AttackerContract and expects repayment within the same transaction."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "AttackerContract receives the loaned FEG and calls FEG.transfer to MaliciousReceiver with 500 FEG. This triggers the ERC777‑style tokensReceived hook on MaliciousReceiver."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "During the hook, MaliciousReceiver re‑enters FEG.transfer, moving another 500 FEG from AttackerContract to itself before AttackerContract's balance is fully updated."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Attacker attempts to repay the flash loan. The repayment may succeed because the provider only checks its own balance, but AttackerContract’s balance is now negative."
+        }
+      ]
+    },
+    {
+      "scenario_id": "feg_migrator_auth_bypass_001",
+      "target_invariant": "authorization_migrator_only_transfer",
+      "vulnerability_class": "authorization_bypass",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "AttackerContract",
+          "function": "constructor",
+          "params": {},
+          "description": "Deploy a malicious contract controlled by the attacker. The contract will later invoke MockToken.transferFrom.",
+          "state_predicates": [
+            "address(AttackerContract) != address(0)"
+          ],
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "FEGToken",
+          "function": "setMigrator",
+          "params": {
+            "newMigrator": "AttackerContract"
+          },
+          "description": "Call the unprotected setter that changes the migrator address. No access control is enforced, allowing the attacker to become the migrator.",
+          "state_predicates": [
+            "feg.migrator() == AttackerContract",
+            "originalMigrator != AttackerContract"
+          ],
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "transferFrom",
+          "params": {
+            "from": "UserFrom",
+            "to": "UserTo",
+            "amount": "1000 ether"
+          },
+          "description": "AttackerContract invokes transferFrom to move MockToken from UserFrom to UserTo. The call is made directly, bypassing any bridge‑level checks because the migrator role has been hijacked.",
+          "state_predicates": [
+            "MockToken.balanceOf(UserFrom) == MockToken.balanceOf(UserFrom)_before - 1000 ether",
+            "MockToken.balanceOf(UserTo) == MockToken.balanceOf(UserTo)_before + 1000 ether",
+            "msg.sender == AttackerContract",
+            "feg.migrator() == AttackerContract",
+            "originalMigrator != msg.sender"
+          ],
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202",
+        "multichain_20230215",
+        "fegtoken_20240220"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Deploy a malicious contract controlled by the attacker. The contract will later invoke MockToken.transferFrom."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Call the unprotected setter that changes the migrator address. No access control is enforced, allowing the attacker to become the migrator."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "AttackerContract invokes transferFrom to move MockToken from UserFrom to UserTo. The call is made directly, bypassing any bridge‑level checks because the migrator role has been hijacked."
+        }
+      ]
+    },
+    {
+      "scenario_id": "fegtoken_mint_auth_bypass_001",
+      "target_invariant": "authorization_mint_must_originate_from_zero_address",
+      "vulnerability_class": "access_control_bypass",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "step_id": "a1",
+          "chain": "source",
+          "contract": "FlashLoanProvider",
+          "function": "flashLoan(uint256,bytes)",
+          "params": {
+            "amount": "10000000000000000000",
+            "data": "0x"
+          },
+          "description": "Attacker initiates a flash loan of 10 FEG to obtain temporary capital for gas and to create a callback context where msg.sender is the attacker EOA, not the zero address.",
+          "state_predicates": {
+            "pre": [
+              "flashLoanProvider.balanceBefore == B0",
+              "B0 >= amount"
+            ],
+            "post": [
+              "flashLoanProvider.balanceAfter == B0"
+            ]
+          },
+          "step": 1
+        },
+        {
+          "step_id": "a2",
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttacker00000000000000000000000000000000",
+            "amount": "1000000000000000000000000"
+          },
+          "description": "Within the flash‑loan callback the attacker directly calls MockToken.mint. The call is executed by the attacker EOA (msg.sender = 0xAttacker…), not by address(0), violating the invariant that only the zero address may mint MockToken.",
+          "state_predicates": {
+            "pre": [
+              "msg.sender != address(0)",
+              "totalSupplyMock_before == S0"
+            ],
+            "post": [
+              "totalSupplyMock_after == S0 + 1000000000000000000000000",
+              "balanceOf[0xAttacker00000000000000000000000000000000] == balanceBefore + 1000000000000000000000000"
+            ]
+          },
+          "step": 2
+        },
+        {
+          "step_id": "a3",
+          "chain": "source",
+          "contract": "FlashLoanProvider",
+          "function": "repay(uint256)",
+          "params": {
+            "amount": "10000000000000000000"
+          },
+          "description": "Attacker repays the flash loan, restoring the provider's balance and cleaning up the transaction trace.",
+          "state_predicates": {
+            "pre": [
+              "flashLoanProvider.balance == B0"
+            ],
+            "post": [
+              "flashLoanProvider.balance == B0"
+            ]
+          },
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "fegtoken_20240220",
+        "socket_20240116"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker initiates a flash loan of 10 FEG to obtain temporary capital for gas and to create a callback context where msg.sender is the attacker EOA, not the zero address."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Within the flash‑loan callback the attacker directly calls MockToken.mint. The call is executed by the attacker EOA (msg.sender = 0xAttacker…), not by address(0), violating the invariant that only the zero address may mint MockToken."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker repays the flash loan, restoring the provider's balance and cleaning up the transaction trace."
+        }
+      ]
+    },
+    {
+      "scenario_id": "fegtoken_relay_verification_bypass_01",
+      "target_invariant": "authorization_relay_verified_before_mint",
+      "vulnerability_class": "signature_forgery",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "transferFrom(address,address,uint256)",
+          "params": {
+            "from": "0xUserFrom",
+            "to": "0xUserTo",
+            "amount": "1000e18"
+          },
+          "mode": "faithful",
+          "predicate": "sourceRouter.totalLocked() >= 1000e18",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "relay",
+          "contract": "RelayHub",
+          "function": "submitMessage(bytes calldata payload, bytes calldata signature)",
+          "params": {
+            "payload": "0x{encodedLockMessage}",
+            "signature": "0x0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          "mode": "tampered",
+          "predicate": "verifyRelay(payload, signature) == false && relayMessageStored == true",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "FEGToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "1000e18"
+          },
+          "mode": "faithful",
+          "predicate": "FEGToken.totalSupply() == totalSupply_before + 1000e18 && verifyRelay(payload, signature) == false",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202",
+        "chainswap_20210711",
+        "socket_20240116"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "inv_allowance_bypass_storage_collision",
+      "target_invariant": "authorization_allowance_sufficient_for_transferFrom",
+      "vulnerability_class": "storage_collision",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "approve",
+          "params": {
+            "spender": "Attacker",
+            "amount": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "waypoint": "MockToken.allowance[Attacker][Attacker] == type(uint256).max",
+          "description": "Step 1"
+        },
+        {
+          "step": 2,
+          "chain": "source",
+          "contract": "FEGToken",
+          "function": "transferFrom",
+          "params": {
+            "from": "Victim",
+            "to": "Attacker",
+            "amount": "1000000000000000000000"
+          },
+          "waypoint": "FEGToken.allowance[Victim][Attacker] == 0 && MockToken.allowance[Victim][Attacker] == type(uint256).max",
+          "description": "Step 2"
+        },
+        {
+          "step": 3,
+          "chain": "source",
+          "contract": "FEGToken",
+          "function": "balanceOf",
+          "params": {
+            "account": "Attacker"
+          },
+          "waypoint": "FEGToken.balanceOf[Attacker] >= 1000000000000000000000",
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "lifinance_20220320"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "replay_nonce_fegtoken_001",
+      "target_invariant": "uniqueness_nonce_used_once",
+      "vulnerability_class": "replay_attack_missing_nonce_guard",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "transferFrom(address,address,uint256)",
+          "params": {
+            "from": "UserFrom",
+            "to": "UserTo",
+            "amount": "1000"
+          },
+          "description": "User locks 1,000 MockToken; the bridge emits a lock event containing nonce N=42.",
+          "step": 1
+        },
+        {
+          "chain": "relay",
+          "contract": "BridgeRelay",
+          "function": "forwardMessage(bytes)",
+          "params": {
+            "message": "0x{nonce:42,amount:1000,recipient:User}"
+          },
+          "mode": "faithful",
+          "description": "Off‑chain relayer forwards the lock message to the destination chain.",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "FEGToken",
+          "function": "mint(address,uint256,uint256)",
+          "params": {
+            "to": "User",
+            "amount": "1000",
+            "nonce": "42"
+          },
+          "description": "First mint on destination chain; nonce 42 is recorded as used (nonceUsed[42] == true).",
+          "step": 3
+        },
+        {
+          "chain": "relay",
+          "contract": "BridgeRelay",
+          "function": "forwardMessage(bytes)",
+          "params": {
+            "message": "0x{nonce:42,amount:1000,recipient:User}"
+          },
+          "mode": "replay",
+          "description": "Attacker re‑broadcasts the same signed message; the relayer does not enforce a replay‑preventing flag.",
+          "step": 4
+        },
+        {
+          "chain": "destination",
+          "contract": "FEGToken",
+          "function": "mint(address,uint256,uint256)",
+          "params": {
+            "to": "Attacker",
+            "amount": "1000",
+            "nonce": "42"
+          },
+          "description": "Second mint with the same nonce; due to a missing/incorrect nonce check the contract mints again, violating the invariant.",
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810",
+        "pnetwork_20210919",
+        "socket_20240116"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1,000 MockToken; the bridge emits a lock event containing nonce N=42."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Off‑chain relayer forwards the lock message to the destination chain."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "First mint on destination chain; nonce 42 is recorded as used (nonceUsed[42] == true)."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "relay.message_count > 0",
+          "description": "Attacker re‑broadcasts the same signed message; the relayer does not enforce a replay‑preventing flag."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Second mint with the same nonce; due to a missing/incorrect nonce check the contract mints again, violating the invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "flashloan_id_replay_feg_001",
+      "target_invariant": "uniqueness_flashloan_id_once",
+      "vulnerability_class": "logic_bug_missing_id_tracking",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "FlashLoanProvider",
+          "function": "flashLoan",
+          "params": {
+            "amount": "1000000e18",
+            "data": "0xdeadbeef",
+            "loanId": "0xdeadbeef"
+          },
+          "mode": "faithful",
+          "precondition": "flashLoanExecuted[0xdeadbeef] == false",
+          "postcondition": "balance[FlashLoanProvider] == balanceBefore - 1000000e18",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "source",
+          "contract": "AttackerContract",
+          "function": "executeArbitrage",
+          "params": {
+            "loanId": "0xdeadbeef",
+            "borrowedAmount": "1000000e18"
+          },
+          "mode": "faithful",
+          "precondition": "balance[AttackerContract] == 0",
+          "postcondition": "balance[AttackerContract] == 1200000e18",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "source",
+          "contract": "FlashLoanProvider",
+          "function": "repay",
+          "params": {
+            "loanId": "0xdeadbeef",
+            "amount": "1000100e18"
+          },
+          "mode": "faithful",
+          "precondition": "balance[FlashLoanProvider] == balanceBefore - 1000000e18",
+          "postcondition": "balance[FlashLoanProvider] == balanceBefore + 100e18",
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "source",
+          "contract": "FlashLoanProvider",
+          "function": "flashLoan",
+          "params": {
+            "amount": "1000000e18",
+            "data": "0xdeadbeef",
+            "loanId": "0xdeadbeef"
+          },
+          "mode": "faithful",
+          "precondition": "flashLoanExecuted[0xdeadbeef] == false",
+          "postcondition": "balance[FlashLoanProvider] == balanceBefore - 1000000e18",
+          "step": 4,
+          "description": "Step 4"
+        },
+        {
+          "chain": "source",
+          "contract": "AttackerContract",
+          "function": "executeArbitrage",
+          "params": {
+            "loanId": "0xdeadbeef",
+            "borrowedAmount": "1000000e18"
+          },
+          "mode": "faithful",
+          "precondition": "balance[AttackerContract] == 1200000e18",
+          "postcondition": "balance[AttackerContract] == 2400000e18",
+          "step": 5,
+          "description": "Step 5"
+        },
+        {
+          "chain": "source",
+          "contract": "AttackerContract",
+          "function": "withdrawProfit",
+          "params": {
+            "token": "FEGToken",
+            "to": "User"
+          },
+          "mode": "faithful",
+          "precondition": "balance[AttackerContract] >= 1200000e18",
+          "postcondition": "balance[User] == balance[User] + 1200000e18",
+          "step": 6,
+          "description": "Step 6"
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810",
+        "gempad_20240419",
+        "wormhole_20220202"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Step 5"
+        },
+        {
+          "waypoint_id": "w6",
+          "after_step": 6,
+          "predicate": "step_6_executed",
+          "description": "Step 6"
+        }
+      ]
+    },
+    {
+      "scenario_id": "replay_duplicate_mint_e7_01",
+      "target_invariant": "uniqueness_mint_event_id_once",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "claimMint(uint256 tokenId,bytes proof)",
+          "params": {
+            "tokenId": 42,
+            "proof": "0xdeadbeefcafebabefeedface00112233"
+          },
+          "description": "First legitimate claim – Bridge verifier accepts proof and internally calls MockToken.mint(address(this),42) via a delegatecall from the zero‑address context, emitting a mint event with tokenId 42.",
+          "waypoint": "MockToken.mintedTokenId[42] == true && MockToken.mintCount[42] == 1",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "claimMint(uint256 tokenId,bytes proof)",
+          "params": {
+            "tokenId": 42,
+            "proof": "0xdeadbeefcafebabefeedface00112233"
+          },
+          "description": "Replay attack – attacker resubmits the identical proof before the bridge marks the claim as spent. The contract does not track a nonce or replay bitmap, so the internal mint is executed again with the same tokenId.",
+          "relay_mode": "replay",
+          "waypoint": "MockToken.mintCount[42] == 2 && !mintedTokenId[42] (violated)",
+          "step": 2
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810",
+        "ronin_20220323",
+        "multichain_20230215"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "First legitimate claim – Bridge verifier accepts proof and internally calls MockToken.mint(address(this),42) via a delegatecall from the zero‑address context, emitting a mint event with tokenId 42."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Replay attack – attacker resubmits the identical proof before the bridge marks the claim as spent. The contract does not track a nonce or replay bitmap, so the internal mint is executed again with the same tokenId."
+        }
+      ]
+    },
+    {
+      "scenario_id": "replay_e1_migrator_compromise_fegtoken_001",
+      "target_invariant": "uniqueness_transfer_e1_once",
+      "vulnerability_class": "logic_bug / access_control",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "Migrator",
+          "function": "transferFrom(address,address,uint256)",
+          "params": {
+            "from": "UserFrom",
+            "to": "UserTo",
+            "amount": "1000e18"
+          },
+          "description": "First legitimate bridge lock – called by the authentic migrator (msg.sender == feg.migrator()).",
+          "state_predicates": [
+            "executedTxHash[txHash1] == true",
+            "sourceRouter.totalLocked() >= 1000e18"
+          ],
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "Migrator",
+          "function": "transferFrom(address,address,uint256)",
+          "params": {
+            "from": "UserFrom",
+            "to": "UserTo",
+            "amount": "1000e18"
+          },
+          "description": "Attacker re‑executes e1 using a compromised migrator address (msg.sender spoofed to feg.migrator()). New transaction hash txHash2 is distinct, so !executedTxHash[txHash2] passes.",
+          "mode": "tampered",
+          "state_predicates": [
+            "executedTxHash[txHash2] == true",
+            "sourceRouter.totalLocked() >= 2000e18"
+          ],
+          "step": 2
+        },
+        {
+          "chain": "relay",
+          "contract": "RelayNetwork",
+          "function": "relayMessage(bytes)",
+          "params": {
+            "message": "hash_of_e1_txHash2"
+          },
+          "description": "Relay (tampered mode) forwards the second lock message to the destination chain, treating it as a fresh deposit.",
+          "mode": "tampered",
+          "state_predicates": [
+            "relayMessageSeen[hash_of_e1_txHash2] == true"
+          ],
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "FEGToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "UserTo",
+            "amount": "1000e18"
+          },
+          "description": "Destination mint triggered by the replayed relay – e2 executes again, minting extra FEG.",
+          "state_predicates": [
+            "mintedAmountFEG == 2000e18",
+            "executedTxHash[txHash2] == true"
+          ],
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810",
+        "multichain_20230715",
+        "anyswap_20210710"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "First legitimate bridge lock – called by the authentic migrator (msg.sender == feg.migrator())."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker re‑executes e1 using a compromised migrator address (msg.sender spoofed to feg.migrator()). New transaction hash txHash2 is distinct, so !executedTxHash[txHash2] passes."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "relay.message_count > 0",
+          "description": "Relay (tampered mode) forwards the second lock message to the destination chain, treating it as a fresh deposit."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Destination mint triggered by the replayed relay – e2 executes again, minting extra FEG."
+        }
+      ]
+    },
+    {
+      "scenario_id": "fegtoken_timeliness_refund_early_refund_via_tampered_relay",
+      "target_invariant": "timeliness_refund_allowed_after_timeout",
+      "vulnerability_class": "relay_tampering/replay_logic_bug",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "FEGSwap",
+          "function": "lock(uint256 amount,uint256 lockId)",
+          "params": {
+            "amount": 1000000,
+            "lockId": 42
+          },
+          "description": "User (acting as migrator) locks MockToken. Storage writes lockTimestamp[42] = block.timestamp (T0).",
+          "state_predicate": "lockTimestamp[42] == T0",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "RelayNode",
+          "function": "relayUpdate(uint256 lockId,uint256 fakeTimestamp)",
+          "params": {
+            "lockId": 42,
+            "fakeTimestamp": "T0 - (LOCK_TIMEOUT + 1)"
+          },
+          "relay_mode": "tampered",
+          "description": "Attacker controls the off‑chain relayer and injects a tampered message that overwrites lockTimestamp[42] with an older value, bypassing the timeout check.",
+          "state_predicate": "lockTimestamp[42] == T0 - (LOCK_TIMEOUT + 1)",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "FEGSwap",
+          "function": "refund(uint256 lockId)",
+          "params": {
+            "lockId": 42
+          },
+          "description": "User calls refund before the real timeout. Because lockTimestamp was artificially reduced, the invariant predicate block.timestamp >= lockTimestamp[42] + LOCK_TIMEOUT now evaluates to true, allowing the refund.",
+          "state_predicate": "block.timestamp >= lockTimestamp[42] + LOCK_TIMEOUT",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "chainswap_20210711",
+        "anyswap_20210710",
+        "thorchain_20210628"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User (acting as migrator) locks MockToken. Storage writes lockTimestamp[42] = block.timestamp (T0)."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker controls the off‑chain relayer and injects a tampered message that overwrites lockTimestamp[42] with an older value, bypassing the timeout check."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "User calls refund before the real timeout. Because lockTimestamp was artificially reduced, the invariant predicate block.timestamp >= lockTimestamp[42] + LOCK_TIMEOUT now evaluates to true, allowing the refund."
+        }
+      ]
+    },
+    {
+      "scenario_id": "flashloan_timeliness_delay_001",
+      "target_invariant": "timeliness_flashloan_repay_before_deadline",
+      "vulnerability_class": "timeliness_logic_bug",
+      "confidence": 0.93,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "FlashLoanProvider",
+          "function": "flashLoan",
+          "params": {
+            "amount": "1000000e18",
+            "data": "0x4e6f6e65786973743a6578656375746541747461636b2829"
+          },
+          "description": "User (attacker) initiates a flash loan of 1,000,000 FEGToken. The provider records loanStart[loanId] = block.timestamp.",
+          "waypoint": "loanStart[loanId] == block.timestamp",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "AttackerContract",
+          "function": "executeAttack",
+          "params": {},
+          "description": "Callback executed by flash loan. The contract calls the off‑chain relay to forward a mint message, but forces the relay into *delayed* mode (e.g., by submitting a low‑gas transaction that the relayer queues for 1,200 blocks).",
+          "relay_mode": "delayed",
+          "waypoint": "block.number >= loanStartBlock + 1200 && block.timestamp > loanStart[loanId] + MAX_FLASHLOAN_DURATION",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "FlashLoanProvider",
+          "function": "repay",
+          "params": {
+            "loanId": "0x01",
+            "data": "0x"
+          },
+          "description": "After the relay delay expires, the attacker returns the borrowed amount. This call occurs in a block whose timestamp exceeds the allowed flash‑loan window.",
+          "waypoint": "block.timestamp > loanStart[loanId] + MAX_FLASHLOAN_DURATION",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "FlashLoanProvider",
+          "function": "internalInvariantCheck",
+          "params": {},
+          "description": "Contract executes the Solidity assertion `require(block.timestamp <= loanStart[loanId] + MAX_FLASHLOAN_DURATION, \"Flash loan repayment too late\");` which now fails, demonstrating the invariant breach.",
+          "waypoint": "assertion_failed == true",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "ronin_20220323",
+        "harmony_horizon_20220624"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User (attacker) initiates a flash loan of 1,000,000 FEGToken. The provider records loanStart[loanId] = block.timestamp."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Callback executed by flash loan. The contract calls the off‑chain relay to forward a mint message, but forces the relay into *delayed* mode (e.g., by submitting a low‑gas transaction that the relayer queues for 1,200 blocks)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "After the relay delay expires, the attacker returns the borrowed amount. This call occurs in a block whose timestamp exceeds the allowed flash‑loan window."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Contract executes the Solidity assertion `require(block.timestamp <= loanStart[loanId] + MAX_FLASHLOAN_DURATION, \"Flash loan repayment too late\");` which now fails, demonstrating the invariant breach."
+        }
+      ]
+    },
+    {
+      "scenario_id": "fegtoken_timeliness_mint_after_timeout_001",
+      "target_invariant": "timeliness_no_mint_after_lock_timeout",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "transferFrom(address,address,uint256)",
+          "params": {
+            "from": "Attacker",
+            "to": "UserTo",
+            "amount": 1000000
+          },
+          "description": "Attacker calls the migrator (msg.sender == feg.migrator()) which invokes MockToken.transferFrom, creating lockId L and storing lockTimestamp[L] = block.timestamp (T0). Predicate: sourceRouter.lockTimestamp[L] == T0",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "system",
+          "function": "wait(uint256)",
+          "params": {
+            "seconds": "LOCK_TIMEOUT + 1"
+          },
+          "description": "Advance time so that block.timestamp > lockTimestamp[L] + LOCK_TIMEOUT. Predicate: block.timestamp > lockTimestamp[L] + LOCK_TIMEOUT",
+          "step": 2
+        },
+        {
+          "chain": "relay",
+          "contract": "RelayNode",
+          "function": "relayMessage(bytes)",
+          "params": {
+            "message": "abi.encode(L, Attacker, 1000000)"
+          },
+          "mode": "delayed",
+          "description": "Compromised relay node forwards the original lock message after the timeout (delayed mode). The destination bridge receives the message and proceeds to mint.",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "FEGToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "Attacker",
+            "amount": 1000000
+          },
+          "description": "FEGToken.mint is executed for lockId L despite the timeout. Predicate violated: block.timestamp < lockTimestamp[L] + LOCK_TIMEOUT is false, breaking invariant timeliness_no_mint_after_lock_timeout.",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "socket_20240116",
+        "thorchain_20210628"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker calls the migrator (msg.sender == feg.migrator()) which invokes MockToken.transferFrom, creating lockId L and storing lockTimestamp[L] = block.timestamp (T0). Predicate: sourceRouter.lockTimestamp[L] == T0"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Advance time so that block.timestamp > lockTimestamp[L] + LOCK_TIMEOUT. Predicate: block.timestamp > lockTimestamp[L] + LOCK_TIMEOUT"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "relay.message_count > 0",
+          "description": "Compromised relay node forwards the original lock message after the timeout (delayed mode). The destination bridge receives the message and proceeds to mint."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "FEGToken.mint is executed for lockId L despite the timeout. Predicate violated: block.timestamp < lockTimestamp[L] + LOCK_TIMEOUT is false, breaking invariant timeliness_no_mint_after_lock_timeout."
+        }
+      ]
+    },
+    {
+      "scenario_id": "fegtimeliness_mint_zero_lock_exploit_001",
+      "target_invariant": "timeliness_mint_only_when_locked_amount_positive",
+      "vulnerability_class": "signature_forgery",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "FEGSwap",
+          "function": "transferFrom",
+          "params": {
+            "from": "UserFrom",
+            "to": "UserTo",
+            "amount": 0
+          },
+          "mode": "faithful",
+          "predicate": "lockedAmount[lockId] == 0",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "offchain",
+          "contract": "BridgeRelay",
+          "function": "forgeRelayMessage",
+          "params": {
+            "lockId": "lockId",
+            "lockedAmount": 0,
+            "mintAmount": 1000000,
+            "recipient": "User"
+          },
+          "mode": "tampered",
+          "predicate": "verifyRelay(message, signature) == true",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "FEGToken",
+          "function": "mint",
+          "params": {
+            "to": "User",
+            "amount": 1000000
+          },
+          "mode": "relay_processed",
+          "predicate": "mintedAmountFEG == 1000000 && lockedAmount[lockId] == 0",
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "destination",
+          "contract": "User",
+          "function": "transfer",
+          "params": {
+            "to": "AttackerEOA",
+            "amount": 1000000
+          },
+          "mode": "faithful",
+          "predicate": "balanceOf[AttackerEOA] >= 1000000",
+          "step": 4,
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202",
+        "synapse_xscope",
+        "nomad_20220801"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "destRouter.totalMinted() >= 1000000",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "flashloan_timeliness_bypass_delayed_relay",
+      "target_invariant": "timeliness_flashloan_withdraw_before_deadline",
+      "vulnerability_class": "off_chain_replay_delay",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "FlashLoanProvider",
+          "function": "flashLoan(uint256,bytes)",
+          "params": {
+            "amount": "1000000000000000000",
+            "data": "0x"
+          },
+          "description": "User signs a flash‑loan request off‑chain while the window is still open.",
+          "waypoint": "block.timestamp <= flashLoanWindowStart + FLASHLOAN_WINDOW_DURATION",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "Relay",
+          "function": "submitSignedFlashLoan(bytes)",
+          "params": {
+            "signedRequest": "<signed_blob>"
+          },
+          "relay_mode": "delayed",
+          "description": "Compromised relay holds the signed request and forwards it only after the deadline has passed.",
+          "waypoint": "block.timestamp > flashLoanWindowStart + FLASHLOAN_WINDOW_DURATION",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "FlashLoanProvider",
+          "function": "executeFlashLoan()",
+          "params": {},
+          "description": "FlashLoanProvider executes the withdraw (edge e5) using the delayed request; the contract does not re‑check the timestamp, so the invariant is violated.",
+          "waypoint": "block.timestamp > flashLoanWindowStart + FLASHLOAN_WINDOW_DURATION && balanceBefore >= amount",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "pnetwork_20210920",
+        "polynetwork_20210810"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User signs a flash‑loan request off‑chain while the window is still open."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Compromised relay holds the signed request and forwards it only after the deadline has passed."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "FlashLoanProvider executes the withdraw (edge e5) using the delayed request; the contract does not re‑check the timestamp, so the invariant is violated."
+        }
+      ]
+    }
+  ]
+}

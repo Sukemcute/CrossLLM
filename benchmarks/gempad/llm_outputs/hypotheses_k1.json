@@ -1,0 +1,1313 @@
+{
+  "bridge_name": "gempad",
+  "scenarios": [
+    {
+      "scenario_id": "gempad_double_mint_replay_001",
+      "target_invariant": "asset_conservation_total_locked_equals_minted",
+      "vulnerability_class": "relay_replay_attack",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "owner": "0xUSER000000000000000000000000000000000000",
+            "amount": 100000000000000000000,
+            "unlockTime": "block.timestamp + 86400"
+          },
+          "description": "User locks 100 MockToken (18 decimals) with a future unlockTime, creating lock nonce N.",
+          "state_predicate": "totalLocked == 100000000000000000000"
+        },
+        {
+          "step": 2,
+          "chain": "destination",
+          "contract": "MockToken",
+          "function": "mint",
+          "params": {
+            "to": "0xUSER000000000000000000000000000000000000",
+            "amount": 100000000000000000000
+          },
+          "relay_mode": "faithful",
+          "description": "Honest relay forwards the lock proof to the destination chain, minting 100 MockToken for the user.",
+          "state_predicate": "totalMinted == 100000000000000000000"
+        },
+        {
+          "step": 3,
+          "chain": "destination",
+          "contract": "MockToken",
+          "function": "mint",
+          "params": {
+            "to": "0xUSER000000000000000000000000000000000000",
+            "amount": 100000000000000000000
+          },
+          "relay_mode": "replay",
+          "description": "Attacker replays the same lock proof (same nonce) to the mint contract, causing a second mint of 100 MockToken.",
+          "state_predicate": "totalMinted == 200000000000000000000 && totalLocked == 100000000000000000000"
+        }
+      ],
+      "retrieved_exploits": [
+        "harmony_horizon_20220624"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 100000000000000000000",
+          "description": "User locks 100 MockToken (18 decimals) with a future unlockTime, creating lock nonce N."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "destRouter.totalMinted() >= 200000000000000000000",
+          "description": "Honest relay forwards the lock proof to the destination chain, minting 100 MockToken for the user."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "destRouter.totalMinted() >= 300000000000000000000",
+          "description": "Attacker replays the same lock proof (same nonce) to the mint contract, causing a second mint of 100 MockToken."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_negative_balance_unchecked_transfer",
+      "target_invariant": "asset_conservation_no_negative_balance",
+      "vulnerability_class": "unchecked_return_value_logic_bug",
+      "confidence": 0.85,
+      "actions": [
+        {
+          "step_id": "a1",
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "address": "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+          "function": "lock",
+          "params": {
+            "token": "0xFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEF",
+            "amount": 1000,
+            "unlockTime": "block.timestamp"
+          },
+          "description": "User creates a lock with immediate unlockTime. MockToken.transferFrom returns false (insufficient balance) but GemPadLocker does not check the return value.",
+          "state_predicate": "GemPadLocker.totalLocked == 1000 && MockToken.balanceOf[GemPadLocker] == 0",
+          "step": 1
+        },
+        {
+          "step_id": "a2",
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "address": "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+          "function": "withdraw",
+          "params": {
+            "nonce": 0
+          },
+          "description": "User calls withdraw after unlockTime has passed. GemPadLocker attempts to transfer 1000 MockToken back to the user, but its balance is 0, causing an unchecked subtraction and underflow.",
+          "state_predicate": "MockToken.balanceOf[GemPadLocker] == (2**256 - 1000) && balanceOf[GemPadLocker] < 0",
+          "step": 2
+        }
+      ],
+      "retrieved_exploits": [
+        "thorchain_20210716"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000",
+          "description": "User creates a lock with immediate unlockTime. MockToken.transferFrom returns false (insufficient balance) but GemPadLocker does not check the return value."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "User calls withdraw after unlockTime has passed. GemPadLocker attempts to transfer 1000 MockToken back to the user, but its balance is 0, causing an unchecked subtraction and underflow."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_overflow_totallocked_exceeds_supply_001",
+      "target_invariant": "asset_conservation_locked_not_exceed_total_supply",
+      "vulnerability_class": "unrestricted_mint_integer_overflow",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "mint",
+          "params": {
+            "to": "0xATTACKER0000000000000000000000000000000000",
+            "amount": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "description": "Attacker calls unrestricted mint with max uint256 to overflow totalSupply.",
+          "postcondition": "MockToken.totalSupply == (origSupply + 2**256‑1) mod 2**256",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "owner": "0xATTACKER0000000000000000000000000000000000",
+            "amount": "1000000000000000000",
+            "unlockTime": "block.timestamp + 86400"
+          },
+          "description": "Attacker locks a legitimate amount of MockToken after supply overflow.",
+          "postcondition": "GemPadLocker.totalLocked > MockToken.totalSupply",
+          "step": 2
+        }
+      ],
+      "retrieved_exploits": [
+        "orbit_20240101"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker calls unrestricted mint with max uint256 to overflow totalSupply."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "sourceRouter.totalLocked() >= 1000000000000000000",
+          "description": "Attacker locks a legitimate amount of MockToken after supply overflow."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_mint_overlock_001",
+      "target_invariant": "asset_conservation_mint_amount_matches_locked",
+      "vulnerability_class": "relay_tampering",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "token": "0xFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEF",
+            "amount": 1,
+            "unlockTime": 9999999999
+          },
+          "description": "User creates a lock with a tiny amount; the locker records locks[N].amount == 1 and emits nonce N.",
+          "step": 1
+        },
+        {
+          "chain": "offchain",
+          "contract": "Relay",
+          "function": "forwardMessage",
+          "params": {
+            "nonce": "N",
+            "amount": 1,
+            "token": "MockToken"
+          },
+          "relay_mode": "faithful",
+          "description": "The honest relay forwards the lock proof to the destination chain.",
+          "step": 2
+        },
+        {
+          "chain": "offchain",
+          "contract": "Relay",
+          "function": "tamperMessage",
+          "params": {
+            "nonce": "N",
+            "amount": 1000
+          },
+          "relay_mode": "tampered",
+          "description": "Attacker intercepts and rewrites the payload, inflating the amount to 1000 before it reaches the destination.",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "MockToken",
+          "function": "mint",
+          "params": {
+            "to": "0xUSER000000000000000000000000000000000000",
+            "amount": 1000
+          },
+          "description": "Destination token contract mints 1000 tokens for the user using the tampered message; mintedAmount[N] == 1000 while source lock amount == 1.",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "harmony_horizon_20220624"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1",
+          "description": "User creates a lock with a tiny amount; the locker records locks[N].amount == 1 and emits nonce N."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "The honest relay forwards the lock proof to the destination chain."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker intercepts and rewrites the payload, inflating the amount to 1000 before it reaches the destination."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "destRouter.totalMinted() >= 2002",
+          "description": "Destination token contract mints 1000 tokens for the user using the tampered message; mintedAmount[N] == 1000 while source lock amount == 1."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_invariant_violation_001",
+      "target_invariant": "asset_conservation_withdraw_decrements_locked",
+      "vulnerability_class": "missing_state_update",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "lock(address,uint256,uint256)",
+          "params": {
+            "token": "0xFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEF",
+            "amount": 1000000000000000000,
+            "unlockTime": 1735689600
+          },
+          "description": "User creates a lock of 1 ETH‑worth of MockToken with a future unlock timestamp.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "withdraw(uint256)",
+          "params": {
+            "nonce": 1
+          },
+          "description": "After block.timestamp >= unlockTime, the lock owner calls withdraw. The contract transfers the locked amount to the caller but **fails to decrement** `totalLocked`.",
+          "state_predicates": [
+            "GemPadLocker.locks[1].withdrawn == true",
+            "GemPadLocker.totalLocked == 1000000000000000000"
+          ],
+          "step": 2
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_reentrancy_20210101"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User creates a lock of 1 ETH‑worth of MockToken with a future unlock timestamp."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "After block.timestamp >= unlockTime, the lock owner calls withdraw. The contract transfers the locked amount to the caller but **fails to decrement** `totalLocked`."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_tx_origin_auth_bypass_001",
+      "target_invariant": "authorization_lock_caller_is_owner",
+      "vulnerability_class": "tx_origin_auth_bypass",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "PhishingForwarder",
+          "function": "forwardLock(address,uint256,uint256)",
+          "params": {
+            "token": "0xFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEF",
+            "amount": "1000000000000000000",
+            "unlockTime": "block.timestamp + 86400"
+          },
+          "mode": "tampered",
+          "description": "Victim (EOA 0xVICITIM) is tricked into calling PhishingForwarder.forwardLock. The forwarder performs a delegatecall to GemPadLocker.lock(address,uint256,uint256). Because GemPadLocker uses `tx.origin` for the owner check, the lock is recorded as owned by the victim even though the call originated from the forwarder.",
+          "state_predicates": [
+            "GemPadLocker.locks[nonce].owner == 0xVICITIM",
+            "GemPadLocker.totalLocked() >= 1e18"
+          ],
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "lock(address,uint256,uint256)",
+          "params": {
+            "token": "0xFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEF",
+            "amount": "1000000000000000000",
+            "unlockTime": "block.timestamp + 86400"
+          },
+          "mode": "faithful",
+          "description": "Delegatecall from PhishingForwarder executes GemPadLocker.lock. The contract checks `require(tx.origin == owner, \"Only owner can lock\")`; `tx.origin` is the victim, so the check passes despite the attacker being the actual caller.",
+          "state_predicates": [
+            "GemPadLocker.locks[nonce].amount == 1e18",
+            "GemPadLocker.locks[nonce].unlockTime == block.timestamp + 86400"
+          ],
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "withdraw(uint256)",
+          "params": {
+            "nonce": "nonce"
+          },
+          "mode": "delayed",
+          "description": "After `unlockTime` passes, the attacker compromises the victim’s private key (e.g., via phishing) and calls `withdraw`. Because the lock’s owner field is the victim’s address, the compromised key satisfies `msg.sender == locks[nonce].owner`, allowing the attacker to drain the locked tokens.",
+          "state_predicates": [
+            "GemPadLocker.locks[nonce].withdrawn == true",
+            "GemPadLocker.totalLocked() == 0"
+          ],
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "qubit_20220127"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Victim (EOA 0xVICITIM) is tricked into calling PhishingForwarder.forwardLock. The forwarder performs a delegatecall to GemPadLocker.lock(address,uint256,uint256). Because GemPadLocker uses `tx.origin` for the owner check, the lock is recorded as owned by the victim even though the call originated from the forwarder."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Delegatecall from PhishingForwarder executes GemPadLocker.lock. The contract checks `require(tx.origin == owner, \"Only owner can lock\")`; `tx.origin` is the victim, so the check passes despite the attacker being the actual caller."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "After `unlockTime` passes, the attacker compromises the victim’s private key (e.g., via phishing) and calls `withdraw`. Because the lock’s owner field is the victim’s address, the compromised key satisfies `msg.sender == locks[nonce].owner`, allowing the attacker to drain the locked tokens."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_withdraw_owner_bypass_01",
+      "target_invariant": "authorization_withdraw_sender_is_owner",
+      "vulnerability_class": "privileged_state_modification",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "setLockOwner",
+          "params": {
+            "nonce": 17,
+            "newOwner": "0xATTACKER00000000000000000000000000000000"
+          },
+          "description": "Compromised relay (or malicious admin) calls an unprotected internal function that overwrites the lock owner mapping. Pre‑condition: `locks[17].owner == 0xUSER0000000000000000000000000000000000`. Post‑condition: `locks[17].owner == 0xATTACKER...`.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "withdraw",
+          "params": {
+            "nonce": 17
+          },
+          "description": "Attacker invokes withdraw after the lock's unlockTime has passed. Preconditions: `block.timestamp >= locks[17].unlockTime` && `locks[17].withdrawn == false`. Because the owner field was tampered, the require `msg.sender == locks[nonce].owner` passes, allowing the attacker to receive the locked MockToken.",
+          "step": 2
+        }
+      ],
+      "retrieved_exploits": [
+        "ronin_20220323",
+        "wormhole_20220202"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Compromised relay (or malicious admin) calls an unprotected internal function that overwrites the lock owner mapping. Pre‑condition: `locks[17].owner == 0xUSER0000000000000000000000000000000000`. Post‑condition: `locks[17].owner == 0xATTACKER...`."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker invokes withdraw after the lock's unlockTime has passed. Preconditions: `block.timestamp >= locks[17].unlockTime` && `locks[17].withdrawn == false`. Because the owner field was tampered, the require `msg.sender == locks[nonce].owner` passes, allowing the attacker to receive the locked MockToken."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_timestamp_front_run_001",
+      "target_invariant": "authorization_withdraw_only_after_unlock",
+      "vulnerability_class": "timestamp_manipulation",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "token": "0xFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEF",
+            "amount": 1000000000000000000,
+            "unlockTime": "block.timestamp + 604800",
+            "nonce": 42
+          },
+          "description": "User (owner) creates a lock with a 7‑day timelock. State predicate: GemPadLocker.locks[42].unlockTime == block.timestamp + 604800 && GemPadLocker.locks[42].owner == 0xUSER000000000000000000000000000000000000",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "withdraw",
+          "params": {
+            "nonce": 42
+          },
+          "description": "Attacker (owner) colludes with a miner to produce a block where block.timestamp is artificially set to >= unlockTime (e.g., block.timestamp = original_timestamp + 604801). State predicate before call: block.timestamp >= GemPadLocker.locks[42].unlockTime && GemPadLocker.locks[42].withdrawn == false",
+          "step": 2
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_timestamp_front_run"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000000000000000000",
+          "description": "User (owner) creates a lock with a 7‑day timelock. State predicate: GemPadLocker.locks[42].unlockTime == block.timestamp + 604800 && GemPadLocker.locks[42].owner == 0xUSER000000000000000000000000000000000000"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker (owner) colludes with a miner to produce a block where block.timestamp is artificially set to >= unlockTime (e.g., block.timestamp = original_timestamp + 604801). State predicate before call: block.timestamp >= GemPadLocker.locks[42].unlockTime && GemPadLocker.locks[42].withdrawn == false"
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_double_mint_replay_001",
+      "target_invariant": "authorization_mint_only_after_verified_lock",
+      "vulnerability_class": "replay_attack_on_bridge_relayer",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "token": "MockToken",
+            "amount": 1000,
+            "unlockTime": "block.timestamp + 86400"
+          },
+          "mode": "faithful",
+          "waypoint": "locks[nonce_0].exists == true && minted[nonce_0] == false",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "relay",
+          "contract": "BridgeRelay",
+          "function": "relayMint",
+          "params": {
+            "nonce": "nonce_0",
+            "to": "0xATTACKER00000000000000000000000000000000",
+            "amount": 1000
+          },
+          "mode": "faithful",
+          "waypoint": "minted[nonce_0] == true && totalMinted == 1000",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "relay",
+          "contract": "BridgeRelay",
+          "function": "relayMint",
+          "params": {
+            "nonce": "nonce_0",
+            "to": "0xATTACKER00000000000000000000000000000000",
+            "amount": 1000
+          },
+          "mode": "replay",
+          "waypoint": "minted[nonce_0] == true && totalMinted == 2000",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "relay.message_count > 0",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_relay_tamper_balance_check_break",
+      "target_invariant": "authorization_transfer_balance_check",
+      "vulnerability_class": "relay_tampering_logic_bug",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "mint",
+          "params": {
+            "to": "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+            "amount": 1000000
+          },
+          "description": "Fund the GemPadLocker contract with a large amount of MockToken so it can later release tokens during withdraw.",
+          "state_predicate": "balanceOf[0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF] == 1000000",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "owner": "0xUSER000000000000000000000000000000000000",
+            "amount": 0,
+            "unlockTime": 2000000000
+          },
+          "description": "Create a lock with amount 0 (nonce 0) – the contract does not check that the caller actually possesses the tokens.",
+          "state_predicate": "locks[0].amount == 0 && locks[0].owner == 0xUSER000000000000000000000000000000000000",
+          "step": 2
+        },
+        {
+          "chain": "relay",
+          "contract": "RelayAdapter",
+          "function": "tamperLockRecord",
+          "params": {
+            "nonce": 0,
+            "reportedAmount": 1000000
+          },
+          "description": "Attacker controls the relay and tampers the lock record, inflating the locked amount from 0 to 1,000,000.",
+          "relay_mode": "tampered",
+          "state_predicate": "locks[0].amount == 1000000",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "withdraw",
+          "params": {
+            "nonce": 0
+          },
+          "description": "After unlockTime has passed, withdraw releases the (tampered) amount. The locker transfers 1,000,000 MockToken to the attacker, crediting a balance that was never actually locked.",
+          "state_predicate": "balanceOf[0xUSER000000000000000000000000000000000000] == 1000000",
+          "step": 4
+        },
+        {
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "transfer",
+          "params": {
+            "to": "0xVIC0000000000000000000000000000000000000",
+            "amount": 1500000
+          },
+          "description": "Attacker attempts to transfer 1.5 M tokens while only 1 M were actually credited. The ERC20 implementation lacks proper under‑flow protection (pre‑0.8 Solidity), so the transfer succeeds and leaves a negative balance, violating the invariant.",
+          "state_predicate": "balanceOf[0xUSER000000000000000000000000000000000000] < 0",
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202",
+        "poly_network_20210618"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Fund the GemPadLocker contract with a large amount of MockToken so it can later release tokens during withdraw."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "sourceRouter.totalLocked() >= 1000000",
+          "description": "Create a lock with amount 0 (nonce 0) – the contract does not check that the caller actually possesses the tokens."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "relay.message_count > 0",
+          "description": "Attacker controls the relay and tampers the lock record, inflating the locked amount from 0 to 1,000,000."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "After unlockTime has passed, withdraw releases the (tampered) amount. The locker transfers 1,000,000 MockToken to the attacker, crediting a balance that was never actually locked."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Attacker attempts to transfer 1.5 M tokens while only 1 M were actually credited. The ERC20 implementation lacks proper under‑flow protection (pre‑0.8 Solidity), so the transfer succeeds and leaves a negative balance, violating the invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_transferFrom_allowance_bypass_001",
+      "target_invariant": "authorization_transferFrom_allowance_check",
+      "vulnerability_class": "allowance_underflow/unchecked_amount",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "approve(address,uint256)",
+          "params": {
+            "spender": "0xATTACKER00000000000000000000000000000000",
+            "amount": 1
+          },
+          "description": "Victim (0xVICTIM…) gives the attacker a minimal allowance of 1 token, establishing a legitimate allowance entry.",
+          "waypoint": "allowance[0xVICTIM][0xATTACKER] == 1",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "BridgeRelay",
+          "function": "processLock(uint256)",
+          "params": {
+            "nonce": 42
+          },
+          "relay_mode": "faithful",
+          "description": "Attacker forwards the lock message to the destination chain; the relay faithfully records the lock and mints 1 wrapped token for the attacker.",
+          "waypoint": "minted[42] == 1 && balanceOf[0xATTACKER] == 1",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "BridgeRelay",
+          "function": "relayTransferFrom(address,address,uint256)",
+          "params": {
+            "from": "0xVICTIM00000000000000000000000000000000",
+            "to": "0xATTACKER00000000000000000000000000000000",
+            "amount": 1000
+          },
+          "relay_mode": "tampered",
+          "description": "Attacker replays the previously signed approval but inflates the amount to 1000 tokens. The BridgeRelay calls MockToken.transferFrom without a proper >= amount check (bug: uses >0), allowing the transfer.",
+          "waypoint": "allowance[0xVICTIM][0xATTACKER] == 1 && balanceOf[0xATTACKER] >= 1000 && balanceOf[0xVICTIM] <= (initialBalance - 1000)",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Victim (0xVICTIM…) gives the attacker a minimal allowance of 1 token, establishing a legitimate allowance entry."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker forwards the lock message to the destination chain; the relay faithfully records the lock and mints 1 wrapped token for the attacker."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker replays the previously signed approval but inflates the amount to 1000 tokens. The BridgeRelay calls MockToken.transferFrom without a proper >= amount check (bug: uses >0), allowing the transfer."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_nonce_reuse_after_withdraw",
+      "target_invariant": "uniqueness_lock_nonce_once",
+      "vulnerability_class": "logic_bug_reuse_after_delete",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "mint",
+          "params": {
+            "to": "0xUSER000000000000000000000000000000000000",
+            "amount": 1000
+          },
+          "description": "Attacker mints enough MockToken to cover the lock.",
+          "state_predicate": "balanceOf[0xUSER000000000000000000000000000000000000] >= 1000"
+        },
+        {
+          "step": 2,
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "token": "0xFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEF",
+            "amount": 1000,
+            "unlockTime": 1700000000,
+            "nonce": 42
+          },
+          "description": "Create first lock with nonce 42.",
+          "state_predicate": "locks[42].exists == false before && locks[42].exists == true after"
+        },
+        {
+          "step": 3,
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "withdraw",
+          "params": {
+            "nonce": 42
+          },
+          "description": "After unlockTime passes, withdraw and the contract deletes the lock entry.",
+          "state_predicate": "locks[42].exists == false after"
+        },
+        {
+          "step": 4,
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "token": "0xFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEF",
+            "amount": 500,
+            "unlockTime": 1700100000,
+            "nonce": 42
+          },
+          "description": "Reuse the same nonce 42 to create a second lock.",
+          "state_predicate": "locks[42].exists == false before && locks[42].exists == true after"
+        },
+        {
+          "step": 5,
+          "chain": "destination",
+          "contract": "GemPadLocker",
+          "function": "mint",
+          "params": {
+            "to": "0xUSER000000000000000000000000000000000000",
+            "amount": 500,
+            "nonce": 42
+          },
+          "description": "Bridge mints tokens on the destination chain again for the same nonce, resulting in double credit.",
+          "state_predicate": "minted[42] == true before && minted[42] == true after (duplicate mint)"
+        }
+      ],
+      "retrieved_exploits": [
+        "socket_20240116"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker mints enough MockToken to cover the lock."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "sourceRouter.totalLocked() >= 2000",
+          "description": "Create first lock with nonce 42."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "After unlockTime passes, withdraw and the contract deletes the lock entry."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "sourceRouter.totalLocked() >= 2500",
+          "description": "Reuse the same nonce 42 to create a second lock."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "destRouter.totalMinted() >= 3000",
+          "description": "Bridge mints tokens on the destination chain again for the same nonce, resulting in double credit."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_replay_mint_nonce_double_spend_001",
+      "target_invariant": "uniqueness_mint_nonce_once",
+      "vulnerability_class": "replay_attack_missing_nonce_guard_on_relay",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "lock(address,uint256,uint256)",
+          "params": {
+            "token": "0xFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEF",
+            "amount": 1000,
+            "unlockTime": 0
+          },
+          "description": "User creates a lock; lock nonce N is generated and stored.",
+          "state_predicate": "GemPadLocker.locks[N].exists == true && GemPadLocker.locks[N].amount == 1000",
+          "step": 1
+        },
+        {
+          "chain": "relay",
+          "contract": "GemPadRelay",
+          "function": "processProof(bytes)",
+          "params": {
+            "proof": "<encoded lock proof containing nonce N, amount 1000, sender=User>"
+          },
+          "mode": "faithful",
+          "description": "Relay forwards the lock proof to the destination chain.",
+          "state_predicate": "DestinationMinter.pendingProofs[N] == true",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "DestinationMinter",
+          "function": "mint(address,uint256,bytes)",
+          "params": {
+            "to": "0xUSER000000000000000000000000000000000000",
+            "amount": 1000,
+            "proof": "<same proof as above>"
+          },
+          "description": "First mint of nonce N; passes uniqueness check.",
+          "state_predicate": "DestinationMinter.minted[N] == true && DestinationMinter.balanceOf[0xUSER000000000000000000000000000000000000] == 1000",
+          "step": 3
+        },
+        {
+          "chain": "relay",
+          "contract": "GemPadRelay",
+          "function": "processProof(bytes)",
+          "params": {
+            "proof": "<same proof as above>"
+          },
+          "mode": "replay",
+          "description": "Attacker re‑submits the identical proof; relay does not track already‑processed nonces, so the destination mint function is called again.",
+          "state_predicate": "DestinationMinter.minted[N] == true && DestinationMinter.balanceOf[0xUSER000000000000000000000000000000000000] == 2000",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_2021_replay",
+        "poly_network_2021_logic"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User creates a lock; lock nonce N is generated and stored."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Relay forwards the lock proof to the destination chain."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "First mint of nonce N; passes uniqueness check."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "relay.message_count > 0",
+          "description": "Attacker re‑submits the identical proof; relay does not track already‑processed nonces, so the destination mint function is called again."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_double_withdraw_reentrancy_2024_06_22",
+      "target_invariant": "uniqueness_withdraw_once_per_lock",
+      "vulnerability_class": "reentrancy_double_withdraw",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "step_id": "a0",
+          "chain": "source",
+          "contract": "AttackerContract",
+          "address": "0xATTACK0000000000000000000000000000000000",
+          "function": "constructor()",
+          "params": {},
+          "description": "Deploy a malicious contract that implements a fallback which calls GemPadLocker.withdraw(uint256) again.",
+          "step": 1
+        },
+        {
+          "step_id": "a1",
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "address": "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+          "function": "lock",
+          "params": {
+            "token": "0xFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEF",
+            "amount": 1000,
+            "unlockTime": 0
+          },
+          "description": "User creates a lock with nonce 1 and unlockTime set to 0 (already unlocked). State predicate: locks[1].withdrawn == false.",
+          "step": 2
+        },
+        {
+          "step_id": "a2",
+          "chain": "source",
+          "contract": "AttackerContract",
+          "address": "0xATTACK0000000000000000000000000000000000",
+          "function": "executeAttack",
+          "params": {
+            "locker": "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+            "nonce": 1
+          },
+          "description": "AttackerContract calls GemPadLocker.withdraw(1). The locker contract transfers MockToken to msg.sender (AttackerContract) and, before setting l.withdrawn = true, invokes the fallback of AttackerContract.",
+          "step": 3
+        },
+        {
+          "step_id": "a3",
+          "chain": "source",
+          "contract": "AttackerContract",
+          "address": "0xATTACK0000000000000000000000000000000000",
+          "function": "fallback",
+          "params": {},
+          "description": "Re‑enter GemPadLocker.withdraw(1) from the fallback. Because l.withdrawn is still false, the second call succeeds, transferring another 1000 MockToken. State predicate after re‑entrancy: locks[1].withdrawn == false (still not set).",
+          "step": 4
+        },
+        {
+          "step_id": "a4",
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "address": "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+          "function": "withdraw",
+          "params": {
+            "nonce": 1
+          },
+          "description": "Control returns to the original withdraw call, which finally sets locks[1].withdrawn = true. Final state predicate: locks[1].withdrawn == true, but two withdrawals have already occurred, violating the invariant.",
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Deploy a malicious contract that implements a fallback which calls GemPadLocker.withdraw(uint256) again."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "sourceRouter.totalLocked() >= 1000",
+          "description": "User creates a lock with nonce 1 and unlockTime set to 0 (already unlocked). State predicate: locks[1].withdrawn == false."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "AttackerContract calls GemPadLocker.withdraw(1). The locker contract transfers MockToken to msg.sender (AttackerContract) and, before setting l.withdrawn = true, invokes the fallback of AttackerContract."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Re‑enter GemPadLocker.withdraw(1) from the fallback. Because l.withdrawn is still false, the second call succeeds, transferring another 1000 MockToken. State predicate after re‑entrancy: locks[1].withdrawn == false (still not set)."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Control returns to the original withdraw call, which finally sets locks[1].withdrawn = true. Final state predicate: locks[1].withdrawn == true, but two withdrawals have already occurred, violating the invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_refund_timelock_tamper_001",
+      "target_invariant": "timeliness_refund_allowed_after_timeout",
+      "vulnerability_class": "relay_tampering_state_mismatch",
+      "confidence": 0.81,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "lock(address,uint256,uint256)",
+          "params": {
+            "token": "0xFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEF",
+            "amount": "1000",
+            "unlockTime": "block.timestamp + 30 days"
+          },
+          "description": "Honest user creates a lock with a far‑future unlockTime.",
+          "state_predicate": "GemPadLocker.locks[nonce].exists == true && GemPadLocker.locks[nonce].withdrawn == false && GemPadLocker.totalLocked() == 1000",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "BridgeRelay",
+          "function": "adminUpdateUnlockTime(uint256,uint256)",
+          "params": {
+            "nonce": "nonce",
+            "newUnlockTime": "block.timestamp - 1 hours"
+          },
+          "relay_mode": "tampered",
+          "description": "Compromised relayer overwrites the stored unlockTime to a past value, bypassing the timelock.",
+          "state_predicate": "GemPadLocker.locks[nonce].unlockTime == block.timestamp - 1 hours",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "refund(uint256)",
+          "params": {
+            "nonce": "nonce"
+          },
+          "relay_mode": "faithful",
+          "description": "Attacker calls refund; the contract’s check `block.timestamp >= unlockTime + REFUND_PERIOD && !withdrawn` now passes despite the original lock not having matured.",
+          "state_predicate": "block.timestamp >= GemPadLocker.locks[nonce].unlockTime + REFUND_PERIOD && GemPadLocker.locks[nonce].withdrawn == false && GemPadLocker.balances[attacker] >= 1000",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20210415",
+        "poly_network_20210330"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Honest user creates a lock with a far‑future unlockTime."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Compromised relayer overwrites the stored unlockTime to a past value, bypassing the timelock."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker calls refund; the contract’s check `block.timestamp >= unlockTime + REFUND_PERIOD && !withdrawn` now passes despite the original lock not having matured."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_timestamp_frontrun_withdraw",
+      "target_invariant": "timeliness_cannot_withdraw_before_unlock",
+      "vulnerability_class": "timestamp_manipulation",
+      "confidence": 0.82,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "lock",
+          "params": {
+            "token": "MockToken",
+            "amount": "1000e18",
+            "unlockTime": "1700000000"
+          },
+          "description": "User creates a lock with a future unlockTime far ahead of the current block.timestamp (e.g., 1700000000). The lock passes the e1 condition `unlockTime > block.timestamp` and stores the value in `GemPadLocker.locks[1].unlockTime`.",
+          "state_predicates": [
+            "GemPadLocker.locks[1].owner == 0xUSER000000000000000000000000000000000000",
+            "GemPadLocker.locks[1].amount == 1000e18",
+            "GemPadLocker.locks[1].unlockTime == 1700000000",
+            "GemPadLocker.locks[1].withdrawn == false"
+          ],
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "withdraw",
+          "params": {
+            "nonce": "1"
+          },
+          "description": "Attacker (acting as a miner) includes a withdraw transaction in the very next block and sets the block.timestamp to 1700000000 (or any value >= unlockTime). Because the EVM allows miners to choose timestamps within a reasonable range, the contract sees `block.timestamp >= l.unlockTime` as true, even though real wall‑clock time has not progressed. The withdraw succeeds, violating the invariant that withdrawals before the true unlock time must revert.",
+          "manipulation_mode": "tampered",
+          "state_predicates": [
+            "block.timestamp == 1700000000",
+            "GemPadLocker.locks[1].withdrawn == true",
+            "GemPadLocker.totalLocked == GemPadLocker.totalLocked_before - 1000e18"
+          ],
+          "step": 2
+        }
+      ],
+      "retrieved_exploits": [
+        "timestamp_manipulation_2021"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000000000000000000",
+          "description": "User creates a lock with a future unlockTime far ahead of the current block.timestamp (e.g., 1700000000). The lock passes the e1 condition `unlockTime > block.timestamp` and stores the value in `GemPadLocker.locks[1].unlockTime`."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker (acting as a miner) includes a withdraw transaction in the very next block and sets the block.timestamp to 1700000000 (or any value >= unlockTime). Because the EVM allows miners to choose timestamps within a reasonable range, the contract sees `block.timestamp >= l.unlockTime` as true, even though real wall‑clock time has not progressed. The withdraw succeeds, violating the invariant that withdrawals before the true unlock time must revert."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_timelock_overflow_01",
+      "target_invariant": "timeliness_lock_cannot_be_created_with_past_unlock",
+      "vulnerability_class": "integer_overflow",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "lock(address,uint256,uint256)",
+          "params": {
+            "token": "0xFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEF",
+            "amount": "1000",
+            "unlockTime": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+          },
+          "description": "User supplies maximal uint256 as unlockTime; require(unlockTime > block.timestamp) passes.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "internal_state_check",
+          "params": {
+            "predicate": "locks[nonce].unlockTime == 0"
+          },
+          "description": "Due to storage variable being uint32, the supplied max uint256 overflows to 0, creating a past unlockTime.",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "withdraw(uint256)",
+          "params": {
+            "nonce": "nonce"
+          },
+          "description": "User immediately calls withdraw; block.timestamp >= locks[nonce].unlockTime (0) succeeds.",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "function": "internal_state_check",
+          "params": {
+            "predicate": "totalLocked == totalLocked_before - locks[nonce].amount"
+          },
+          "description": "Lock total is decremented, but timeliness invariant was violated because lock was created with past unlockTime.",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "synapse_20211106"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User supplies maximal uint256 as unlockTime; require(unlockTime > block.timestamp) passes."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Due to storage variable being uint32, the supplied max uint256 overflows to 0, creating a past unlockTime."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "User immediately calls withdraw; block.timestamp >= locks[nonce].unlockTime (0) succeeds."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Lock total is decremented, but timeliness invariant was violated because lock was created with past unlockTime."
+        }
+      ]
+    },
+    {
+      "scenario_id": "gempad_timeliness_withdraw_refund_double_spend_001",
+      "target_invariant": "timeliness_lock_expiration_resets_withdraw_flag",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "address": "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+          "function": "lock",
+          "function_signature": "lock(address,uint256,uint256)",
+          "params": {
+            "token": "0xFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEFFEEDBEEF",
+            "amount": 1000,
+            "unlockTime": "block.timestamp + 3600"
+          },
+          "description": "Attacker creates a lock with a short unlock time (1 hour).",
+          "state_predicate": "locks[1].exists == true && locks[1].withdrawn == false",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "address": "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+          "function": "withdraw",
+          "function_signature": "withdraw(uint256)",
+          "params": {
+            "nonce": 1
+          },
+          "description": "After unlockTime passes, attacker (owner) withdraws the locked tokens.",
+          "state_predicate": "block.timestamp >= locks[1].unlockTime && locks[1].withdrawn == true",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "GemPadLocker",
+          "address": "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+          "function": "refund",
+          "function_signature": "refund(uint256)",
+          "params": {
+            "nonce": 1
+          },
+          "description": "After the REFUND_PERIOD elapses, attacker calls the refund function which (due to a logic bug) does not reset `withdrawn` to false and transfers the tokens again.",
+          "state_predicate": "block.timestamp >= locks[1].unlockTime + REFUND_PERIOD && locks[1].withdrawn == true",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "socket_20240116"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000",
+          "description": "Attacker creates a lock with a short unlock time (1 hour)."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "After unlockTime passes, attacker (owner) withdraws the locked tokens."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "destRouter.totalMinted() > 0 && sourceRouter.refunded > 0",
+          "description": "After the REFUND_PERIOD elapses, attacker calls the refund function which (due to a logic bug) does not reset `withdrawn` to false and transfers the tokens again."
+        }
+      ]
+    }
+  ]
+}

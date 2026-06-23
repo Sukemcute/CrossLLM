@@ -1,0 +1,1633 @@
+{
+  "bridge_name": "pgala",
+  "scenarios": [
+    {
+      "scenario_id": "pgala_replay_refund_double_mint",
+      "target_invariant": "asset_conservation_total_minted_equals_locked",
+      "vulnerability_class": "replay_after_refund",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "BridgeLockManager",
+          "function": "lock(address,uint256,uint256)",
+          "params": {
+            "recipient": "0xAttackerUser",
+            "amount": "1000e18",
+            "nonce": "0xdeadbeef"
+          },
+          "description": "User locks 1000 pGALA on the source chain; lock records lockedAmount[nonce]=1000, feeTotal=10, lockTimestamp[nonce]=block.timestamp.",
+          "step": 1
+        },
+        {
+          "chain": "offchain",
+          "contract": "LegacySigner",
+          "function": "signMintMessage(uint256,address,uint256)",
+          "params": {
+            "nonce": "0xdeadbeef",
+            "recipient": "0xAttackerUser",
+            "amount": "990e18"
+          },
+          "description": "LegacySigner produces a valid ECDSA signature over (nonce, recipient, amount) that will be accepted by LegacyCustodian.",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint(address,uint256,bytes)",
+          "params": {
+            "to": "0xAttackerUser",
+            "amount": "990e18",
+            "signature": "0xValidSignatureFromLegacySigner"
+          },
+          "description": "First legitimate mint: LegacyCustodian verifies !used[nonce] and recovered==LegacySigner, marks used[nonce]=true, and mints 990 pGALAToken to the attacker. State predicate: `LegacyCustodian.used[0xdeadbeef] == true && mintedTotal == 990e18`.",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "RefundHandler",
+          "function": "claimRefund(uint256)",
+          "params": {
+            "nonce": "0xdeadbeef"
+          },
+          "description": "After TIMEOUT passes, attacker calls refund, which transfers the original locked assets back on the source side and clears the used flag. State predicate: `block.timestamp >= lockTimestamp[0xdeadbeef] + TIMEOUT && LegacyCustodian.used[0xdeadbeef] == false`.",
+          "step": 4
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint(address,uint256,bytes)",
+          "params": {
+            "to": "0xAttackerUser",
+            "amount": "990e18",
+            "signature": "0xValidSignatureFromLegacySigner"
+          },
+          "description": "Second mint using the same nonce after it was cleared by the refund. LegacyCustodian again passes the !used[nonce] check, mints another 990 tokens. State predicate: `LegacyCustodian.used[0xdeadbeef] == true && mintedTotal == 1980e18`.",
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "ronin_bridge_hack",
+        "wormhole_fake_deposit"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1000 pGALA on the source chain; lock records lockedAmount[nonce]=1000, feeTotal=10, lockTimestamp[nonce]=block.timestamp."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "LegacySigner produces a valid ECDSA signature over (nonce, recipient, amount) that will be accepted by LegacyCustodian."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "First legitimate mint: LegacyCustodian verifies !used[nonce] and recovered==LegacySigner, marks used[nonce]=true, and mints 990 pGALAToken to the attacker. State predicate: `LegacyCustodian.used[0xdeadbeef] == true && mintedTotal == 990e18`."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "After TIMEOUT passes, attacker calls refund, which transfers the original locked assets back on the source side and clears the used flag. State predicate: `block.timestamp >= lockTimestamp[0xdeadbeef] + TIMEOUT && LegacyCustodian.used[0xdeadbeef] == false`."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Second mint using the same nonce after it was cleared by the refund. LegacyCustodian again passes the !used[nonce] check, mints another 990 tokens. State predicate: `LegacyCustodian.used[0xdeadbeef] == true && mintedTotal == 1980e18`."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_sig_tamper_mint_excess_001",
+      "target_invariant": "asset_conservation_mint_e1_respects_locked_amount",
+      "vulnerability_class": "signature_malleability_offchain",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "offchain",
+          "contract": "LegacySigner",
+          "function": "signMessage(uint256 nonce,uint256 amount,address recipient)",
+          "params": {
+            "nonce": 42,
+            "amount": "10000000000000000000",
+            "recipient": "0xUserAddressPlaceholder"
+          },
+          "description": "LegacySigner (off‑chain authority) signs a legitimate mint request for nonce 42, amount 10 pGALAToken, recipient User.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint(address to,uint256 amount)",
+          "params": {
+            "to": "0xUserAddressPlaceholder",
+            "amount": "10000000000000000000"
+          },
+          "description": "State predicate before call: `lockedAmount[42] == 10000000000000000000` (10 pGALAToken) && `used[42] == false`.  The contract verifies the signature, recovers LegacySigner, and passes nonce‑reuse guard.",
+          "step": 2
+        },
+        {
+          "chain": "relay",
+          "contract": "RelayNode",
+          "function": "forwardMint(uint256 nonce,bytes signature)",
+          "params": {
+            "nonce": 42,
+            "signature": "0xSignedByLegacySigner"
+          },
+          "relay_mode": "tampered",
+          "description": "Attacker intercepts the relay and substitutes the amount argument in the calldata with a larger value (e.g., 1000 pGALAToken) while keeping the original signature unchanged. The relay forwards the tampered calldata to LegacyCustodian.",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint(address to,uint256 amount)",
+          "params": {
+            "to": "0xUserAddressPlaceholder",
+            "amount": "1000000000000000000000"
+          },
+          "description": "LegacyCustodian executes mint with amount 1000 pGALAToken.  Preconditions satisfied: `!used[42]` and `recovered == LegacySigner`.  Post‑condition: `mintedAmount[User] == 1000000000000000000000` && `used[42] == true`.",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_20220801",
+        "multichain_20220118"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "LegacySigner (off‑chain authority) signs a legitimate mint request for nonce 42, amount 10 pGALAToken, recipient User."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "State predicate before call: `lockedAmount[42] == 10000000000000000000` (10 pGALAToken) && `used[42] == false`.  The contract verifies the signature, recovers LegacySigner, and passes nonce‑reuse guard."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "relay.message_count > 0",
+          "description": "Attacker intercepts the relay and substitutes the amount argument in the calldata with a larger value (e.g., 1000 pGALAToken) while keeping the original signature unchanged. The relay forwards the tampered calldata to LegacyCustodian."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "LegacyCustodian executes mint with amount 1000 pGALAToken.  Preconditions satisfied: `!used[42]` and `recovered == LegacySigner`.  Post‑condition: `mintedAmount[User] == 1000000000000000000000` && `used[42] == true`."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_e2_overmint_replay",
+      "target_invariant": "asset_conservation_mint_e2_respects_locked_amount",
+      "vulnerability_class": "logic_bug_missing_nonce_enforcement",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "BridgeLock",
+          "function": "lock(address,uint256,uint256)",
+          "params": {
+            "recipient": "0xAttacker00000000000000000000000000000001",
+            "amount": 1000,
+            "nonce": 42
+          },
+          "precondition": "lockedAmount[42] == 0",
+          "postcondition": "lockedAmount[42] == 1000 && lockTimestamp[42] > 0",
+          "description": "A legitimate user locks 1,000 source‑chain tokens, establishing the reference amount for nonce 42.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "Custodian",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttacker00000000000000000000000000000001",
+            "amount": 1000
+          },
+          "precondition": "hasRole(CUSTODIAN_ROLE, msg.sender) && custodianMinted[42] == false",
+          "postcondition": "pGALA.balanceOf(0xAttacker00000000000000000000000000000001) == 1000 && custodianMinted[42] == false",
+          "description": "Attacker, who controls a Custodian‑role address, mints the exact locked amount. The contract does **not** set custodianMinted[42], leaving the nonce unmarked.",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "Custodian",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttacker00000000000000000000000000000001",
+            "amount": 5000
+          },
+          "precondition": "hasRole(CUSTODIAN_ROLE, msg.sender) && custodianMinted[42] == false && lockedAmount[42] == 1000",
+          "postcondition": "pGALA.balanceOf(0xAttacker00000000000000000000000000000001) == 6000 && mintAmount_e2 == 5000 && lockedAmount[42] == 1000",
+          "description": "Attacker re‑calls mint for the same nonce with 5,000 tokens. Because the contract never records that nonce 42 was already used, the second mint succeeds, violating the invariant that mintAmount_e2 ≤ lockedAmount[nonce].",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810",
+        "fegtoken_20240220"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "A legitimate user locks 1,000 source‑chain tokens, establishing the reference amount for nonce 42."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker, who controls a Custodian‑role address, mints the exact locked amount. The contract does **not** set custodianMinted[42], leaving the nonce unmarked."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker re‑calls mint for the same nonce with 5,000 tokens. Because the contract never records that nonce 42 was already used, the second mint succeeds, violating the invariant that mintAmount_e2 ≤ lockedAmount[nonce]."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_fee_over_mint_logic_bug_001",
+      "target_invariant": "asset_conservation_fee_not_exceed_mint",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "SourceBridge",
+          "function": "lock",
+          "params": {
+            "amount": 1000,
+            "fee": 800,
+            "nonce": 42,
+            "recipient": "0xUserAddress"
+          },
+          "description": "User (or attacker) locks 1,000 tokens on the source chain while specifying an excessive fee of 800 (no validation that fee ≤ amount). State predicate after execution: sourceBridge.lockedAmount[42] == 1000 && sourceBridge.feeAmount[42] == 800 && sourceBridge.used[42] == false.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "Custodian",
+          "function": "mint",
+          "params": {
+            "to": "0xUserAddress",
+            "amount": 200,
+            "nonce": 42
+          },
+          "description": "Custodian (authorized role) mints the net amount (locked - fee) to the user via edge e2. State predicate after execution: destinationBridge.mintedTotal == 200 && destinationBridge.feeRecorded[42] == 800.",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint",
+          "params": {
+            "to": "0xUserAddress",
+            "amount": 0,
+            "nonce": 42,
+            "signature": "0xValidSignatureFromLegacySigner"
+          },
+          "description": "Attacker re‑uses the same nonce (still unused because e2 does not set used[nonce]) and submits a valid signature from the compromised LegacySigner, minting 0 tokens via edge e1. State predicate after execution: destinationBridge.mintedTotal == 200 && destinationBridge.feeRecorded[42] == 800.",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "synapse_20211106",
+        "anyswap_20210710"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000",
+          "description": "User (or attacker) locks 1,000 tokens on the source chain while specifying an excessive fee of 800 (no validation that fee ≤ amount). State predicate after execution: sourceBridge.lockedAmount[42] == 1000 && sourceBridge.feeAmount[42] == 800 && sourceBridge.used[42] == false."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "destRouter.totalMinted() >= 1200",
+          "description": "Custodian (authorized role) mints the net amount (locked - fee) to the user via edge e2. State predicate after execution: destinationBridge.mintedTotal == 200 && destinationBridge.feeRecorded[42] == 800."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "destRouter.totalMinted() >= 1200",
+          "description": "Attacker re‑uses the same nonce (still unused because e2 does not set used[nonce]) and submits a valid signature from the compromised LegacySigner, minting 0 tokens via edge e1. State predicate after execution: destinationBridge.mintedTotal == 200 && destinationBridge.feeRecorded[42] == 800."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_auth_e1_signature_bypass_01",
+      "target_invariant": "authorization_mint_e1_requires_valid_signature",
+      "vulnerability_class": "access_control_missing",
+      "confidence": 0.85,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint",
+          "params": {
+            "to": "0xUserAddress1234567890abcdef1234567890abcdef1234",
+            "amount": "1000000000000000000",
+            "nonce": "42",
+            "signature": "0xAttackerSignatureMalleated",
+            "signer": "0xAttackerAddressabcdefabcdefabcdefabcdefabcd"
+          },
+          "description": "Attacker (or compromised relayer) submits a forged mint transaction. The contract erroneously uses the supplied `signer` argument for verification, so the ecrecover result (Attacker) matches the supplied signer, bypassing the off‑chain LegacySigner check.",
+          "state_predicates": [
+            "LegacyCustodian.used[42] == false",
+            "LegacyCustodian.legacySigner == 0xLegacySignerAddressdeadbeefdeadbeefdeadbeefdeadbeef",
+            "recovered == 0xAttackerAddressabcdefabcdefabcdefabcdefabcd"
+          ],
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint",
+          "params": {
+            "to": "0xUserAddress1234567890abcdef1234567890abcdef1234",
+            "amount": "1000000000000000000",
+            "nonce": "42",
+            "signature": "0xAttackerSignatureMalleated",
+            "signer": "0xAttackerAddressabcdefabcdefabcdefabcdefabcd"
+          },
+          "description": "Mint executes; token balance is credited to the user while the nonce is marked used.",
+          "state_predicates": [
+            "LegacyCustodian.used[42] == true",
+            "pGALAToken.balanceOf(0xUserAddress1234567890abcdef1234567890abcdef1234) >= 1000000000000000000"
+          ],
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "invariant_check",
+          "params": {},
+          "description": "Post‑mint invariant evaluation shows violation: recovered signer (Attacker) does not equal the registered off‑chain LegacySigner.",
+          "state_predicates": [
+            "recovered == 0xAttackerAddressabcdefabcdefabcdefabcdefabcd",
+            "LegacyCustodian.legacySigner == 0xLegacySignerAddressdeadbeefdeadbeefdeadbeefdeadbeef",
+            "recovered != LegacyCustodian.legacySigner"
+          ],
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "pgala_20221103",
+        "evodefi_20220607"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "destRouter.totalMinted() >= 1000000000000000000",
+          "description": "Attacker (or compromised relayer) submits a forged mint transaction. The contract erroneously uses the supplied `signer` argument for verification, so the ecrecover result (Attacker) matches the supplied signer, bypassing the off‑chain LegacySigner check."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "destRouter.totalMinted() >= 2000000000000000000",
+          "description": "Mint executes; token balance is credited to the user while the nonce is marked used."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Post‑mint invariant evaluation shows violation: recovered signer (Attacker) does not equal the registered off‑chain LegacySigner."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_replay_nonce_after_refund_2024_06_22",
+      "target_invariant": "authorization_mint_e1_requires_unused_nonce",
+      "vulnerability_class": "logic_bug_replay",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "claimRefund(uint256)",
+          "params": {
+            "nonce": "0x1a2b3c4d5e6f"
+          },
+          "mode": "faithful",
+          "description": "Attacker calls the refund routine after the protocol timeout. Due to a bug the contract clears used[nonce] even though a mint for this nonce has already been executed.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint(address,uint256,bytes,uint256)",
+          "params": {
+            "to": "0xAttackerAddress0000000000000000000000000000",
+            "amount": "1000000000000000000",
+            "signature": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            "nonce": "0x1a2b3c4d5e6f"
+          },
+          "mode": "replay",
+          "description": "Attacker re‑submits the original mint transaction (same nonce and signature) now that used[nonce] was reset, causing a second mint of the same amount.",
+          "step": 2
+        }
+      ],
+      "retrieved_exploits": [
+        "pgala_20221103",
+        "multichain_20230715"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker calls the refund routine after the protocol timeout. Due to a bug the contract clears used[nonce] even though a mint for this nonce has already been executed."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker re‑submits the original mint transaction (same nonce and signature) now that used[nonce] was reset, causing a second mint of the same amount."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_e2_custodian_role_escalation_01",
+      "target_invariant": "authorization_mint_e2_requires_custodian_role",
+      "vulnerability_class": "access_control_misconfiguration",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "execute(address,bytes)",
+          "params": {
+            "target": "pGALAToken",
+            "data": "0x2f2ff15d0000000000000000000000000000000000000000000000000000000000000000",
+            "dataExplanation": "abi.encodeWithSignature(\"grantRole(bytes32,address)\", CUSTODIAN_ROLE, 0xAttackerAddr)"
+          },
+          "description": "Exploit an unrestricted proxy function on LegacyCustodian to call the token's grantRole and assign CUSTODIAN_ROLE to the attacker address.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "pGALAToken",
+          "function": "grantRole(bytes32,address)",
+          "params": {
+            "role": "0xCUSTODIAN_ROLE_HASH",
+            "account": "0xAttackerAddr"
+          },
+          "description": "Resulting state predicate: hasRole(CUSTODIAN_ROLE, 0xAttackerAddr) == true.",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "pGALAToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttackerAddr",
+            "amount": "1000000e18"
+          },
+          "description": "Attacker, now holding CUSTODIAN_ROLE, calls edge e2 mint to issue tokens to themselves, violating the invariant.",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_20230215",
+        "polynetwork_20210810",
+        "bnbbridge_20221007"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Exploit an unrestricted proxy function on LegacyCustodian to call the token's grantRole and assign CUSTODIAN_ROLE to the attacker address."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Resulting state predicate: hasRole(CUSTODIAN_ROLE, 0xAttackerAddr) == true."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker, now holding CUSTODIAN_ROLE, calls edge e2 mint to issue tokens to themselves, violating the invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_zero_mint_e2_role_escalation",
+      "target_invariant": "authorization_mint_e2_requires_positive_amount",
+      "vulnerability_class": "role_escalation",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "Custodian",
+          "function": "grantRole(bytes32,address)",
+          "params": {
+            "role": "0x00000000000000000000000000000000000000000000000000000000CUSTODIAN_ROLE",
+            "account": "0xAttackerAddress0000000000000000000000000000"
+          },
+          "description": "Attacker obtains CUSTODIAN_ROLE via compromised governance/private key and calls grantRole on the AccessControl‑enabled Custodian contract.",
+          "postconditions": [
+            "hasRole(CUSTODIAN_ROLE, 0xAttackerAddress0000000000000000000000000000) == true"
+          ],
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "Custodian",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttackerAddress0000000000000000000000000000",
+            "amount": 0
+          },
+          "description": "With the newly‑acquired custodian role, the attacker calls mint on edge e2 specifying a zero amount, exploiting the missing >0 check.",
+          "postconditions": [
+            "mintAmount == 0",
+            "tx.success == true"
+          ],
+          "step": 2
+        }
+      ],
+      "retrieved_exploits": [
+        "pgala_20221103",
+        "multichain_20230715"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker obtains CUSTODIAN_ROLE via compromised governance/private key and calls grantRole on the AccessControl‑enabled Custodian contract."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "With the newly‑acquired custodian role, the attacker calls mint on edge e2 specifying a zero amount, exploiting the missing >0 check."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_nonce_double_mint_01",
+      "target_invariant": "uniqueness_nonce_single_use",
+      "vulnerability_class": "logic_bug_missing_cross_edge_nonce_check",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "LockContract",
+          "function": "lock(uint256 amount, address recipient)",
+          "params": {
+            "amount": "1000e18",
+            "recipient": "0xAttackerDest"
+          },
+          "description": "Attacker locks 1000 pGALA on the source chain, generating a unique nonce N and a lockTimestamp[N].",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint(address to, uint256 amount, uint256 nonce, bytes signature)",
+          "params": {
+            "to": "0xAttackerDest",
+            "amount": "1000e18",
+            "nonce": "N",
+            "signature": "sig_from_LegacySigner"
+          },
+          "description": "First mint via edge e1. Passes require(!used[N]) and signature check, sets used[N]=true.",
+          "waypoint": "LegacyCustodian.used[N] == true && LegacyCustodian.usageCount[N] == 1",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "Custodian",
+          "function": "mint(address to, uint256 amount, uint256 nonce)",
+          "params": {
+            "to": "0xAttackerDest",
+            "amount": "1000e18",
+            "nonce": "N"
+          },
+          "description": "Second mint via edge e2. Checks only !custodianMinted[N] (still false) and ignores used[N], allowing a second mint for the same nonce.",
+          "waypoint": "Custodian.custodianMinted[N] == true && LegacyCustodian.usageCount[N] == 2",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202",
+        "bnbbridge_20221007"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker locks 1000 pGALA on the source chain, generating a unique nonce N and a lockTimestamp[N]."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "First mint via edge e1. Passes require(!used[N]) and signature check, sets used[N]=true."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Second mint via edge e2. Checks only !custodianMinted[N] (still false) and ignores used[N], allowing a second mint for the same nonce."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_msghash_double_mint_via_refund_reset",
+      "target_invariant": "uniqueness_message_hash_single_consumption",
+      "vulnerability_class": "logic_bug_state_reset",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint(address,uint256,uint256,bytes)",
+          "params": {
+            "recipient": "0xAttacker",
+            "amount": 1000000,
+            "nonce": 42,
+            "signature": "0xSignedByLegacySigner(nonce=42,amount=1000000,recipient=0xAttacker)"
+          },
+          "description": "Faithful relay delivers a legitimate signed message. LegacyCustodian verifies signature, checks !used[nonce] and consumed[msgHash]==0, then mints tokens to Attacker. State after execution: used[42]==true, consumed[keccak256(42,1000000,0xAttacker)]==1.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "refund(uint256)",
+          "params": {
+            "nonce": 42
+          },
+          "description": "After TIMEOUT passes, Attacker calls refund. Due to a logic bug, the function clears both used[nonce] and consumed[msgHash] (instead of only used[nonce]). State after execution: used[42]==false, consumed[keccak256(42,1000000,0xAttacker)]==0.",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint(address,uint256,uint256,bytes)",
+          "params": {
+            "recipient": "0xAttacker",
+            "amount": 1000000,
+            "nonce": 42,
+            "signature": "0xSignedByLegacySigner(nonce=42,amount=1000000,recipient=0xAttacker)"
+          },
+          "description": "Attacker re‑submits the same signed message via a tampered relay (re‑play). LegacyCustodian sees used[42]==false and consumed[msgHash]==0, so it mints again. State after execution: consumed[keccak256(42,1000000,0xAttacker)]==2, violating the invariant.",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "pnetwork_20210919",
+        "socket_20240116"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Faithful relay delivers a legitimate signed message. LegacyCustodian verifies signature, checks !used[nonce] and consumed[msgHash]==0, then mints tokens to Attacker. State after execution: used[42]==true, consumed[keccak256(42,1000000,0xAttacker)]==1."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "After TIMEOUT passes, Attacker calls refund. Due to a logic bug, the function clears both used[nonce] and consumed[msgHash] (instead of only used[nonce]). State after execution: used[42]==false, consumed[keccak256(42,1000000,0xAttacker)]==0."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker re‑submits the same signed message via a tampered relay (re‑play). LegacyCustodian sees used[42]==false and consumed[msgHash]==0, so it mints again. State after execution: consumed[keccak256(42,1000000,0xAttacker)]==2, violating the invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_replay_via_refund_clearing_processed",
+      "target_invariant": "uniqueness_replay_protection_e1",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint",
+          "params": {
+            "to": "0xAttacker0000000000000000000000000000000000",
+            "amount": 1000,
+            "nonce": 42,
+            "signature": "0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+          },
+          "description": "First legitimate mint using a signature from the authorized LegacySigner. State predicate after execution: processed[42][0xabcdef…] == true && used[42] == true.",
+          "state_predicates": [
+            "processed[42][0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789] == true",
+            "used[42] == true"
+          ],
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "refund",
+          "params": {
+            "nonce": 42
+          },
+          "description": "Attacker calls the refund path after the protocol timeout. Due to a logic bug the implementation executes `delete processed[nonce];` which also clears the replay‑protection entry. State predicate after execution: processed[42][*] == false && used[42] == false.",
+          "state_predicates": [
+            "processed[42][0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789] == false",
+            "used[42] == false"
+          ],
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint",
+          "params": {
+            "to": "0xAttacker0000000000000000000000000000000000",
+            "amount": 1000,
+            "nonce": 42,
+            "signature": "0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+          },
+          "description": "Replay of the exact same mint transaction (identical nonce and signature). Because the refund cleared `processed[nonce][signature]`, the contract accepts the call and mints a second tranche of tokens, violating the replay‑protection invariant.",
+          "state_predicates": [
+            "processed[42][0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789] == true",
+            "used[42] == true"
+          ],
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "destRouter.totalMinted() >= 1000",
+          "description": "First legitimate mint using a signature from the authorized LegacySigner. State predicate after execution: processed[42][0xabcdef…] == true && used[42] == true."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker calls the refund path after the protocol timeout. Due to a logic bug the implementation executes `delete processed[nonce];` which also clears the replay‑protection entry. State predicate after execution: processed[42][*] == false && used[42] == false."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "destRouter.totalMinted() >= 2000",
+          "description": "Replay of the exact same mint transaction (identical nonce and signature). Because the refund cleared `processed[nonce][signature]`, the contract accepts the call and mints a second tranche of tokens, violating the replay‑protection invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_e2_double_mint_replay_2024_06_22",
+      "target_invariant": "uniqueness_e2_custodian_mint_once_per_nonce",
+      "vulnerability_class": "relay_replay_and_race_condition",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "Custodian",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "User",
+            "amount": "1000",
+            "nonce": "0xdeadbeefcafebabe"
+          },
+          "description": "Custodian (who holds CUSTODIAN_ROLE) processes a legitimate mint request for nonce 0xdeadbeefcafebabe. Pre‑condition predicate: custodianMinted[0xdeadbeefcafebabe] == false.",
+          "step": 1
+        },
+        {
+          "chain": "offchain",
+          "contract": "RelayA",
+          "function": "forwardMessage(bytes)",
+          "params": {
+            "message": "signedMint(0xdeadbeefcafebabe,User,1000)"
+          },
+          "mode": "faithful",
+          "description": "RelayA forwards the signed mint message to the destination chain. The forward triggers the Custodian.mint call above.",
+          "step": 2
+        },
+        {
+          "chain": "offchain",
+          "contract": "RelayB",
+          "function": "forwardMessage(bytes)",
+          "params": {
+            "message": "signedMint(0xdeadbeefcafebabe,User,1000)"
+          },
+          "mode": "tampered",
+          "description": "Before Custodian updates custodianMinted[nonce] (the update occurs after the ERC20 transfer), the attacker forces RelayB to resend the same signed message. Because the state flag has not yet been set, the second call passes the require(!custodianMinted[nonce]) check, resulting in a second mint for the same nonce.",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "Custodian",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "User",
+            "amount": "1000",
+            "nonce": "0xdeadbeefcafebabe"
+          },
+          "description": "Second execution of Custodian.mint with the same nonce, violating the uniqueness invariant. Post‑condition predicate: custodianMinted[0xdeadbeefcafebabe] == true && mintedAmountForNonce == 2000.",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810",
+        "harmony_horizon_20220624"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Custodian (who holds CUSTODIAN_ROLE) processes a legitimate mint request for nonce 0xdeadbeefcafebabe. Pre‑condition predicate: custodianMinted[0xdeadbeefcafebabe] == false."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "RelayA forwards the signed mint message to the destination chain. The forward triggers the Custodian.mint call above."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Before Custodian updates custodianMinted[nonce] (the update occurs after the ERC20 transfer), the attacker forces RelayB to resend the same signed message. Because the state flag has not yet been set, the second call passes the require(!custodianMinted[nonce]) check, resulting in a second mint for the same nonce."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Second execution of Custodian.mint with the same nonce, violating the uniqueness invariant. Post‑condition predicate: custodianMinted[0xdeadbeefcafebabe] == true && mintedAmountForNonce == 2000."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_timeliness_refund_early_exploit_001",
+      "target_invariant": "timeliness_refund_allowed_after_timeout",
+      "vulnerability_class": "relay_tampering_logic_bug",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "SourceBridge",
+          "function": "lock(uint256 amount,uint256 nonce)",
+          "params": {
+            "amount": 1000000,
+            "nonce": 42
+          },
+          "description": "User locks 1,000,000 units on the source chain; contract stores lockTimestamp[42] = block.timestamp (T0) and marks used[42] = true.",
+          "step": 1
+        },
+        {
+          "chain": "relay",
+          "contract": "OffChainRelay",
+          "function": "forwardLockMessage(uint256 nonce,address recipient,uint256 amount,uint256 lockTimestamp)",
+          "params": {
+            "nonce": 42,
+            "recipient": "User",
+            "amount": 1000000,
+            "lockTimestamp": 0
+          },
+          "relay_mode": "tampered",
+          "description": "Attacker controls the relay and rewrites the lockTimestamp field to 0 while preserving the LegacySigner signature (signature does not cover timestamp).",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "refund(uint256 nonce)",
+          "params": {
+            "nonce": 42
+          },
+          "description": "User (attacker) calls refund before the real timeout. Because LegacyCustodian now sees lockTimestamp[42] == 0, the check block.timestamp >= 0 + TIMEOUT passes, allowing an early refund and violating the timeliness invariant.",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint(address to,uint256 amount)",
+          "params": {
+            "to": "User",
+            "amount": 1000000
+          },
+          "description": "After the premature refund, the attacker re‑uses the same nonce to call the mint edge (e1). The contract still has used[42] == true (refund did not clear it), so the mint succeeds, creating tokens without a corresponding lock.",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "ronin_20220323",
+        "multichain_20230715"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1,000,000 units on the source chain; contract stores lockTimestamp[42] = block.timestamp (T0) and marks used[42] = true."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Attacker controls the relay and rewrites the lockTimestamp field to 0 while preserving the LegacySigner signature (signature does not cover timestamp)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "User (attacker) calls refund before the real timeout. Because LegacyCustodian now sees lockTimestamp[42] == 0, the check block.timestamp >= 0 + TIMEOUT passes, allowing an early refund and violating the timeliness invariant."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "After the premature refund, the attacker re‑uses the same nonce to call the mint edge (e1). The contract still has used[42] == true (refund did not clear it), so the mint succeeds, creating tokens without a corresponding lock."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_refund_nonce_not_cleared_2024_09",
+      "target_invariant": "timeliness_refund_clears_used_nonce",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "source",
+          "contract": "SourceLock",
+          "function": "lock(uint256 amount,address recipient)",
+          "params": {
+            "amount": "1000e18",
+            "recipient": "0xAttacker"
+          },
+          "description": "Attacker locks 1000 pGALA on the source chain. Bridge emits a cross‑chain message containing nonce 0xdeadbeef. LegacyCustodian on the destination chain records used[0xdeadbeef] = true."
+        },
+        {
+          "step": 2,
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "refund(uint256 nonce)",
+          "params": {
+            "nonce": "0xdeadbeef"
+          },
+          "description": "After block.timestamp >= lockTimestamp[0xdeadbeef] + TIMEOUT, attacker calls refund. Contract emits RefundProcessed event and transfers the locked assets back, but due to a missing `delete used[nonce]` the mapping entry remains true."
+        },
+        {
+          "step": 3,
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint(address to,uint256 amount,uint256 nonce,bytes signature)",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "1000e18",
+            "nonce": "0xdeadbeef",
+            "signature": "0xValidSignatureFromLegacySigner"
+          },
+          "description": "Attacker re‑uses the same nonce and a previously captured valid signature. The contract checks `!used[nonce]` against a stale mapping (`nonceUsed`) instead of the actual `used` flag, so the require passes and tokens are minted again."
+        }
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker locks 1000 pGALA on the source chain. Bridge emits a cross‑chain message containing nonce 0xdeadbeef. LegacyCustodian on the destination chain records used[0xdeadbeef] = true."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "After block.timestamp >= lockTimestamp[0xdeadbeef] + TIMEOUT, attacker calls refund. Contract emits RefundProcessed event and transfers the locked assets back, but due to a missing `delete used[nonce]` the mapping entry remains true."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker re‑uses the same nonce and a previously captured valid signature. The contract checks `!used[nonce]` against a stale mapping (`nonceUsed`) instead of the actual `used` flag, so the require passes and tokens are minted again."
+        }
+      ],
+      "retrieved_exploits": [
+        "socket_20240116",
+        "thorchain_20210628"
+      ]
+    },
+    {
+      "scenario_id": "pgala_timeliness_mint_after_timeout_replay",
+      "target_invariant": "timeliness_mint_disallowed_past_timeout",
+      "vulnerability_class": "replay+timeliness",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint(address,uint256,bytes)",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": "1000e18",
+            "signature": "0xValidLegacySignerSig"
+          },
+          "description": "Submit a mint transaction that passes signature verification but deliberately triggers a revert on the asset‑conservation check (e.g., lockedAmount[nonce] < amount). The contract reverts before setting used[nonce] = true, leaving the nonce unused while the signature is now known to the attacker.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "lock(uint256)",
+          "params": {
+            "nonce": "0xdeadbeef"
+          },
+          "description": "Ensure the lock record for the same nonce exists on‑chain (e.g., by performing a legitimate lock on the source chain). This creates lockTimestamp[nonce] = T0.",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "wait",
+          "params": {
+            "duration": "TIMEOUT + 1"
+          },
+          "description": "Advance the blockchain (or simply wait) until block.timestamp > lockTimestamp[nonce] + TIMEOUT, satisfying the timeliness condition for a timeout.",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint(address,uint256,bytes)",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": "1000e18",
+            "signature": "0xValidLegacySignerSig"
+          },
+          "description": "Replay the previously captured mint call after the timeout. Because the earlier revert never set used[nonce] = true, the contract sees !used[nonce] and accepts the mint, but block.timestamp now exceeds lockTimestamp + TIMEOUT, violating the invariant.",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "ronin_20220323",
+        "multichain_20220118",
+        "evodefi_20220607"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Submit a mint transaction that passes signature verification but deliberately triggers a revert on the asset‑conservation check (e.g., lockedAmount[nonce] < amount). The contract reverts before setting used[nonce] = true, leaving the nonce unused while the signature is now known to the attacker."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Ensure the lock record for the same nonce exists on‑chain (e.g., by performing a legitimate lock on the source chain). This creates lockTimestamp[nonce] = T0."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Advance the blockchain (or simply wait) until block.timestamp > lockTimestamp[nonce] + TIMEOUT, satisfying the timeliness condition for a timeout."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Replay the previously captured mint call after the timeout. Because the earlier revert never set used[nonce] = true, the contract sees !used[nonce] and accepts the mint, but block.timestamp now exceeds lockTimestamp + TIMEOUT, violating the invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_timeliness_lock_timestamp_tamper_001",
+      "target_invariant": "timeliness_lock_timestamp_immutable",
+      "vulnerability_class": "off_chain_relay_tampering",
+      "confidence": 0.85,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "SourceBridge",
+          "function": "lock(uint256 amount,uint256 nonce)",
+          "params": {
+            "amount": 1000,
+            "nonce": 42
+          },
+          "state_predicate": "SourceBridge.lockedAmount[42] == 1000 && SourceBridge.lockTimestamp[42] == block.timestamp",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "offchain",
+          "node_id": "Relay",
+          "action": "forwardLock",
+          "mode": "faithful",
+          "params": {
+            "nonce": 42,
+            "timestamp": "block.timestamp"
+          },
+          "state_predicate": "LegacyCustodian.lockTimestamp[42] == storedLockTimestamp[42] && storedLockTimestamp[42] == block.timestamp",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "offchain",
+          "node_id": "Relay",
+          "action": "forwardLock",
+          "mode": "tampered",
+          "params": {
+            "nonce": 42,
+            "timestamp": "block.timestamp + 86400"
+          },
+          "state_predicate": "LegacyCustodian.lockTimestamp[42] == block.timestamp + 86400 && storedLockTimestamp[42] == block.timestamp",
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint(address to,uint256 amount,uint256 nonce,bytes signature)",
+          "params": {
+            "to": "User",
+            "amount": 1000,
+            "nonce": 42,
+            "signature": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+          },
+          "state_predicate": "LegacyCustodian.minted[User][42] == true && LegacyCustodian.lockTimestamp[42] != storedLockTimestamp[42]",
+          "step": 4,
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "evodefi_20220607",
+        "anyswap_20210710"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_timeliness_fee_after_timeout",
+      "target_invariant": "timeliness_fee_accrual_before_timeout",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "BridgeLock",
+          "function": "lock(uint256 amount,uint256 nonce)",
+          "params": {
+            "amount": "1000e18",
+            "nonce": 42
+          },
+          "description": "User locks 1,000 pGALA on the source chain; BridgeLock stores lockTimestamp[42] = T0 and sets feeCollected = false.",
+          "state_predicates": [
+            "lockTimestamp[42] == T0",
+            "feeCollected == false"
+          ],
+          "step": 1
+        },
+        {
+          "chain": "offchain",
+          "contract": "LegacySigner",
+          "function": "signMint(uint256 nonce,address recipient,uint256 amount)",
+          "params": {
+            "nonce": 42,
+            "recipient": "User",
+            "amount": "1000e18"
+          },
+          "description": "LegacySigner produces a valid ECDSA signature (sig) over (nonce,recipient,amount).",
+          "state_predicates": [],
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint(address to,uint256 amount,bytes signature)",
+          "params": {
+            "to": "User",
+            "amount": "1000e18",
+            "signature": "sig"
+          },
+          "relay_mode": "delayed",
+          "description": "Attacker submits the signed mint transaction **after** TIMEOUT has elapsed. The contract deducts the protocol fee before checking timeliness, causing feeCollected to become true even though block.timestamp >= lockTimestamp[42] + TIMEOUT.",
+          "state_predicates": [
+            "block.timestamp >= lockTimestamp[42] + TIMEOUT",
+            "feeCollected == true",
+            "mintedTotal == lockedTotal - feeTotal + feeTotal"
+          ],
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "ronin_20220323",
+        "orbit_20240101"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1,000 pGALA on the source chain; BridgeLock stores lockTimestamp[42] = T0 and sets feeCollected = false."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "LegacySigner produces a valid ECDSA signature (sig) over (nonce,recipient,amount)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker submits the signed mint transaction **after** TIMEOUT has elapsed. The contract deducts the protocol fee before checking timeliness, causing feeCollected to become true even though block.timestamp >= lockTimestamp[42] + TIMEOUT."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_sig_malleability_zero_address",
+      "target_invariant": "authorization_only_legacy_signer_can_sign",
+      "vulnerability_class": "signature_malleability",
+      "confidence": 0.85,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "legacySigner()",
+          "params": {},
+          "waypoint": "LegacyCustodian.legacySigner() == address(0)",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "used(uint256)",
+          "params": {
+            "nonce": 42
+          },
+          "waypoint": "LegacyCustodian.used(42) == false",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint(address,uint256,bytes,uint256)",
+          "params": {
+            "to": "0xDEADDEADDEADDEADDEADDEADDEADDEADDEADDEAD",
+            "amount": "1000000e18",
+            "signature": {
+              "r": "0x0000000000000000000000000000000000000000000000000000000000000000",
+              "s": "0x0000000000000000000000000000000000000000000000000000000000000000",
+              "v": 27
+            },
+            "nonce": 42
+          },
+          "description": "Submit a forged signature whose (r,s) are zero. ecrecover returns address(0), which matches the uninitialized LegacySigner, bypassing the signer‑only check.",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "pGALAToken",
+          "function": "balanceOf(address)",
+          "params": {
+            "account": "0xDEADDEADDEADDEADDEADDEADDEADDEADDEADDEAD"
+          },
+          "waypoint": "pGALAToken.balanceOf(0xDEADDEADDEADDEADDEADDEADDEADDEADDEADDEAD) >= 1000000e18",
+          "step": 4,
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "pgala_20221103",
+        "evodefi_20220607"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Submit a forged signature whose (r,s) are zero. ecrecover returns address(0), which matches the uninitialized LegacySigner, bypassing the signer‑only check."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_replay_refund_negative_balance_001",
+      "target_invariant": "asset_conservation_no_negative_balances",
+      "vulnerability_class": "replay+timeliness_refund",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint",
+          "params": {
+            "to": "0xAAAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "amount": "1000000000000000000000",
+            "nonce": 42,
+            "signature": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+          },
+          "description": "First legitimate mint: LegacyCustodian verifies !used[42] and recovered signer == LegacySigner, sets used[42]=true and calls pGALAToken.mint(to, amount). State predicate: LegacyCustodian.used[42] == true && pGALAToken.balanceOf[Attacker] == 1,000 pGALA.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "refund",
+          "params": {
+            "nonce": 42
+          },
+          "description": "After TIMEOUT passes, attacker calls refund. Contract checks block.timestamp >= lockTimestamp[42] + TIMEOUT, clears used[42] (used[42] == false) and calls pGALAToken.burn(to, amount) to return locked assets. State predicate: LegacyCustodian.used[42] == false && pGALAToken.balanceOf[Attacker] == 0.",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint",
+          "params": {
+            "to": "0xAAAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "amount": "1000000000000000000000",
+            "nonce": 42,
+            "signature": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+          },
+          "description": "Replay attack: because used[42] was cleared, the same (nonce, signature) pair is accepted again. LegacyCustodian sets used[42]=true and mints another 1,000 pGALA to attacker. State predicate: pGALAToken.balanceOf[Attacker] == 2,000 pGALA.",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "pGALAToken",
+          "function": "transfer",
+          "params": {
+            "to": "0xBBBbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "amount": "2000000000000000000000"
+          },
+          "description": "Attacker immediately transfers the full 2,000 pGALA to a third‑party address, leaving its own balance at 0. State predicate: pGALAToken.balanceOf[Attacker] == 0.",
+          "step": 4
+        },
+        {
+          "chain": "destination",
+          "contract": "Custodian",
+          "function": "mint",
+          "params": {
+            "to": "0xAAAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "amount": "100000000000000000000"
+          },
+          "description": "Protocol’s fee‑adjustment step (custodian mint) attempts to credit the attacker with a fee amount of 100 pGALA, but the bridge’s internal accounting later calls pGALAToken.burn(to, fee) to reconcile fees. Since attacker’s balance is 0, the unchecked subtraction underflows, resulting in pGALAToken.balanceOf[Attacker] wrapping to 2^256‑100, which violates the logical invariant balance >= 0 (interpreted as signed int). State predicate after burn: pGALAToken.balanceOf[Attacker] < 0 (or uint underflow).",
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_20220801",
+        "orbit_20240101"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "destRouter.totalMinted() >= 1000000000000000000000",
+          "description": "First legitimate mint: LegacyCustodian verifies !used[42] and recovered signer == LegacySigner, sets used[42]=true and calls pGALAToken.mint(to, amount). State predicate: LegacyCustodian.used[42] == true && pGALAToken.balanceOf[Attacker] == 1,000 pGALA."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "After TIMEOUT passes, attacker calls refund. Contract checks block.timestamp >= lockTimestamp[42] + TIMEOUT, clears used[42] (used[42] == false) and calls pGALAToken.burn(to, amount) to return locked assets. State predicate: LegacyCustodian.used[42] == false && pGALAToken.balanceOf[Attacker] == 0."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "destRouter.totalMinted() >= 2000000000000000000000",
+          "description": "Replay attack: because used[42] was cleared, the same (nonce, signature) pair is accepted again. LegacyCustodian sets used[42]=true and mints another 1,000 pGALA to attacker. State predicate: pGALAToken.balanceOf[Attacker] == 2,000 pGALA."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Attacker immediately transfers the full 2,000 pGALA to a third‑party address, leaving its own balance at 0. State predicate: pGALAToken.balanceOf[Attacker] == 0."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "destRouter.totalMinted() >= 4100000000000000000000",
+          "description": "Protocol’s fee‑adjustment step (custodian mint) attempts to credit the attacker with a fee amount of 100 pGALA, but the bridge’s internal accounting later calls pGALAToken.burn(to, fee) to reconcile fees. Since attacker’s balance is 0, the unchecked subtraction underflows, resulting in pGALAToken.balanceOf[Attacker] wrapping to 2^256‑100, which violates the logical invariant balance >= 0 (interpreted as signed int). State predicate after burn: pGALAToken.balanceOf[Attacker] < 0 (or uint underflow)."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_double_mint_e1_nonce42",
+      "target_invariant": "uniqueness_e1_mint_event_emitted_once",
+      "vulnerability_class": "signature_forgery_and_replay",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "offchain",
+          "contract": "LegacySigner",
+          "function": "signMint(uint256 nonce,uint256 amount,address to)",
+          "params": {
+            "nonce": 42,
+            "amount": 1000,
+            "to": "0xAttackerAddress"
+          },
+          "description": "Compromise LegacySigner private key and produce two distinct ECDSA signatures (sig1, sig2) for the same mint payload (nonce=42, amount=1000, to=Attacker). The signatures differ only in the `v` value (e.g., using both 27 and 28) so they are both valid and recover to the same signer.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint(address to,uint256 amount,bytes signature,uint256 nonce)",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": 1000,
+            "signature": "sig1",
+            "nonce": 42
+          },
+          "description": "First mint call with sig1. The contract checks `!used[nonce]` and `recovered == signer`, emits a Mint event, then (due to a bug) sets `used[nonce]` *after* emitting the event.",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "mint(address to,uint256 amount,bytes signature,uint256 nonce)",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": 1000,
+            "signature": "sig2",
+            "nonce": 42
+          },
+          "description": "Second mint call with sig2 before the `used[nonce]` flag from the first call is persisted (or because the contract only records `processed[nonce][signature]` and sig2 is a different signature, the replay guard is bypassed). A second Mint event is emitted for the same nonce.",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "viewMintEventCount(uint256 nonce)",
+          "params": {
+            "nonce": 42
+          },
+          "description": "Query the on‑chain counter that tracks how many Mint events have been emitted for a given nonce.",
+          "waypoint_predicate": "LegacyCustodian.mintEventCount(42) == 2",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "evodefi_20220607",
+        "bnbbridge_20221007",
+        "multichain_20220118"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Compromise LegacySigner private key and produce two distinct ECDSA signatures (sig1, sig2) for the same mint payload (nonce=42, amount=1000, to=Attacker). The signatures differ only in the `v` value (e.g., using both 27 and 28) so they are both valid and recover to the same signer."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "First mint call with sig1. The contract checks `!used[nonce]` and `recovered == signer`, emits a Mint event, then (due to a bug) sets `used[nonce]` *after* emitting the event."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Second mint call with sig2 before the `used[nonce]` flag from the first call is persisted (or because the contract only records `processed[nonce][signature]` and sig2 is a different signature, the replay guard is bypassed). A second Mint event is emitted for the same nonce."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Query the on‑chain counter that tracks how many Mint events have been emitted for a given nonce."
+        }
+      ]
+    },
+    {
+      "scenario_id": "pgala_custodian_timeliness_refund_exploit_01",
+      "target_invariant": "timeliness_custodian_refund_not_allowed",
+      "vulnerability_class": "missing_timeliness_check",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "LegacyCustodian",
+          "function": "lock",
+          "params": {
+            "to": "User",
+            "amount": "1000",
+            "nonce": "0xabc123"
+          },
+          "state_predicate": "lockedAmount[0xabc123] == 1000 && used[0xabc123] == false",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "destination",
+          "contract": "LegacyCustodian",
+          "function": "setBlockTimestamp",
+          "params": {
+            "timestamp": "block.timestamp + TIMEOUT + 10"
+          },
+          "state_predicate": "block.timestamp >= lockTimestamp[0xabc123] + TIMEOUT",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "Custodian",
+          "function": "mint",
+          "params": {
+            "to": "Attacker",
+            "amount": "5000000"
+          },
+          "state_predicate": "msg.sender == Custodian && refundAllowedByCustodian == true && totalSupply >= 5000000 && block.timestamp >= lockTimestamp[0xabc123] + TIMEOUT",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "pgala_20221103"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "destRouter.totalMinted() >= 5001000",
+          "description": "Step 3"
+        }
+      ]
+    }
+  ]
+}

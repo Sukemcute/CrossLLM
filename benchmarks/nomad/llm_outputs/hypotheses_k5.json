@@ -1,0 +1,1471 @@
+{
+  "bridge_name": "nomad",
+  "scenarios": [
+    {
+      "scenario_id": "nomad_hashcollision_double_mint_01",
+      "target_invariant": "asset_conservation_total_balance",
+      "vulnerability_class": "hash_collision_duplicate_mint",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "BridgeRouter",
+          "function": "lock(address,uint256)",
+          "params": {
+            "depositor": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": "1000"
+          },
+          "description": "User locks 1,000 MockToken on the source chain; updates totalLockedSource = 1000.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "processMessage(bytes)",
+          "params": {
+            "payload": "0xdeadbeef... (encoded lock of 1000 to User)",
+            "msgHash": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "mode": "faithful",
+          "description": "Honest replica relays the lock message; ok == true; BridgeRouter.mint called once.",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "BridgeRouter",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": "1000"
+          },
+          "description": "First legitimate mint; totalMintedDest = 1000, totalFeesCollected = 0.",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "MaliciousRelay",
+          "function": "relayDuplicate(bytes)",
+          "params": {
+            "payload": "0xfeedc0de... (encoded lock of 2000 to Attacker)",
+            "msgHash": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "mode": "tampered",
+          "description": "Attacker re‑uses the same msgHash (hash‑collision) to trigger a second processing; Replica does not re‑check consumedMessage before mint.",
+          "step": 4
+        },
+        {
+          "chain": "destination",
+          "contract": "BridgeRouter",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBb",
+            "amount": "2000"
+          },
+          "description": "Second mint of 2,000 tokens without additional lock; totalMintedDest = 3000 while totalLockedSource stays 1000 → invariant broken.",
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_bridge_2021",
+        "wormhole_2022"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1,000 MockToken on the source chain; updates totalLockedSource = 1000."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Honest replica relays the lock message; ok == true; BridgeRouter.mint called once."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "First legitimate mint; totalMintedDest = 1000, totalFeesCollected = 0."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Attacker re‑uses the same msgHash (hash‑collision) to trigger a second processing; Replica does not re‑check consumedMessage before mint."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Second mint of 2,000 tokens without additional lock; totalMintedDest = 3000 while totalLockedSource stays 1000 → invariant broken."
+        }
+      ]
+    },
+    {
+      "scenario_id": "nomad_replay_mint_overcount_01",
+      "target_invariant": "asset_conservation_token_balance",
+      "vulnerability_class": "logic_bug_replay",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "BridgeRouter",
+          "function": "lock(address,uint256)",
+          "params": {
+            "to": "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+            "amount": "1000"
+          },
+          "mode": "faithful",
+          "waypoint": "sourceRouter.totalLocked() >= 1000",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "relay",
+          "contract": "Replica",
+          "function": "processMessage(bytes)",
+          "params": {
+            "msg": "0x4d315f6c6f636b5f6d6573736167655f31",
+            "originChainId": 1,
+            "destChainId": 2,
+            "nonce": 42,
+            "payload": {
+              "to": "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+              "amount": "1000"
+            },
+            "signature": "0xVALIDSIG..."
+          },
+          "mode": "faithful",
+          "waypoint": "mintedAmount == 1000 && MockToken.balanceOf(address(BridgeRouter)) == 1000",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "relay",
+          "contract": "Replica",
+          "function": "processMessage(bytes)",
+          "params": {
+            "msg": "0x4d315f6c6f636b5f6d6573736167655f32",
+            "originChainId": 1,
+            "destChainId": 2,
+            "nonce": 42,
+            "payload": {
+              "to": "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+              "amount": "1000",
+              "extraPadding": "0x00"
+            },
+            "signature": "0xVALIDSIG..."
+          },
+          "mode": "tampered",
+          "waypoint": "mintedAmount == 2000 && MockToken.balanceOf(address(BridgeRouter)) == 1000",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_replay_20220202",
+        "nomad_signature_bug_20211215"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "relay.message_count > 0",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "nomad_fee_inflation_tampered_relay_001",
+      "target_invariant": "asset_conservation_no_negative_mint",
+      "vulnerability_class": "relay_tampering",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "BridgeRouter",
+          "function": "lock(address,uint256,uint256)",
+          "params": {
+            "token": "MockToken",
+            "amount": 1000,
+            "fee": 10
+          },
+          "description": "User deposits 1,000 MockToken on the source chain, paying the standard bridge fee of 10 tokens. The bridge records the lock and updates source‑side accounting.",
+          "state_predicate": "sourceBridgeRouter.totalLocked() == 1000 && sourceBridgeRouter.totalFeesCollected == 10",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "processMessage(bytes32,bytes)",
+          "params": {
+            "msgHash": "0xdeadbeefcafebabefeedface1234567890abcdef1234567890abcdef12345678",
+            "payload": {
+              "recipient": "0xAttackerAddress0000000000000000000000000000",
+              "mintAmount": 1,
+              "feeAmount": 100,
+              "originTxHash": "0xoriginhash000000000000000000000000000000000000000000000000000000"
+            }
+          },
+          "description": "Compromised Replica relays a tampered message: it claims only 1 token should be minted to the attacker while reporting a fee of 100 tokens. The replica sets `ok = true` and marks the message as unconsumed.",
+          "relay_mode": "tampered",
+          "state_predicate": "replica.ok == true && replica.processedPayload.mintAmount == 1 && replica.processedPayload.feeAmount == 100",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "BridgeRouter",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttackerAddress0000000000000000000000000000",
+            "amount": 1
+          },
+          "description": "BridgeRouter executes the mint call originated from the Replica. It mints only 1 MockToken to the attacker but internally records the fee of 100 tokens (as per the tampered payload).",
+          "state_predicate": "destinationBridgeRouter.totalMintedDest == 1 && destinationBridgeRouter.totalFeesCollected == 100 && MockToken.balanceOf(0xAttackerAddress0000000000000000000000000000) == 1",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_20220801"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User deposits 1,000 MockToken on the source chain, paying the standard bridge fee of 10 tokens. The bridge records the lock and updates source‑side accounting."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Compromised Replica relays a tampered message: it claims only 1 token should be minted to the attacker while reporting a fee of 100 tokens. The replica sets `ok = true` and marks the message as unconsumed."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "BridgeRouter executes the mint call originated from the Replica. It mints only 1 MockToken to the attacker but internally records the fee of 100 tokens (as per the tampered payload)."
+        }
+      ]
+    },
+    {
+      "scenario_id": "nomad_refund_recipient_manipulation_01",
+      "target_invariant": "asset_conservation_refund_balance",
+      "vulnerability_class": "improper_access_control_on_refund_recipient",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "source",
+          "contract": "BridgeRouter",
+          "function": "lock",
+          "params": {
+            "depositId": 42,
+            "amount": 1000,
+            "depositor": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa"
+          },
+          "waypoint": "lockedAmount[42] == 1000 && originalDepositor[42] == 0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+          "description": "Step 1"
+        },
+        {
+          "step": 2,
+          "chain": "relay",
+          "contract": "Replica",
+          "function": "processMessage",
+          "params": {
+            "payload": "0xdeadbeef... (encoded lockId=42, amount=1000, recipient=0xAaAa... )"
+          },
+          "mode": "tampered",
+          "waypoint": "ok == false && consumedMessage[msgHash] == false",
+          "description": "Step 2"
+        },
+        {
+          "step": 3,
+          "chain": "destination",
+          "contract": "BridgeRouter",
+          "function": "updateRecipient",
+          "params": {
+            "depositId": 42,
+            "newRecipient": "0xBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBb"
+          },
+          "waypoint": "originalDepositor[42] == 0xBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBb",
+          "description": "Step 3"
+        },
+        {
+          "step": 4,
+          "chain": "destination",
+          "contract": "BridgeRouter",
+          "function": "refund",
+          "params": {
+            "depositId": 42
+          },
+          "waypoint": "lockedAmount[42] == 0 && MockToken.balanceOf(0xBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBb) >= 1000",
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_20220801"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "nomad_zero_address_fee_mint_exploit_01",
+      "target_invariant": "asset_conservation_zero_address_mint",
+      "vulnerability_class": "logic_bug_message_tampering",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "relayMessage",
+          "params": {
+            "msgHash": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            "payload": {
+              "to": "0x1111111111111111111111111111111111111111",
+              "amount": "1000000000000000000",
+              "feeMint": false
+            }
+          },
+          "relay_mode": "tampered",
+          "precondition": "consumedMessage[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == false && isFeeMint(0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef) == true",
+          "description": "Re‑relay a previously observed fee‑mint message, but alter the amount field and clear the feeMint flag while keeping the off‑chain signature intact. The Replica forwards the tampered payload to BridgeRouter; the bridge still treats the caller as ZeroAddress because the message’s origin field is ZeroAddress.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "BridgeRouter",
+          "function": "mint",
+          "params": {
+            "to": "0x1111111111111111111111111111111111111111",
+            "amount": "1000000000000000000"
+          },
+          "precondition": "msg.sender == address(0) && ok == true && !consumedMessage[msgHash]",
+          "postcondition": "MockToken.balanceOf(0x1111111111111111111111111111111111111111) >= previousBalance + 1000000000000000000 && isFeeMint(msgHash) == false",
+          "description": "BridgeRouter executes the mint call using the tampered payload. Because msg.sender is interpreted as ZeroAddress, the invariant that ZeroAddress mints must be fee‑only is violated, inflating the user’s balance.",
+          "step": 2
+        }
+      ],
+      "retrieved_exploits": [
+        "socket_20240116",
+        "pnetwork_20210920"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Re‑relay a previously observed fee‑mint message, but alter the amount field and clear the feeMint flag while keeping the off‑chain signature intact. The Replica forwards the tampered payload to BridgeRouter; the bridge still treats the caller as ZeroAddress because the message’s origin field is ZeroAddress."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "destRouter.totalMinted() >= 1000000000000000000",
+          "description": "BridgeRouter executes the mint call using the tampered payload. Because msg.sender is interpreted as ZeroAddress, the invariant that ZeroAddress mints must be fee‑only is violated, inflating the user’s balance."
+        }
+      ]
+    },
+    {
+      "scenario_id": "nomad_auth_replica_caller_bypass_001",
+      "target_invariant": "authorization_replica_caller",
+      "vulnerability_class": "access_control_bypass_via_unrestricted_relay",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "submitMessage",
+          "params": {
+            "msgHash": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            "payload": "0x000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa00000000000000000000000000000000000000000000000000000000000003e8",
+            "ok": true
+          },
+          "description": "Attacker directly calls the Replica contract with a forged payload, forcing the internal processing flag `ok` to true for a fresh message hash. No authentication is performed on Replica, allowing the attacker to tamper with the relay state.",
+          "mode": "tampered",
+          "waypoint_predicate": "ok[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == true && consumedMessage[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == false",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "BridgeRouter",
+          "function": "mint",
+          "params": {
+            "to": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "amount": "1000000000000000000"
+          },
+          "description": "Attacker invokes BridgeRouter.mint directly, supplying the same `msgHash` that was just marked as ok. The BridgeRouter checks only `ok` and `!consumedMessage[msgHash]`, both satisfied, but the caller is not the verified Replica contract, violating the invariant.",
+          "mode": "faithful",
+          "waypoint_predicate": "msg.sender != address(Replica) && BridgeRouter.lastMintedTo == 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa && BridgeRouter.lastMintedAmount == 1000000000000000000",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "MockToken",
+          "function": "balanceOf",
+          "params": {
+            "account": "address(BridgeRouter)"
+          },
+          "description": "Read the token balance of the BridgeRouter to confirm that the minted amount was credited despite the unauthorized caller.",
+          "mode": "faithful",
+          "waypoint_predicate": "MockToken.balanceOf(address(BridgeRouter)) >= 1000000000000000000",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "ronin_20220323",
+        "polynetwork_20210810"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker directly calls the Replica contract with a forged payload, forcing the internal processing flag `ok` to true for a fresh message hash. No authentication is performed on Replica, allowing the attacker to tamper with the relay state."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "destRouter.totalMinted() >= 1000000000000000000",
+          "description": "Attacker invokes BridgeRouter.mint directly, supplying the same `msgHash` that was just marked as ok. The BridgeRouter checks only `ok` and `!consumedMessage[msgHash]`, both satisfied, but the caller is not the verified Replica contract, violating the invariant."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Read the token balance of the BridgeRouter to confirm that the minted amount was credited despite the unauthorized caller."
+        }
+      ]
+    },
+    {
+      "scenario_id": "nomad_replica_ok_bypass_tampered_relay",
+      "target_invariant": "authorization_replica_process_success",
+      "vulnerability_class": "relay_tampering",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "approve(address,uint256)",
+          "params": {
+            "spender": "BridgeRouter",
+            "amount": 1000
+          },
+          "description": "User approves the BridgeRouter to transfer 1,000 MockToken on the source chain.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "BridgeRouter",
+          "function": "lock(address,uint256)",
+          "params": {
+            "to": "User",
+            "amount": 1000
+          },
+          "description": "User locks 1,000 MockToken, emitting a NomadMessage with hash msgHash.",
+          "waypoint": "sourceRouter.totalLocked() >= 1000 && lockExists[msgHash] == true",
+          "step": 2
+        },
+        {
+          "chain": "offchain",
+          "contract": "NomadMessage",
+          "function": "relayMessage(bytes,bytes)",
+          "params": {
+            "payload": "<valid payload containing msgHash, amount, to>",
+            "proof": "<tampered proof that forces Replica verification to fail>"
+          },
+          "relay_mode": "tampered",
+          "description": "Attacker intercepts the off‑chain relay, replaces the Merkle proof with a malformed one so Replica's verification sets ok = false, then overwrites the return data to report ok = true to BridgeRouter.",
+          "waypoint": "ok == false && replica.processed == false",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "processAndMint(bytes)",
+          "params": {
+            "payload": "<same payload as above>"
+          },
+          "description": "Tampered Replica calls BridgeRouter.mint(User,1000) while the manipulated return value forces ok == true inside BridgeRouter.",
+          "waypoint": "ok == true && consumedMessage[msgHash] == false",
+          "step": 4
+        },
+        {
+          "chain": "destination",
+          "contract": "BridgeRouter",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "User",
+            "amount": 1000
+          },
+          "description": "BridgeRouter mints 1,000 MockToken to the user despite the original replica processing having failed, violating the invariant.",
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "evodefi_20220607",
+        "socket_20240116"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User approves the BridgeRouter to transfer 1,000 MockToken on the source chain."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "User locks 1,000 MockToken, emitting a NomadMessage with hash msgHash."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker intercepts the off‑chain relay, replaces the Merkle proof with a malformed one so Replica's verification sets ok = false, then overwrites the return data to report ok = true to BridgeRouter."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Tampered Replica calls BridgeRouter.mint(User,1000) while the manipulated return value forces ok == true inside BridgeRouter."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "BridgeRouter mints 1,000 MockToken to the user despite the original replica processing having failed, violating the invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "nomad_replay_consumed_message",
+      "target_invariant": "authorization_message_not_consumed",
+      "vulnerability_class": "storage_collision_replay",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "BridgeRouter",
+          "function": "lock(address,uint256)",
+          "params": {
+            "token": "MockToken",
+            "to": "0xUserDestAddress",
+            "amount": 1000
+          },
+          "mode": "faithful",
+          "waypoint": "sourceBridgeRouter.totalLocked() == 1000",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "processMessage(bytes)",
+          "params": {
+            "msg": "0x<encoded_message_with_hash_H>"
+          },
+          "mode": "faithful",
+          "waypoint": "consumedMessage[0xH] == true && BridgeRouter.mintCalled == true && BridgeRouter.mintedAmount == 1000",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "MaliciousHelper",
+          "function": "resetConsumedMessage(bytes32)",
+          "params": {
+            "msgHash": "0xH"
+          },
+          "mode": "tampered",
+          "waypoint": "consumedMessage[0xH] == false",
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "processMessage(bytes)",
+          "params": {
+            "msg": "0x<encoded_message_with_hash_H>"
+          },
+          "mode": "replay",
+          "waypoint": "BridgeRouter.mintCalled == true && BridgeRouter.mintedAmount == 2000 && consumedMessage[0xH] == true",
+          "step": 4,
+          "description": "Step 4"
+        },
+        {
+          "chain": "destination",
+          "contract": "BridgeRouter",
+          "function": "balanceOf(address)",
+          "params": {
+            "account": "0xUserDestAddress"
+          },
+          "mode": "query",
+          "waypoint": "MockToken.balanceOf(0xUserDestAddress) == 2000",
+          "step": 5,
+          "description": "Step 5"
+        }
+      ],
+      "retrieved_exploits": [
+        "bnbbridge_20221007",
+        "ronin_20220323"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Step 5"
+        }
+      ]
+    },
+    {
+      "scenario_id": "nomad_sig_bypass_2024_01",
+      "target_invariant": "authorization_valid_signature",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.93,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "setAcceptableRoot",
+          "params": {
+            "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "ok": true
+          },
+          "mode": "tampered",
+          "waypoint": "Replica.acceptableRoot[0x0000000000000000000000000000000000000000000000000000000000000000] == true",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "offchain",
+          "contract": "NomadMessage",
+          "function": "encodeMint",
+          "params": {
+            "to": "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "amount": "1000000000000000000",
+            "nonce": "1"
+          },
+          "mode": "craft",
+          "waypoint": "msgHash == keccak256(abi.encodePacked(to, amount, nonce))",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "processMessage",
+          "params": {
+            "message": "<encoded_payload>"
+          },
+          "mode": "faithful",
+          "waypoint": "verifiedSignature[msgHash] == true && ok == true",
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "destination",
+          "contract": "BridgeRouter",
+          "function": "mint",
+          "params": {
+            "to": "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "amount": "1000000000000000000"
+          },
+          "mode": "internal_call",
+          "waypoint": "MockToken.balanceOf(0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA) >= 1000000000000000000",
+          "step": 4,
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_20220801"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "destRouter.totalMinted() >= 2000000000000000000",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "nomad_lock_before_mint_violation_001",
+      "target_invariant": "authorization_lock_before_mint",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "setAcceptableRoot(bytes32 root,bool accepted)",
+          "params": {
+            "root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "accepted": true
+          },
+          "mode": "tampered",
+          "waypoint": "Replica.acceptableRoot[0x0000000000000000000000000000000000000000000000000000000000000000] == true",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "processMessage(bytes calldata message)",
+          "params": {
+            "message": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef00000000000000000000000000000000000000000000000000000000000003e8000000000000000000000000UserAddress"
+          },
+          "mode": "faithful",
+          "waypoint": "Replica.processed[msgHash] == true && Replica.ok == true",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "BridgeRouter",
+          "function": "mint(address to,uint256 amount)",
+          "params": {
+            "to": "UserAddress",
+            "amount": 1000
+          },
+          "mode": "faithful",
+          "waypoint": "BridgeRouter.mintCalled == true && lockExists[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == false",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_20220801"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "nomad_nonce_replay_2024",
+      "target_invariant": "uniqueness_nonce_processed_once",
+      "vulnerability_class": "reentrancy_state_reset",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "BridgeRouter",
+          "function": "lock(uint256,bytes)",
+          "params": {
+            "amount": "1000e18",
+            "payload": "0xdeadbeef"
+          },
+          "description": "User locks 1000 MockToken on the source chain; BridgeRouter emits a NomadMessage containing nonce N and msgHash H.",
+          "waypoint": "processedNonce[N] == false && consumedMessage[H] == false",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "processMessage(bytes)",
+          "params": {
+            "message": "<signed_message_with_nonce_N_and_hash_H>"
+          },
+          "relay_mode": "faithful",
+          "description": "Replica validates the signature, sets processedNonce[N] = true, and calls BridgeRouter.mint(Attacker,1000e18). The MockToken contract is a malicious ERC‑20 whose transfer() fallback re‑enters Replica and clears processedNonce[N].",
+          "waypoint": "processedNonce[N] == true && consumedMessage[H] == true && processedNonce[N] == false",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "processMessage(bytes)",
+          "params": {
+            "message": "<signed_message_with_nonce_N_and_hash_H>"
+          },
+          "relay_mode": "tampered",
+          "description": "Attacker re‑submits the same message. Because processedNonce[N] was reset, the require(!processedNonce[nonce]) check passes, allowing a second mint to the attacker.",
+          "waypoint": "processedNonce[N] == true && consumedMessage[H] == true && totalMintedDest increased by 1000e18",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "socket_20240116"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1000 MockToken on the source chain; BridgeRouter emits a NomadMessage containing nonce N and msgHash H."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Replica validates the signature, sets processedNonce[N] = true, and calls BridgeRouter.mint(Attacker,1000e18). The MockToken contract is a malicious ERC‑20 whose transfer() fallback re‑enters Replica and clears processedNonce[N]."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker re‑submits the same message. Because processedNonce[N] was reset, the require(!processedNonce[nonce]) check passes, allowing a second mint to the attacker."
+        }
+      ]
+    },
+    {
+      "scenario_id": "nomad_duplicate_relay_2024_01",
+      "target_invariant": "uniqueness_no_duplicate_relay",
+      "vulnerability_class": "replay_attack_missing_hash_check",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "transferFrom",
+          "params": {
+            "from": "User",
+            "to": "BridgeRouter",
+            "amount": 1000
+          },
+          "description": "User locks 1,000 MockToken on the source chain, triggering the NomadMessage library to emit a signed cross‑chain message with hash H.",
+          "waypoint": "sourceLock.lockedAmount[User] == 1000",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "processMessage",
+          "params": {
+            "msgHash": "H",
+            "payload": {
+              "to": "User",
+              "amount": 1000
+            },
+            "signature": "validSig"
+          },
+          "relay_mode": "faithful",
+          "description": "Honest replica receives the signed message, verifies the Merkle proof, and calls BridgeRouter.mint(User,1000).",
+          "waypoint": "relayCount[H] == 1 && BridgeRouter.totalMintedDest == 1000",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "processMessage",
+          "params": {
+            "msgHash": "H",
+            "payload": {
+              "to": "User",
+              "amount": 1000
+            },
+            "signature": "validSig"
+          },
+          "relay_mode": "replay",
+          "description": "Attacker re‑broadcasts the identical signed message using a manipulated Merkle proof that appears under a newer root. The replica, due to missing duplicate‑hash guard, accepts the replay and calls BridgeRouter.mint again.",
+          "waypoint": "relayCount[H] == 2 && BridgeRouter.totalMintedDest == 2000",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "bnbbridge_20221007",
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1,000 MockToken on the source chain, triggering the NomadMessage library to emit a signed cross‑chain message with hash H."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Honest replica receives the signed message, verifies the Merkle proof, and calls BridgeRouter.mint(User,1000)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker re‑broadcasts the identical signed message using a manipulated Merkle proof that appears under a newer root. The replica, due to missing duplicate‑hash guard, accepts the replay and calls BridgeRouter.mint again."
+        }
+      ]
+    },
+    {
+      "scenario_id": "nomad_hash_consistency_tamper_001",
+      "target_invariant": "uniqueness_hash_consistency",
+      "vulnerability_class": "relay_payload_tampering",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "BridgeRouter",
+          "function": "lock(address,uint256)",
+          "params": {
+            "to": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa01",
+            "amount": 10
+          },
+          "mode": "faithful",
+          "postcondition": "outboundMessageHash == 0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef && payload == abi.encodePacked(to,amount)",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "processMessage(bytes32,bytes)",
+          "params": {
+            "msgHash": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            "payload": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa01",
+            "amount": 1000
+          },
+          "mode": "tampered",
+          "postcondition": "BridgeRouter.consumedMessage[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == false && BridgeRouter.pendingMint == true",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "BridgeRouter",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa01",
+            "amount": 1000
+          },
+          "mode": "faithful",
+          "postcondition": "MockToken.balanceOf(0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa01) == 1000 && 0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef != keccak256(payload)",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "chainswap_20210711",
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "nomad_timeliness_delay_tamper_001",
+      "target_invariant": "timeliness_message_before_timeout",
+      "vulnerability_class": "relay_delay_and_tampering",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "BridgeRouter",
+          "function": "lock(address,uint256)",
+          "params": {
+            "to": "0xUserDestinationAddress",
+            "amount": "1000"
+          },
+          "description": "User locks 1,000 MockToken on the source chain, causing NomadMessage to be emitted with timestamp T0.",
+          "waypoint": "sourceBridgeRouter.totalLocked() >= 1000 && messageTimestamp[msgHash] == block.timestamp",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "relayMessage(bytes)",
+          "params": {
+            "message": "0x<encoded_message_from_step_1>"
+          },
+          "mode": "delayed",
+          "description": "Compromised Replica withholds the legitimate message for longer than MESSAGE_TIMEOUT (e.g., 2× timeout).",
+          "waypoint": "block.timestamp > messageTimestamp[msgHash] + MESSAGE_TIMEOUT && replica.pending[msgHash] == true",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "relayMessage(bytes)",
+          "params": {
+            "message": "0x<encoded_message_from_step_1_with_timestamp_T0>"
+          },
+          "mode": "tampered",
+          "description": "After the timeout, the attacker re‑relays the same payload but rewrites the embedded timestamp field to the original T0, making the BridgeRouter believe the message is still fresh.",
+          "waypoint": "replica.messageTimestamp[msgHash] == T0 && block.timestamp > T0 + MESSAGE_TIMEOUT",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "BridgeRouter",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xUserDestinationAddress",
+            "amount": "1000"
+          },
+          "description": "Replica (msg.sender == address(Replica)) calls mint on BridgeRouter. The timeliness check passes because the stored timestamp was tampered to T0, but the actual processing occurs after the timeout, violating the invariant.",
+          "waypoint": "block.timestamp > messageTimestamp[msgHash] + MESSAGE_TIMEOUT && consumedMessage[msgHash] == false",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "evodefi_20220607",
+        "ronin_20220323"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1,000 MockToken on the source chain, causing NomadMessage to be emitted with timestamp T0."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Compromised Replica withholds the legitimate message for longer than MESSAGE_TIMEOUT (e.g., 2× timeout)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "After the timeout, the attacker re‑relays the same payload but rewrites the embedded timestamp field to the original T0, making the BridgeRouter believe the message is still fresh."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Replica (msg.sender == address(Replica)) calls mint on BridgeRouter. The timeliness check passes because the stored timestamp was tampered to T0, but the actual processing occurs after the timeout, violating the invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "nomad_refund_timeliness_bypass_001",
+      "target_invariant": "timeliness_refund_after_timeout",
+      "vulnerability_class": "logic_bug_timestamp_manipulation",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "BridgeRouter",
+          "function": "lock(address token,uint256 amount,bytes32 destination)",
+          "params": {
+            "token": "MockToken",
+            "amount": "1000000000000000000",
+            "destination": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+          },
+          "description": "User locks 1 MockToken on the source chain, creating lockTimestamp[depositId] = block.timestamp.",
+          "state_predicate": "sourceBridge.lockTimestamp[depositId] == block.timestamp",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "processMessage(bytes payload)",
+          "params": {
+            "payload": "<abi.encode(depositId, forgedTimestamp)>"
+          },
+          "relay_mode": "tampered",
+          "description": "Replica (authorized caller) processes a crafted message that contains a forged timestamp older than the real lock time.",
+          "state_predicate": "sourceBridge.lockTimestamp[depositId] == block.timestamp - REFUND_TIMEOUT - 1",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "BridgeRouter",
+          "function": "refund(uint256 depositId)",
+          "params": {
+            "depositId": "0x1"
+          },
+          "description": "User calls refund before the genuine timeout; the contract checks the manipulated timestamp.",
+          "state_predicate": "block.timestamp >= sourceBridge.lockTimestamp[depositId] + REFUND_TIMEOUT",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "transfer(address to,uint256 amount)",
+          "params": {
+            "to": "User",
+            "amount": "1000000000000000000"
+          },
+          "description": "Refund transfers the locked tokens back to the user, violating the timeliness invariant.",
+          "state_predicate": "MockToken.balanceOf(User) >= 1000000000000000000",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "thorchain_20210628"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1 MockToken on the source chain, creating lockTimestamp[depositId] = block.timestamp."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Replica (authorized caller) processes a crafted message that contains a forged timestamp older than the real lock time."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "User calls refund before the genuine timeout; the contract checks the manipulated timestamp."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Refund transfers the locked tokens back to the user, violating the timeliness invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "nomad_refund_replay_001",
+      "target_invariant": "timeliness_refund_not_previously_claimed",
+      "vulnerability_class": "logic_bug_missing_refund_claimed_flag",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "source",
+          "contract": "SourceLock",
+          "function": "lock(address,uint256)",
+          "params": {
+            "depositor": "User",
+            "amount": 100
+          },
+          "mode": "faithful",
+          "state_predicate_before": "sourceLock.totalLocked() == 0",
+          "state_predicate_after": "sourceLock.totalLocked() == 100 && lockExists[depositId] == true && lockTimestamp[depositId] == block.timestamp",
+          "description": "Step 1"
+        },
+        {
+          "step": 2,
+          "chain": "offchain",
+          "contract": "TimeWarp",
+          "function": "advance(uint256)",
+          "params": {
+            "seconds": 86400
+          },
+          "mode": "faithful",
+          "state_predicate_before": "block.timestamp == lockTimestamp[depositId] + 0",
+          "state_predicate_after": "block.timestamp > lockTimestamp[depositId] + MESSAGE_TIMEOUT",
+          "description": "Step 2"
+        },
+        {
+          "step": 3,
+          "chain": "destination",
+          "contract": "BridgeRouter",
+          "function": "claimRefund(uint256)",
+          "params": {
+            "depositId": "depositId"
+          },
+          "mode": "faithful",
+          "state_predicate_before": "refundClaimed[depositId] == false && block.timestamp > lockTimestamp[depositId] + MESSAGE_TIMEOUT",
+          "state_predicate_after": "refundClaimed[depositId] == true && MockToken.balanceOf(User) == 100",
+          "description": "Step 3"
+        },
+        {
+          "step": 4,
+          "chain": "relay",
+          "contract": "Replica",
+          "function": "processMessage(bytes)",
+          "params": {
+            "payload": "abi.encodeWithSignature(\"mint(address,uint256)\", User, 100)",
+            "msgSender": "ZeroAddress"
+          },
+          "mode": "replay",
+          "state_predicate_before": "refundClaimed[depositId] == true && MockToken.balanceOf(User) == 100",
+          "state_predicate_after": "MockToken.balanceOf(User) == 200 && refundClaimed[depositId] == true",
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "thorchain_20210629",
+        "chainswap_20210711"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "relay.message_count > 0",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "nomad_timeliness_replay_expired_message",
+      "target_invariant": "timeliness_stale_message_cleanup",
+      "vulnerability_class": "timeliness_logic",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "processMessage",
+          "params": {
+            "msgHash": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            "payload": {
+              "to": "User",
+              "amount": 1000,
+              "originTxHash": "0xabc123abc123abc123abc123abc123abc123abc123abc123abc123abc123abcd"
+            },
+            "mode": "tampered"
+          },
+          "description": "Replica processes a valid cross‑chain lock message but, in tampered mode, deliberately skips the internal call that would set `consumedMessage[msgHash] = true` in BridgeRouter.",
+          "waypoint": "BridgeRouter.consumedMessage[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == false && messageTimestamp[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == block.timestamp",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "System",
+          "function": "increaseTime",
+          "params": {
+            "seconds": "MESSAGE_TIMEOUT + 60"
+          },
+          "description": "Advance the blockchain timestamp so that the message is past its expiration window.",
+          "waypoint": "block.timestamp > messageTimestamp[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] + MESSAGE_TIMEOUT",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "processMessage",
+          "params": {
+            "msgHash": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            "payload": {
+              "to": "User",
+              "amount": 1000,
+              "originTxHash": "0xabc123abc123abc123abc123abc123abc123abc123abc123abc123abc123abcd"
+            },
+            "mode": "replay"
+          },
+          "description": "Replay the same (now expired) message. Because `consumedMessage[msgHash]` was never marked true, BridgeRouter’s `mint` guard `require(!consumedMessage[msgHash])` passes, allowing a second mint.",
+          "waypoint": "BridgeRouter.consumedMessage[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == false && block.timestamp > messageTimestamp[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] + MESSAGE_TIMEOUT",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "pgala_20221103",
+        "bnbbridge_20221007"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Replica processes a valid cross‑chain lock message but, in tampered mode, deliberately skips the internal call that would set `consumedMessage[msgHash] = true` in BridgeRouter."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Advance the blockchain timestamp so that the message is past its expiration window."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Replay the same (now expired) message. Because `consumedMessage[msgHash]` was never marked true, BridgeRouter’s `mint` guard `require(!consumedMessage[msgHash])` passes, allowing a second mint."
+        }
+      ]
+    },
+    {
+      "scenario_id": "nomad_fee_timeliness_delay_01",
+      "target_invariant": "timeliness_fee_distribution_before_timeout",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "BridgeRouter",
+          "function": "lock(uint256,uint256)",
+          "params": {
+            "amount": "1000e18",
+            "fee": "10e18"
+          },
+          "description": "User locks tokens on the source chain, creating a cross‑chain message. The bridge records messageTimestamp[msgHash] = block.timestamp and feeAmount[msgHash] = 10e18.",
+          "waypoint": "messageTimestamp[msgHash] == block.timestamp && feeAmount[msgHash] == 10e18",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "Replica",
+          "function": "processMessage(bytes)",
+          "params": {
+            "payload": "abi.encode(msgHash, 990e18, 10e18, true)"
+          },
+          "mode": "delayed",
+          "description": "Compromised Replica forwards the payload to BridgeRouter but deliberately postpones any fee‑distribution call. It sets ok = true so BridgeRouter will accept the mint.",
+          "waypoint": "consumedMessage[msgHash] == false && feeDistributed[msgHash] == false",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "BridgeRouter",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttackerUserAddress",
+            "amount": "990e18"
+          },
+          "description": "Replica (msg.sender) invokes BridgeRouter.mint. Tokens are minted to the attacker, consumedMessage[msgHash] becomes true, but feeDistributed[msgHash] remains false because the fee‑distribution step is never called.",
+          "waypoint": "feeDistributed[msgHash] == false && block.timestamp <= messageTimestamp[msgHash] + MESSAGE_TIMEOUT",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "pnetwork_xscope",
+        "meter_io_xscope"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks tokens on the source chain, creating a cross‑chain message. The bridge records messageTimestamp[msgHash] = block.timestamp and feeAmount[msgHash] = 10e18."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Compromised Replica forwards the payload to BridgeRouter but deliberately postpones any fee‑distribution call. It sets ok = true so BridgeRouter will accept the mint."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Replica (msg.sender) invokes BridgeRouter.mint. Tokens are minted to the attacker, consumedMessage[msgHash] becomes true, but feeDistributed[msgHash] remains false because the fee‑distribution step is never called."
+        }
+      ]
+    }
+  ]
+}

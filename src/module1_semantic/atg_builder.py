@@ -144,10 +144,18 @@ def normalize_atg_dict(atg: dict) -> dict:
     Deterministic and LLM-free, so it is safe to apply both inside the pipeline
     (``ATGBuilder.to_json``) and at visualization time. Idempotent.
     """
-    # 1. canonicalize edge endpoints
+    # 1. canonicalize edge endpoints + sanitize null scalar fields.
+    #    The LLM occasionally emits explicit ``null`` for string fields (e.g.
+    #    ``"token": null``); the Rust fuzzer deserializes these as ``String``
+    #    (not ``Option<String>``) and panics on null. Coerce to safe defaults.
     for e in atg.get("edges", []):
         e["src"] = canonical_endpoint(e.get("src", ""))
         e["dst"] = canonical_endpoint(e.get("dst", ""))
+        e["label"] = e.get("label") or "verify"
+        e["token"] = e.get("token") or "UNKNOWN"
+        e["function_signature"] = e.get("function_signature") or ""
+        if e.get("conditions") is None:
+            e["conditions"] = []
 
     # 2. canonicalize + dedup nodes by node_id (keep the richest record)
     merged: dict[str, dict] = {}
@@ -157,6 +165,9 @@ def normalize_atg_dict(atg: dict) -> dict:
         if not nid:
             continue
         node = {**n, "node_id": nid}
+        node["node_type"] = node.get("node_type") or "contract"
+        node["chain"] = node.get("chain") or "source"
+        node["address"] = node.get("address") or ""
         if nid not in merged:
             merged[nid] = node
             order.append(nid)
@@ -289,8 +300,8 @@ class ATGBuilder:
                 src=src,
                 dst=dst,
                 label=label,
-                token=flow.get("token", "UNKNOWN"),
-                function_signature=flow.get("function_signature", self._guess_signature(label, functions)),
+                token=flow.get("token") or "UNKNOWN",
+                function_signature=flow.get("function_signature") or self._guess_signature(label, functions),
             )
             edge.set_conditions(flow.get("conditions", []))
             atg.edges.append(edge)

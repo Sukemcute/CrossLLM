@@ -1,0 +1,1385 @@
+{
+  "bridge_name": "polynetwork",
+  "scenarios": [
+    {
+      "scenario_id": "poly_network_asset_conservation_break_001",
+      "target_invariant": "asset_conservation_locked_equals_minted",
+      "vulnerability_class": "logic_bug_message_tampering",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "User",
+          "function": "deposit(uint256 amount)",
+          "params": {
+            "amount": "1000"
+          },
+          "description": "User locks 1,000 tokens in EthCrossChainManager; sourceRouter.totalLocked() becomes 1000.",
+          "step": 1
+        },
+        {
+          "chain": "relay",
+          "contract": "RelayNode",
+          "function": "relayMessage(bytes header,bytes payload)",
+          "params": {
+            "header": "0xdeadbeef...validHeader",
+            "payload": "0x01{depositId:1,amount:1000,recipient:0xAttacker}"
+          },
+          "relay_mode": "faithful",
+          "description": "Honest relay forwards the signed cross‑chain message to EthCrossChainManager.",
+          "step": 2
+        },
+        {
+          "chain": "relay",
+          "contract": "RelayNode",
+          "function": "relayMessage(bytes header,bytes payload)",
+          "params": {
+            "header": "0xdeadbeef...validHeader",
+            "payload": "0x01{depositId:1,amount:5000,recipient:0xAttacker}"
+          },
+          "relay_mode": "tampered_replay",
+          "description": "Attacker replays the same depositId but tampers the amount field to 5,000.",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "verifyHeaderAndExecuteTx(address target,bytes data)",
+          "params": {
+            "target": "TargetContract",
+            "data": "0xencoded{depositId:1,amount:5000,recipient:0xAttacker}"
+          },
+          "description": "Manager, trusting the (tampered) header, calls TargetContract to mint 5,000 tokens on the destination chain.",
+          "step": 4
+        },
+        {
+          "chain": "destination",
+          "contract": "TargetContract",
+          "function": "mint(address to,uint256 amount)",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "5000"
+          },
+          "description": "Destination contract mints 5,000 tokens; totalMintedDest becomes 5000 while totalLockedSource stays 1000.",
+          "step": 5
+        }
+      ],
+      "state_waypoints": [
+        "sourceRouter.totalLocked() == 1000",
+        "destRouter.totalMinted() == 5000",
+        "destRouter.totalFeesCollected() == 0"
+      ],
+      "retrieved_exploits": [
+        "pnetwork_20210920",
+        "anyswap_20210710",
+        "multichain_20220118",
+        "synapse_20211109"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1,000 tokens in EthCrossChainManager; sourceRouter.totalLocked() becomes 1000."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Honest relay forwards the signed cross‑chain message to EthCrossChainManager."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "relay.message_count > 0",
+          "description": "Attacker replays the same depositId but tampers the amount field to 5,000."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Manager, trusting the (tampered) header, calls TargetContract to mint 5,000 tokens on the destination chain."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Destination contract mints 5,000 tokens; totalMintedDest becomes 5000 while totalLockedSource stays 1000."
+        }
+      ]
+    },
+    {
+      "scenario_id": "poly_2024_negative_balance_replay",
+      "target_invariant": "asset_conservation_no_negative_balance",
+      "vulnerability_class": "replay+logic_bug",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "step_id": "a1",
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "deposit(address,uint256)",
+          "params": {
+            "token": "0xTokenAddress",
+            "amount": "1000e18"
+          },
+          "relay_mode": "faithful",
+          "waypoint": "EthCrossChainManager.totalLocked == 1000e18 && balanceOf[EthCrossChainManager] >= 1000e18",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "step_id": "a2",
+          "chain": "relay",
+          "contract": "RelayNode",
+          "function": "relayMessage",
+          "params": {
+            "srcChain": "source",
+            "dstChain": "destination",
+            "msgHash": "0xFakeHash",
+            "payload": "signedWithdraw(address,uint256,uint256)"
+          },
+          "relay_mode": "tampered",
+          "waypoint": "relayMessage.tampered == true && msgHash == 0xFakeHash",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "step_id": "a3",
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "signedWithdraw(address,uint256,uint256)",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "1500e18",
+            "nonce": "42"
+          },
+          "relay_mode": "replay",
+          "waypoint": "data.processed[42] == false && EthCrossChainManager.balance < 0",
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "step_id": "a4",
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "signedWithdraw(address,uint256,uint256)",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "1500e18",
+            "nonce": "42"
+          },
+          "relay_mode": "faithful",
+          "waypoint": "require(!data.processed[42], \"EthCrossChainManager: replay\") && balanceOf[EthCrossChainManager] < 0",
+          "step": 4,
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_20220801",
+        "wormhole_20220202",
+        "ronin_20220323"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "poly_refund_total_locked_underflow_001",
+      "target_invariant": "asset_conservation_refund_preserves_total",
+      "vulnerability_class": "logic_bug_refund_miscount",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "lockTokens",
+          "params": {
+            "user": "0xUserAddress",
+            "amount": 1000,
+            "depositId": 42,
+            "nonce": 1
+          },
+          "mode": "faithful",
+          "waypoint": "totalLockedSource == 1000 && userBalance[0xUserAddress] == 0",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "tamperInternalState",
+          "params": {
+            "depositId": 42,
+            "newLockTimestamp": 0,
+            "processedNonce": false
+          },
+          "mode": "tampered",
+          "description": "Attacker with compromised manager key directly writes storage so that lockTimestamp[42] = 0 and data.processed(1) = false, making the deposit appear timed‑out.",
+          "waypoint": "block.timestamp > lockTimestamp[42] + timeout && data.processed(1) == false",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "signedWithdraw",
+          "params": {
+            "user": "0xUserAddress",
+            "amount": 1000,
+            "nonce": 2,
+            "withdrawSig": "0xAttackerSignedRefundSignature"
+          },
+          "mode": "faithful",
+          "edge_id": "e2",
+          "waypoint": "totalLockedSource == 1000 && userBalance[0xUserAddress] == 1000",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker with compromised manager key directly writes storage so that lockTimestamp[42] = 0 and data.processed(1) = false, making the deposit appear timed‑out."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "poly_fee_decrease_001",
+      "target_invariant": "asset_conservation_fee_immutable",
+      "vulnerability_class": "logic_bug_fee_adjustment",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "source",
+          "node_id": "EthCrossChainManager",
+          "function_signature": "lockTokens(address,uint256,uint256)",
+          "parameters": {
+            "token": "0x1111111111111111111111111111111111111111",
+            "amount": 1000,
+            "fee": 10
+          },
+          "waypoint": "sourceRouter.totalLocked() == 1000 && sourceRouter.totalFeesCollected() == 10",
+          "description": "Honest user locks 1,000 tokens on the source chain, paying a 10‑unit bridge fee; the manager records the fee.",
+          "params": {}
+        },
+        {
+          "step": 2,
+          "chain": "relay",
+          "relay_mode": "tampered",
+          "node_id": "EthCrossChainManager",
+          "function_signature": "verifyHeaderAndExecuteTx(address,bytes)",
+          "parameters": {
+            "target": "TargetContract",
+            "data": "0xabcdef... (encoded mint payload that specifies a fee of 2 instead of 10)"
+          },
+          "waypoint": "sourceRouter.totalFeesCollected() == 2",
+          "description": "Attacker intercepts the off‑chain relay and injects a forged cross‑chain header. The manager re‑executes the mint with a lower fee, internally subtracting the previously recorded 10‑unit fee and adding the new 2‑unit fee, causing the fee counter to drop.",
+          "params": {}
+        },
+        {
+          "step": 3,
+          "chain": "source",
+          "node_id": "EthCrossChainManager",
+          "function_signature": "signedWithdraw(address,uint256,uint256)",
+          "parameters": {
+            "user": "0x2222222222222222222222222222222222222222",
+            "amount": 0,
+            "nonce": 42
+          },
+          "waypoint": "totalFeesCollected_after < totalFeesCollected_before",
+          "description": "Attacker finalises a zero‑value withdraw to close the transaction; no additional fee is collected, preserving the decreased fee counter and completing the invariant breach.",
+          "params": {}
+        }
+      ],
+      "retrieved_exploits": [
+        "socket_20240116",
+        "thorchain_20210628",
+        "polynetwork_fee_bug_example"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Honest user locks 1,000 tokens on the source chain, paying a 10‑unit bridge fee; the manager records the fee."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Attacker intercepts the off‑chain relay and injects a forged cross‑chain header. The manager re‑executes the mint with a lower fee, internally subtracting the previously recorded 10‑unit fee and adding the new 2‑unit fee, causing the fee counter to drop."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker finalises a zero‑value withdraw to close the transaction; no additional fee is collected, preserving the decreased fee counter and completing the invariant breach."
+        }
+      ]
+    },
+    {
+      "scenario_id": "poly_mint_without_verified_header_001",
+      "target_invariant": "authorization_mint_requires_verified_header",
+      "vulnerability_class": "authorization",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "TargetContract",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xDEADDEADDEADDEADDEADDEADDEADDEADDEADDEAD",
+            "amount": "1000000000000000000000"
+          },
+          "description": "Attacker directly calls the mint function on the destination contract, skipping EthCrossChainManager entirely.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "TargetContract",
+          "function": "totalMinted()",
+          "params": {},
+          "description": "Read the total minted amount after the malicious call to confirm that new tokens were created.",
+          "step": 2
+        }
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker directly calls the mint function on the destination contract, skipping EthCrossChainManager entirely."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Read the total minted amount after the malicious call to confirm that new tokens were created."
+        }
+      ],
+      "retrieved_exploits": [
+        "chainswap_20210711",
+        "socket_20240116"
+      ]
+    },
+    {
+      "scenario_id": "polynetwork_auth_withdraw_unprocessed_001",
+      "target_invariant": "authorization_withdraw_requires_processed_deposit",
+      "vulnerability_class": "logic_bug_missing_processed_check",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "deposit(uint256,uint256)",
+          "params": {
+            "amount": "1000e18",
+            "nonce": "1"
+          },
+          "description": "Attacker (acting as legitimate user) locks 1,000 tokens on the source chain, creating a deposit record with nonce = 1. The contract records the lock but does **not** set data.processed[1] to true.",
+          "state_predicates": [
+            "EthCrossChainManager.data.processed[1] == false",
+            "EthCrossChainManager.lockedAmount[1] == 1000e18"
+          ],
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "signedWithdraw(address,uint256,uint256)",
+          "params": {
+            "user": "0xAttacker",
+            "amount": "1000e18",
+            "nonce": "1"
+          },
+          "description": "Before any off‑chain relayer processes the deposit header, the attacker front‑runs the manager and calls signedWithdraw with the same nonce. The only on‑chain guard is `require(!data.processed(nonce))`, which passes because the flag is still false. Tokens are transferred to the attacker and `withdrawn[1]` is set, but `data.processed[1]` remains false.",
+          "state_predicates": [
+            "EthCrossChainManager.withdrawn[1] == true",
+            "EthCrossChainManager.data.processed[1] == false"
+          ],
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "verifyHeaderAndExecuteTx(address,bytes)",
+          "params": {
+            "header": "0xValidHeaderFromEthCrossChainData",
+            "txData": "0x..."
+          },
+          "relay_mode": "delayed",
+          "description": "The off‑chain relayer finally forwards the cross‑chain header. `verifyHeaderAndExecuteTx` marks the deposit as processed (`data.processed[1] = true`). At this point the invariant `data.processed[depositId] == true` holds, but the funds have already been withdrawn, breaking the logical coupling between processing and withdrawal.",
+          "state_predicates": [
+            "EthCrossChainManager.data.processed[1] == true",
+            "EthCrossChainManager.totalLocked == 0",
+            "balanceOf[0xAttacker] increased by 1000e18"
+          ],
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810",
+        "chainswap_20210711"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker (acting as legitimate user) locks 1,000 tokens on the source chain, creating a deposit record with nonce = 1. The contract records the lock but does **not** set data.processed[1] to true."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Before any off‑chain relayer processes the deposit header, the attacker front‑runs the manager and calls signedWithdraw with the same nonce. The only on‑chain guard is `require(!data.processed(nonce))`, which passes because the flag is still false. Tokens are transferred to the attacker and `withdrawn[1]` is set, but `data.processed[1]` remains false."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "The off‑chain relayer finally forwards the cross‑chain header. `verifyHeaderAndExecuteTx` marks the deposit as processed (`data.processed[1] = true`). At this point the invariant `data.processed[depositId] == true` holds, but the funds have already been withdrawn, breaking the logical coupling between processing and withdrawal."
+        }
+      ]
+    },
+    {
+      "scenario_id": "poly_auth_bypass_001",
+      "target_invariant": "authorization_call_from_manager_only",
+      "vulnerability_class": "missing_access_control",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "source",
+          "contract": "TargetContract",
+          "function": "verifyHeaderAndExecuteTx",
+          "params": {
+            "target": "AttackerContract",
+            "data": "0xdeadbeef"
+          },
+          "description": "Attacker directly calls verifyHeaderAndExecuteTx with a crafted payload, bypassing EthCrossChainManager."
+        },
+        {
+          "step": 2,
+          "chain": "source",
+          "contract": "AttackerContract",
+          "function": "execute",
+          "params": {
+            "value": "1000000"
+          },
+          "description": "The malicious payload executes, minting 1,000,000 tokens to the attacker."
+        }
+      ],
+      "state_predicates": [
+        "TargetContract.lastCaller != address(EthCrossChainManager)",
+        "AttackerContract.balance == previousBalance + 1000000"
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810",
+        "chainswap_20210711"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker directly calls verifyHeaderAndExecuteTx with a crafted payload, bypassing EthCrossChainManager."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "The malicious payload executes, minting 1,000,000 tokens to the attacker."
+        }
+      ]
+    },
+    {
+      "scenario_id": "poly_sig_forgery_withdraw_inflation_001",
+      "target_invariant": "authorization_user_signature_valid",
+      "vulnerability_class": "signature_forgery",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "signedWithdraw",
+          "params": {
+            "user": "0xVictimUserAddress",
+            "amount": "1000000000000000000",
+            "nonce": "42",
+            "withdrawSig": "0xObservedValidSignatureFromVictim"
+          },
+          "description": "Observe a legitimate withdrawal from the victim (nonce 42, amount 1 ETH). Record the ECDSA signature returned by the off‑chain signer. The manager’s verification code only hashes (user, nonce) and omits the amount, enabling reuse of the signature for any amount.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "signedWithdraw",
+          "params": {
+            "user": "0xVictimUserAddress",
+            "amount": "5000000000000000000",
+            "nonce": "42",
+            "withdrawSig": "0xObservedValidSignatureFromVictim"
+          },
+          "description": "Craft a malicious withdrawal using the same nonce and signature but inflate the amount to 5 ETH. The contract checks `!data.processed(nonce)` (true) and `isValidSignature(user, withdrawSig)` (true because amount is not part of the signed message). Execute the call before the victim can submit their original transaction.",
+          "relay_mode": "faithful",
+          "waypoint_pre": "data.processed[42] == false",
+          "waypoint_post": [
+            "data.processed[42] == true",
+            "balanceOf[EthCrossChainManager] == balanceOf[EthCrossChainManager] - 5e18",
+            "balanceOf[0xVictimUserAddress] == balanceOf[0xVictimUserAddress] + 5e18"
+          ],
+          "step": 2
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_20220118",
+        "anyswap_20210710"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Observe a legitimate withdrawal from the victim (nonce 42, amount 1 ETH). Record the ECDSA signature returned by the off‑chain signer. The manager’s verification code only hashes (user, nonce) and omits the amount, enabling reuse of the signature for any amount."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Craft a malicious withdrawal using the same nonce and signature but inflate the amount to 5 ETH. The contract checks `!data.processed(nonce)` (true) and `isValidSignature(user, withdrawSig)` (true because amount is not part of the signed message). Execute the call before the victim can submit their original transaction."
+        }
+      ]
+    },
+    {
+      "scenario_id": "replay_withdraw_nonce_reset_polynetwork_v1",
+      "target_invariant": "uniqueness_nonce_processed_once",
+      "vulnerability_class": "key_compromise",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "signedWithdraw(address,uint256,uint256)",
+          "params": {
+            "user": "0xAttackerUser",
+            "amount": "1000000000000000000",
+            "nonce": "42"
+          },
+          "description": "First legitimate withdrawal – passes `require(!data.processed[nonce])` and sets `processed[42] = true`.",
+          "waypoint": "EthCrossChainData.processed[42] == true",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "EthCrossChainData",
+          "function": "updateProcessed(uint256,bool)",
+          "params": {
+            "nonce": "42",
+            "status": false
+          },
+          "relay_mode": "tampered",
+          "description": "Attacker, having compromised the relayer’s private key, invokes a privileged admin function that flips the processed flag back to false, violating the uniqueness invariant.",
+          "waypoint": "EthCrossChainData.processed[42] == false",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "signedWithdraw(address,uint256,uint256)",
+          "params": {
+            "user": "0xAttackerUser",
+            "amount": "1000000000000000000",
+            "nonce": "42"
+          },
+          "description": "Replay of the same signed withdraw with the same nonce. Because `processed[42]` was reset, the require check succeeds and the attacker receives the funds a second time.",
+          "waypoint": "EthCrossChainData.processed[42] == true && balanceOf[0xAttackerUser] increased by 2 * 1 ETH",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "First legitimate withdrawal – passes `require(!data.processed[nonce])` and sets `processed[42] = true`."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker, having compromised the relayer’s private key, invokes a privileged admin function that flips the processed flag back to false, violating the uniqueness invariant."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Replay of the same signed withdraw with the same nonce. Because `processed[42]` was reset, the require check succeeds and the attacker receives the funds a second time."
+        }
+      ]
+    },
+    {
+      "scenario_id": "poly_replay_msgid_2024_06_22",
+      "target_invariant": "uniqueness_message_id_once",
+      "vulnerability_class": "replay_attack",
+      "confidence": 0.93,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "deposit(address,uint256,bytes)",
+          "params": {
+            "to": "0xTargetContractDest",
+            "amount": "1000e18",
+            "payload": "0xdeadbeef"
+          },
+          "mode": "faithful",
+          "waypoint": "source.EthCrossChainManager.messageQueue[msgId] == pending && source.EthCrossChainManager.messageId == msgId",
+          "description": "Step 1"
+        },
+        {
+          "step": 2,
+          "chain": "destination",
+          "contract": "TargetContract",
+          "function": "verifyHeaderAndExecuteTx(address,bytes)",
+          "params": {
+            "caller": "0xEthCrossChainManagerSrc",
+            "data": "0xdeadbeef"
+          },
+          "mode": "faithful",
+          "waypoint": "dest.TargetContract.messageConsumed[msgId] == true && dest.TargetContract.stateBalance == 1000e18",
+          "description": "Step 2"
+        },
+        {
+          "step": 3,
+          "chain": "destination",
+          "contract": "TargetContract",
+          "function": "verifyHeaderAndExecuteTx(address,bytes)",
+          "params": {
+            "caller": "0xMaliciousRelay",
+            "data": "0xdeadbeef"
+          },
+          "mode": "replay",
+          "waypoint": "dest.TargetContract.messageConsumed[msgId] == true && dest.TargetContract.stateBalance == 2000e18",
+          "description": "Step 3"
+        },
+        {
+          "step": 4,
+          "chain": "destination",
+          "contract": "TargetContract",
+          "function": "withdraw(address,uint256)",
+          "params": {
+            "to": "0xAttackerEOA",
+            "amount": "2000e18"
+          },
+          "mode": "faithful",
+          "waypoint": "dest.TargetContract.balanceOf[0xAttackerEOA] == 2000e18 && dest.TargetContract.messageConsumed[msgId] == true",
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810",
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "poly_replay_withdraw_2024_01",
+      "target_invariant": "uniqueness_withdraw_replay_protection",
+      "vulnerability_class": "logic_bug_replay",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "signedWithdraw",
+          "params": {
+            "to": "0xAttacker0000000000000000000000000000000000",
+            "amount": "1000000000000000000",
+            "nonce": "42",
+            "signature": "0xValidUserSignatureForNonce42"
+          },
+          "description": "First withdraw using a legitimate user‑signed message. The contract checks !data.processed[42], transfers funds, then sets data.processed[42]=true and withdrawn[42]=true.",
+          "state_predicate": "withdrawn[42] == true && data.processed[42] == true",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "signedWithdraw",
+          "params": {
+            "to": "0xAttacker0000000000000000000000000000000000",
+            "amount": "1000000000000000000",
+            "nonce": "42",
+            "signature": "0xValidUserSignatureForNonce42"
+          },
+          "description": "Replay the same signedWithdraw after forcing a state rollback via a tampered relay (relay_mode: replay). The rollback clears withdrawn[42] and data.processed[42], so the contract again sees !data.processed[42] and executes the withdraw a second time.",
+          "relay_mode": "replay",
+          "state_predicate": "withdrawn[42] == false && data.processed[42] == false",
+          "step": 2
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "First withdraw using a legitimate user‑signed message. The contract checks !data.processed[42], transfers funds, then sets data.processed[42]=true and withdrawn[42]=true."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Replay the same signedWithdraw after forcing a state rollback via a tampered relay (relay_mode: replay). The rollback clears withdrawn[42] and data.processed[42], so the contract again sees !data.processed[42] and executes the withdraw a second time."
+        }
+      ]
+    },
+    {
+      "scenario_id": "poly_mint_replay_2024_01",
+      "target_invariant": "uniqueness_mint_once_per_deposit",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "verifyHeaderAndExecuteTx",
+          "params": {
+            "target": "TargetContract",
+            "data": "0x70a08231000000000000000000000000deadbeef00000000000000000000000000000000000000000000000000000000000003e8"
+          },
+          "relay_mode": "tampered",
+          "description": "Attacker, having compromised the off‑chain signing key, forges a valid cross‑chain header for depositId 0xdeadbeef (amount 1000). A tampered relay delivers the signed header to EthCrossChainManager, which calls TargetContract via verifyHeaderAndExecuteTx.",
+          "waypoint": "minted[0xdeadbeef] == false",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "TargetContract",
+          "function": "mint",
+          "params": {
+            "depositId": "0xdeadbeef",
+            "amount": "1000"
+          },
+          "description": "First mint execution; TargetContract records minted[0xdeadbeef] = true and transfers 1000 tokens to the attacker.",
+          "waypoint": "minted[0xdeadbeef] == true",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "verifyHeaderAndExecuteTx",
+          "params": {
+            "target": "TargetContract",
+            "data": "0x70a08231000000000000000000000000deadbeef00000000000000000000000000000000000000000000000000000000000003e8"
+          },
+          "relay_mode": "replay",
+          "description": "The attacker re‑broadcasts the same forged header (replay mode). The manager, lacking a check that the depositId has already been minted, calls TargetContract again with identical calldata.",
+          "waypoint": "minted[0xdeadbeef] == true",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "TargetContract",
+          "function": "mint",
+          "params": {
+            "depositId": "0xdeadbeef",
+            "amount": "1000"
+          },
+          "description": "Second mint call succeeds because the contract only checks !minted[depositId] in a require that is bypassed due to a logic bug, resulting in double minting and violation of the invariant.",
+          "waypoint": "minted[0xdeadbeef] == true && totalMintedDest increased by 1000 again",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker, having compromised the off‑chain signing key, forges a valid cross‑chain header for depositId 0xdeadbeef (amount 1000). A tampered relay delivers the signed header to EthCrossChainManager, which calls TargetContract via verifyHeaderAndExecuteTx."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "First mint execution; TargetContract records minted[0xdeadbeef] = true and transfers 1000 tokens to the attacker."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "The attacker re‑broadcasts the same forged header (replay mode). The manager, lacking a check that the depositId has already been minted, calls TargetContract again with identical calldata."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Second mint call succeeds because the contract only checks !minted[depositId] in a require that is bypassed due to a logic bug, resulting in double minting and violation of the invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "poly_refund_early_0timeout_2024_06_22",
+      "target_invariant": "timeliness_refund_after_timeout",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "EthCrossChainData",
+          "function": "deposit(uint256 amount,uint256 timeout)",
+          "params": {
+            "amount": "1000e18",
+            "timeout": "0"
+          },
+          "waypoint": "EthCrossChainManager.lockTimestamp[depositId] == block.timestamp && EthCrossChainManager.timeout[depositId] == 0",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "relay",
+          "relay_action": "tampered",
+          "description": "Relay forwards a forged cross‑chain message that marks the deposit as processed immediately.",
+          "params": {
+            "depositId": "depositId",
+            "processed": true
+          },
+          "waypoint": "EthCrossChainManager.data.processed[depositId] == true",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "signedWithdraw(address user,uint256 amount,uint256 nonce)",
+          "params": {
+            "user": "0xAttackerAddress",
+            "amount": "1000e18",
+            "nonce": "depositId"
+          },
+          "waypoint": "block.timestamp > EthCrossChainManager.lockTimestamp[depositId] + EthCrossChainManager.timeout[depositId] && EthCrossChainManager.refundExecuted[depositId] == true",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "thorchain_20210628",
+        "synapse_20211109",
+        "pgala_20221103",
+        "meterio_20220205",
+        "qubit_20220127"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Relay forwards a forged cross‑chain message that marks the deposit as processed immediately."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "polynetwork_timeliness_mint_early_via_timestamp_manipulation",
+      "target_invariant": "timeliness_no_mint_before_min_delay",
+      "vulnerability_class": "logic_bug_timestamp_manipulation",
+      "confidence": 0.85,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "EthCrossChainData",
+          "function": "lock(uint256 amount)",
+          "params": {
+            "amount": "1000e18"
+          },
+          "description": "User (attacker) locks tokens, creating depositId D and setting lockTimestamp[D] = block.timestamp (T0).",
+          "waypoint": "lockTimestamp[D] == block.timestamp",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "EthCrossChainData",
+          "function": "updateLockTimestamp(uint256 depositId, uint256 newTimestamp)",
+          "params": {
+            "depositId": "D",
+            "newTimestamp": "block.timestamp - 3600"
+          },
+          "description": "Attacker exploits missing access control to back‑date the lock timestamp by one hour.",
+          "manipulation_mode": "tampered",
+          "waypoint": "lockTimestamp[D] == block.timestamp - 3600",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "verifyHeaderAndExecuteTx(address target, bytes data)",
+          "params": {
+            "target": "TargetContract",
+            "data": "0xdeadbeef",
+            "depositId": "D"
+          },
+          "description": "Manager processes the cross‑chain message and mints on the destination chain before the legitimate minDelay.",
+          "waypoint": "block.timestamp >= lockTimestamp[D] + minDelay && minted[D] == true",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "bnbbridge_20221007",
+        "gempad_20240419"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User (attacker) locks tokens, creating depositId D and setting lockTimestamp[D] = block.timestamp (T0)."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker exploits missing access control to back‑date the lock timestamp by one hour."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Manager processes the cross‑chain message and mints on the destination chain before the legitimate minDelay."
+        }
+      ]
+    },
+    {
+      "scenario_id": "poly_delayed_withdraw_after_expiry_001",
+      "target_invariant": "timeliness_withdraw_before_expiry_not_allowed",
+      "vulnerability_class": "timeliness/relay_delay",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "deposit(uint256 amount,uint256 expiry)",
+          "params": {
+            "amount": "1000e18",
+            "expiry": "3600",
+            "depositId": "0xdeadbeef01"
+          },
+          "description": "User locks tokens; manager stores lockTimestamp[depositId] = block.timestamp and records expiry.",
+          "state_predicate": "lockTimestamp[0xdeadbeef01] == block.timestamp && block.timestamp == T0",
+          "step": 1
+        },
+        {
+          "chain": "offchain",
+          "contract": "User",
+          "function": "signWithdraw(uint256 depositId,uint256 nonce,uint256 amount)",
+          "params": {
+            "depositId": "0xdeadbeef01",
+            "nonce": "0x01",
+            "amount": "1000e18",
+            "signature": "0xsig_user_withdraw"
+          },
+          "description": "User signs a withdraw message that is valid before expiry; attacker records the signature.",
+          "state_predicate": "isValidSignature(User,0xsig_user_withdraw) == true && !withdrawn[0x01]",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "System",
+          "function": "advanceTime(uint256 seconds)",
+          "params": {
+            "seconds": "7200"
+          },
+          "description": "Attacker (or miner) lets the chain progress until the expiry window has passed.",
+          "state_predicate": "block.timestamp > lockTimestamp[0xdeadbeef01] + 3600",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "signedWithdraw(address user,uint256 depositId,uint256 nonce,bytes signature)",
+          "params": {
+            "user": "User",
+            "depositId": "0xdeadbeef01",
+            "nonce": "0x01",
+            "signature": "0xsig_user_withdraw"
+          },
+          "relay_mode": "delayed",
+          "description": "Compromised relay forwards the signedWithdraw after expiry; manager verifies signature and processes withdrawal without checking timeliness.",
+          "state_predicate": "withdrawn[0x01] == true && userBalance[User] == userBalance_before[User] + 1000e18 && block.timestamp > lockTimestamp[0xdeadbeef01] + 3600",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "pnetwork_20210919"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks tokens; manager stores lockTimestamp[depositId] = block.timestamp and records expiry."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "User signs a withdraw message that is valid before expiry; attacker records the signature."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker (or miner) lets the chain progress until the expiry window has passed."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Compromised relay forwards the signedWithdraw after expiry; manager verifies signature and processes withdrawal without checking timeliness."
+        }
+      ]
+    },
+    {
+      "scenario_id": "poly_cleanup_early_clear_001",
+      "target_invariant": "timeliness_cleanup_processed_data",
+      "vulnerability_class": "logic_bug_cleanup_timestamp_manipulation",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "lock(uint256 amount,address token,address to)",
+          "params": {
+            "amount": "1000000000",
+            "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+            "to": "0xDEADbeefDEADbeefDEADbeefDEADbeefDEADbeef"
+          },
+          "description": "User deposits 1,000 USDC, causing EthCrossChainManager to record nonce N (e.g., 42) as processed and set data.cleanupTimestamp[42] = block.timestamp + cleanupPeriod (3 days).",
+          "waypoint": "data.processed[42] == true",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "EthCrossChainData",
+          "function": "forceSetCleanupTimestamp(uint256 nonce,uint256 ts)",
+          "params": {
+            "nonce": 42,
+            "ts": "block.timestamp"
+          },
+          "relay_mode": "tampered",
+          "description": "Compromised off‑chain relay injects a forged message that calls a privileged internal function to overwrite the stored cleanup timestamp for nonce 42 with the current block timestamp, bypassing the authorizedRelay check.",
+          "waypoint": "data.cleanupTimestamp[42] == block.timestamp",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "clearProcessed(uint256 nonce)",
+          "params": {
+            "nonce": 42
+          },
+          "description": "Attacker (or any actor) calls the cleanup routine immediately after the tampered timestamp is set. The contract checks `block.timestamp > data.cleanupTimestamp[nonce] + cleanupPeriod` but mistakenly uses the *new* timestamp as the start of the period, so the condition passes instantly.",
+          "waypoint": "data.cleanupTimestamp[42] == 0",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "signedWithdraw(address user,uint256 amount,uint256 nonce)",
+          "params": {
+            "user": "0xDEADbeefDEADbeefDEADbeefDEADbeefDEADbeef",
+            "amount": "1000000000",
+            "nonce": 42,
+            "withdrawSig": "0x..."
+          },
+          "description": "Attacker re‑uses the same nonce to withdraw the locked funds again before the legitimate cleanup period expires, exploiting the fact that the processed flag was cleared prematurely.",
+          "waypoint": "withdrawn[42] == true && block.timestamp < (original_cleanupTimestamp[42] + cleanupPeriod)",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "polyNetwork_20211220",
+        "ronin_20220323",
+        "multichain_20230715"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User deposits 1,000 USDC, causing EthCrossChainManager to record nonce N (e.g., 42) as processed and set data.cleanupTimestamp[42] = block.timestamp + cleanupPeriod (3 days)."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Compromised off‑chain relay injects a forged message that calls a privileged internal function to overwrite the stored cleanup timestamp for nonce 42 with the current block timestamp, bypassing the authorizedRelay check."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker (or any actor) calls the cleanup routine immediately after the tampered timestamp is set. The contract checks `block.timestamp > data.cleanupTimestamp[nonce] + cleanupPeriod` but mistakenly uses the *new* timestamp as the start of the period, so the condition passes instantly."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Attacker re‑uses the same nonce to withdraw the locked funds again before the legitimate cleanup period expires, exploiting the fact that the processed flag was cleared prematurely."
+        }
+      ]
+    },
+    {
+      "scenario_id": "poly_fee_timeliness_exploit_001",
+      "target_invariant": "timeliness_fee_collection_before_timeout",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "lock(uint256 amount,uint256 fee,bytes destinationData)",
+          "params": {
+            "amount": "1000e18",
+            "fee": "10e18",
+            "destinationData": "0xdeadbeef"
+          },
+          "description": "User initiates a cross‑chain lock. The contract records the deposit but defers setting feeCollectedAtLock[depositId] until after verifyHeaderAndExecuteTx completes.",
+          "waypoint": "feeCollectedAtLock[depositId] == false && lockPending == true",
+          "step": 1
+        },
+        {
+          "chain": "relay",
+          "contract": "EthCrossChainManager",
+          "function": "signedWithdraw(address user,uint256 amount,uint256 nonce)",
+          "params": {
+            "user": "0xAttackerAddress",
+            "amount": "1000e18",
+            "nonce": "depositId"
+          },
+          "mode": "tampered",
+          "description": "Compromised relayer injects a withdraw message before the lock transaction finalises, reordering the message queue.",
+          "waypoint": "data.processed[depositId] == true && feeCollectedAtLock[depositId] == false",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "verifyHeaderAndExecuteTx(address target,bytes data)",
+          "params": {
+            "target": "TargetContract",
+            "data": "0xfeedface"
+          },
+          "mode": "delayed",
+          "description": "The pending lock transaction finally executes the header verification and attempts to mark the fee as collected, but the earlier withdraw has already consumed the deposit record.",
+          "waypoint": "feeCollectedAtLock[depositId] == false && totalFeesCollected == totalFeesCollected_before",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "pnetwork_20210919",
+        "socket_20240116"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User initiates a cross‑chain lock. The contract records the deposit but defers setting feeCollectedAtLock[depositId] until after verifyHeaderAndExecuteTx completes."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Compromised relayer injects a withdraw message before the lock transaction finalises, reordering the message queue."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "The pending lock transaction finally executes the header verification and attempts to mark the fee as collected, but the earlier withdraw has already consumed the deposit record."
+        }
+      ]
+    },
+    {
+      "scenario_id": "polynetwork_sig_replay_001",
+      "target_invariant": "authorization_cross_chain_relay_signature",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "lock(uint256,address)",
+          "params": {
+            "amount": "1000e18",
+            "destChain": "Polygon"
+          },
+          "mode": "faithful",
+          "precondition": "EthCrossChainManager.totalLocked() == 0",
+          "postcondition": "EthCrossChainManager.totalLocked() == 1000e18 && EthCrossChainManager.lockedAmount(depositId_1) == 1000e18",
+          "description": "Step 1"
+        },
+        {
+          "step": 2,
+          "chain": "relay",
+          "contract": "RelayerSet",
+          "function": "signHeader(bytes32)",
+          "params": {
+            "headerHash": "0xdeadbeefcafebabefeedface1234567890abcdef1234567890abcdef12345678"
+          },
+          "mode": "faithful",
+          "precondition": "relayerSet.isValidSignature(relayerSig_legit, 0xdeadbeefcafebabefeedface1234567890abcdef1234567890abcdef12345678) == true",
+          "postcondition": "relayerSig_legit == <valid_signature_by_authorized_relayer>",
+          "description": "Step 2"
+        },
+        {
+          "step": 3,
+          "chain": "source",
+          "contract": "EthCrossChainManager",
+          "function": "verifyHeaderAndExecuteTx(address,bytes)",
+          "params": {
+            "target": "TargetContract",
+            "payload": "0xa9059cbb0000000000000000000000000xAttackerAddress0000000000000000000000000000000000000000000000000000000000003e8"
+          },
+          "mode": "replay",
+          "precondition": "EthCrossChainManager.lastVerifiedHeaderHash() == 0xdeadbeefcafebabefeedface1234567890abcdef1234567890abcdef12345678",
+          "postcondition": "TargetContract.balanceOf[0xAttackerAddress] == 1000e18 && relayerSet.isValidSignature(relayerSig_legit, EthCrossChainManager.lastVerifiedHeaderHash()) == true",
+          "description": "Step 3"
+        },
+        {
+          "step": 4,
+          "chain": "destination",
+          "contract": "TargetContract",
+          "function": "transfer(address,uint256)",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": "1000e18"
+          },
+          "mode": "faithful",
+          "precondition": "TargetContract.balanceOf[0xAttackerAddress] == 0",
+          "postcondition": "TargetContract.balanceOf[0xAttackerAddress] == 1000e18",
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "ronin_20220323",
+        "evodefi_20220607",
+        "multichain_20230215"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        }
+      ]
+    }
+  ]
+}

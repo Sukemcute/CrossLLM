@@ -1,0 +1,1277 @@
+{
+  "bridge_name": "orbit",
+  "scenarios": [
+    {
+      "scenario_id": "orbit_reentrancy_negative_locked_001",
+      "target_invariant": "asset_conservation_nonnegative_locked",
+      "vulnerability_class": "reentrancy_unchecked_subtraction",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "lock(address,uint256)",
+          "params": {
+            "user": "0xAttackerUser",
+            "amount": "1000000000000000000"
+          },
+          "description": "User (attacker) locks 1 ETH‑equivalent token into the vault, setting totalLocked = 1e18.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "AttackerContract",
+          "function": "fallback()",
+          "params": {},
+          "description": "AttackerContract is a malicious contract whose fallback will be triggered when it receives the transferred source token.",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "MockMultisig",
+          "function": "callUnlock(address,address,uint256)",
+          "params": {
+            "vault": "OrbitVault",
+            "recipient": "AttackerContract",
+            "amount": "1000000000000000000"
+          },
+          "description": "Compromised authorized relayer (MockMultisig) invokes OrbitVault.unlock on behalf of the vault.",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "unlock(address,address,uint256)",
+          "params": {
+            "from": "OrbitVault",
+            "to": "AttackerContract",
+            "amount": "1000000000000000000"
+          },
+          "description": "Vault transfers 1e18 tokens to AttackerContract. During the external call, AttackerContract's fallback re‑enters OrbitVault.unlock with the same amount.",
+          "step": 4
+        },
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "unlock(address,address,uint256)",
+          "params": {
+            "from": "OrbitVault",
+            "to": "AttackerContract",
+            "amount": "1000000000000000000"
+          },
+          "description": "Re‑entrant call succeeds because msg.sender == address(this) and totalLocked still >= amount. A second transfer of 1e18 tokens occurs.",
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202",
+        "poly_network_20210810"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User (attacker) locks 1 ETH‑equivalent token into the vault, setting totalLocked = 1e18."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "AttackerContract is a malicious contract whose fallback will be triggered when it receives the transferred source token."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Compromised authorized relayer (MockMultisig) invokes OrbitVault.unlock on behalf of the vault."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Vault transfers 1e18 tokens to AttackerContract. During the external call, AttackerContract's fallback re‑enters OrbitVault.unlock with the same amount."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Re‑entrant call succeeds because msg.sender == address(this) and totalLocked still >= amount. A second transfer of 1e18 tokens occurs."
+        }
+      ]
+    },
+    {
+      "scenario_id": "orbit_mint_overlock_exploit_2024",
+      "target_invariant": "asset_conservation_mint_not_exceed_locked",
+      "vulnerability_class": "missing_access_control_or_nonce_check",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "lock",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "1"
+          },
+          "description": "Attacker locks a single source token, increasing totalLocked[token] to 1.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "MockMultisig",
+          "function": "mint",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "1000",
+            "nonce": "42"
+          },
+          "description": "Compromised relayer (MockMultisig) calls mint with an inflated amount and a fresh nonce. The mint function lacks a check that amount ≤ totalLocked[token].",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "WrappedToken",
+          "function": "totalSupply",
+          "params": {},
+          "description": "Read totalSupply to confirm that 1000 wrapped tokens were minted.",
+          "step": 3
+        }
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1",
+          "description": "Attacker locks a single source token, increasing totalLocked[token] to 1."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Compromised relayer (MockMultisig) calls mint with an inflated amount and a fresh nonce. The mint function lacks a check that amount ≤ totalLocked[token]."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Read totalSupply to confirm that 1000 wrapped tokens were minted."
+        }
+      ],
+      "retrieved_exploits": [
+        "orbit_20240101"
+      ]
+    },
+    {
+      "scenario_id": "orbit_double_mint_replay_2024_06",
+      "target_invariant": "asset_conservation_locked_equals_minted_plus_refunded",
+      "vulnerability_class": "relay_replay_without_nonce_check",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "lock",
+          "params": {
+            "to": "User",
+            "amount": "1000e18"
+          },
+          "description": "User locks 1,000 tokens in the vault; totalLocked[token] becomes 1,000.",
+          "state_predicate": "OrbitVault.totalLocked(token) == 1000e18",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "MockMultisig",
+          "function": "relayMint",
+          "params": {
+            "recipient": "User",
+            "amount": "1000e18",
+            "nonce": "0x1a2b3c"
+          },
+          "relay_mode": "faithful",
+          "description": "Authorized relayer (MockMultisig) processes the lock event and calls WrappedToken.mint(User,1,000).",
+          "state_predicate": "WrappedToken.totalMintedWrapped() == 1000e18",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "MockMultisig",
+          "function": "relayMint",
+          "params": {
+            "recipient": "User",
+            "amount": "1000e18",
+            "nonce": "0x1a2b3c"
+          },
+          "relay_mode": "replay",
+          "description": "Attacker replays the same lock proof; MockMultisig (compromised) calls WrappedToken.mint again with the identical nonce because the contract lacks a proper processedNonce check.",
+          "state_predicate": "WrappedToken.totalMintedWrapped() == 2000e18",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "viewInvariant",
+          "params": {},
+          "description": "Check invariant: totalLocked == totalMintedWrapped + totalRefunded (refunds = 0).",
+          "state_predicate": "OrbitVault.totalLocked(token) == 1000e18 && WrappedToken.totalMintedWrapped() == 2000e18 && OrbitVault.totalRefunded(token) == 0",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_2022_double_mint",
+        "poly_network_2021_nonce_reuse"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000000000000000000",
+          "description": "User locks 1,000 tokens in the vault; totalLocked[token] becomes 1,000."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Authorized relayer (MockMultisig) processes the lock event and calls WrappedToken.mint(User,1,000)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker replays the same lock proof; MockMultisig (compromised) calls WrappedToken.mint again with the identical nonce because the contract lacks a proper processedNonce check."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Check invariant: totalLocked == totalMintedWrapped + totalRefunded (refunds = 0)."
+        }
+      ]
+    },
+    {
+      "scenario_id": "orbit_wrapped_total_supply_overmint_001",
+      "target_invariant": "asset_conservation_wrapped_total_supply",
+      "vulnerability_class": "authorization_bypass_mint",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "WrappedToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xDEADDEADDEADDEADDEADDEADDEADDEADDEADDEAD",
+            "amount": "1000000000000000000000000"
+          },
+          "description": "Direct call to WrappedToken.mint by attacker (User) bypassing authorized relayer check, inflating totalSupply without a corresponding lock.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "WrappedToken",
+          "function": "totalSupply()",
+          "params": {},
+          "description": "Read totalSupply after over‑mint; expect totalSupply > totalMintedWrapped - totalBurned.",
+          "step": 2
+        }
+      ],
+      "state_predicates": [
+        "WrappedToken.totalSupply() > totalMintedWrapped",
+        "totalBurned == 0"
+      ],
+      "retrieved_exploits": [
+        "wormhole_xscope",
+        "ronin_bridge_mint"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Direct call to WrappedToken.mint by attacker (User) bypassing authorized relayer check, inflating totalSupply without a corresponding lock."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Read totalSupply after over‑mint; expect totalSupply > totalMintedWrapped - totalBurned."
+        }
+      ]
+    },
+    {
+      "scenario_id": "orbit_lock_overflow_001",
+      "target_invariant": "asset_conservation_lock_overflow",
+      "vulnerability_class": "unchecked_arithmetic_overflow",
+      "confidence": 0.93,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "lock",
+          "params": {
+            "token": "0x1111111111111111111111111111111111111111",
+            "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+          },
+          "description": "User locks the maximum uint256 amount; the contract increments totalLocked without any balance checks.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "lock",
+          "params": {
+            "token": "0x1111111111111111111111111111111111111111",
+            "amount": "1"
+          },
+          "description": "User locks an additional 1 token, causing totalLocked to overflow to 0 and violating the invariant.",
+          "step": 2
+        }
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 115792089237316195423570985008687907853269984665640564039457584007913129639935",
+          "description": "User locks the maximum uint256 amount; the contract increments totalLocked without any balance checks."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "sourceRouter.totalLocked() >= 115792089237316195423570985008687907853269984665640564039457584007913129639936",
+          "description": "User locks an additional 1 token, causing totalLocked to overflow to 0 and violating the invariant."
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_20220118"
+      ]
+    },
+    {
+      "scenario_id": "orbit_auth_unlock_bypass_001",
+      "target_invariant": "authorization_unlock_by_contract",
+      "vulnerability_class": "authorization_bypass_internal_call",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "executeUnlock(uint256)",
+          "params": {
+            "lockId": 42
+          },
+          "description": "Attacker (User) calls a public helper function that internally performs `this.unlock(user, token, amount)`. Because the call is made via `this.` the runtime treats it as an external call where `msg.sender == address(this)` (the Vault), thus satisfying the invariant check while the caller is unauthorized.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "unlock(address,address,uint256)",
+          "params": {
+            "to": "0xAttackerAddress",
+            "token": "0xSourceToken",
+            "amount": 1000
+          },
+          "description": "Internal call triggered by `executeUnlock`. `msg.sender` equals `address(this)` (OrbitVault), so the `require(msg.sender == address(this))` passes and the locked source tokens are transferred to the attacker.",
+          "step": 2
+        }
+      ],
+      "state_predicates": [
+        "OrbitVault.totalLocked[0xSourceToken] >= 1000",
+        "OrbitVault.unlockExecuted[42] == false",
+        "OrbitVault.lockedAmount[42] == 1000"
+      ],
+      "post_state_predicates": [
+        "OrbitVault.totalLocked[0xSourceToken] == (previous totalLocked - 1000)",
+        "OrbitVault.unlockExecuted[42] == true",
+        "ERC20(0xSourceToken).balanceOf(0xAttackerAddress) == (previous balance + 1000)"
+      ],
+      "retrieved_exploits": [
+        "multichain_20230215",
+        "wormhole_20220202"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker (User) calls a public helper function that internally performs `this.unlock(user, token, amount)`. Because the call is made via `this.` the runtime treats it as an external call where `msg.sender == address(this)` (the Vault), thus satisfying the invariant check while the caller is unauthorized."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Internal call triggered by `executeUnlock`. `msg.sender` equals `address(this)` (OrbitVault), so the `require(msg.sender == address(this))` passes and the locked source tokens are transferred to the attacker."
+        }
+      ]
+    },
+    {
+      "scenario_id": "orbit_mint_unauthorized_01",
+      "target_invariant": "authorization_mint_by_relayer",
+      "vulnerability_class": "missing_access_control",
+      "confidence": 0.93,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "WrappedToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAttackerAddress000000000000000000000000000001",
+            "amount": "1000000e18"
+          },
+          "description": "User (attacker) directly calls the public mint function of WrappedToken, bypassing the intended relayer‑only restriction.",
+          "step": 1
+        }
+      ],
+      "state_predicates": [
+        {
+          "predicate": "WrappedToken.totalSupply() == S0",
+          "description": "Initial total supply before the attack (S0 = current totalSupply)."
+        },
+        {
+          "predicate": "msg.sender != authorizedRelayer",
+          "description": "Attacker address is not the authorized relayer (MockMultisig)."
+        },
+        {
+          "predicate": "WrappedToken.totalSupply() == S0 + 1000000e18",
+          "description": "Total supply after unauthorized mint, indicating the invariant violation."
+        }
+      ],
+      "retrieved_exploits": [
+        "anyswap_20210710",
+        "wormhole_20220221"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User (attacker) directly calls the public mint function of WrappedToken, bypassing the intended relayer‑only restriction."
+        }
+      ]
+    },
+    {
+      "scenario_id": "orbit_unlock_insufficient_locked_01",
+      "target_invariant": "authorization_unlock_sufficient_locked",
+      "vulnerability_class": "state_inflation_via_unprotected_update",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "increaseLocked(address,uint256)",
+          "params": {
+            "token": "0xTokenAddress",
+            "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+            "reason": "attacker‑controlled inflation via missing access control"
+          },
+          "mode": "tampered",
+          "waypoint": "OrbitVault.totalLocked(0xTokenAddress) == 115792089237316195423570985008687907853269984665640564039457584007913129639935",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "source",
+          "contract": "MockMultisig",
+          "function": "executeUnlock(address,address,uint256)",
+          "params": {
+            "token": "0xTokenAddress",
+            "to": "0xAttackerAddress",
+            "amount": "1000000000000000000000"
+          },
+          "mode": "faithful",
+          "waypoint": "OrbitVault.totalLocked(0xTokenAddress) >= 1000000000000000000000",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "source",
+          "contract": "WrappedToken",
+          "function": "transfer(address,uint256)",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": "1000000000000000000000"
+          },
+          "mode": "faithful",
+          "waypoint": "WrappedToken.balanceOf(0xAttackerAddress) >= 1000000000000000000000",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_20220801",
+        "wormhole_20220202"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "orbit_nonce_replay_2024_01",
+      "target_invariant": "authorization_mint_nonce_unused",
+      "vulnerability_class": "nonce_reuse_replay",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "lock(address,uint256)",
+          "params": {
+            "token": "0xAAA111AAA111AAA111AAA111AAA111AAA111AAAA",
+            "amount": 1000
+          },
+          "waypoint": "OrbitVault.lockNonceUsed[User][0xdeadbeef] == true && OrbitVault.totalLocked[0xAAA111AAA111AAA111AAA111AAA111AAA111AAAA] >= 1000",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "relay",
+          "relay_action": "replay",
+          "mode": "tampered",
+          "description": "The off‑chain relayer re‑broadcasts the exact lock proof (nonce 0xdeadbeef) but replaces the original signature with one that appears to be from the authorized relayer (MockMultisig).",
+          "waypoint": "processedNonce[0xdeadbeef] == false",
+          "step": 2,
+          "params": {}
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "Attacker",
+            "amount": 1000
+          },
+          "waypoint": "!processedNonce[0xdeadbeef] && WrappedToken.totalSupply() == previousSupply + 1000",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "Ronin_2022",
+        "Wormhole_2022"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "The off‑chain relayer re‑broadcasts the exact lock proof (nonce 0xdeadbeef) but replaces the original signature with one that appears to be from the authorized relayer (MockMultisig)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "orbit_erc777_reentrancy_transfer_balance_break",
+      "target_invariant": "authorization_transfer_balance",
+      "vulnerability_class": "reentrancy_via_erc777_tokensReceived",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MockMultisig",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "AttackerContract",
+            "amount": "1000"
+          },
+          "description": "Authorized relayer mints 1,000 WrappedToken to the malicious contract.",
+          "waypoint": "WrappedToken.balanceOf(AttackerContract) == 1000",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "AttackerContract",
+          "function": "tokensReceived(address,address,uint256,bytes,bytes,address)",
+          "params": {
+            "operator": "MockMultisig",
+            "from": "0x0",
+            "amount": "1000",
+            "data": "0x",
+            "operatorData": "0x",
+            "token": "WrappedToken"
+          },
+          "description": "ERC777 hook is triggered on receipt; the contract re‑enters WrappedToken.transfer before the balance is debited.",
+          "waypoint": "WrappedToken.balanceOf(AttackerContract) == 1000 && WrappedToken.balanceOf(Victim) == 0",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "WrappedToken",
+          "function": "transfer(address,uint256)",
+          "params": {
+            "to": "Victim",
+            "amount": "1000"
+          },
+          "description": "First re‑entrant transfer from AttackerContract to Victim.",
+          "waypoint": "WrappedToken.balanceOf(Victim) == 1000 && WrappedToken.balanceOf(AttackerContract) == 1000",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "AttackerContract",
+          "function": "transfer(address,uint256)",
+          "params": {
+            "to": "Victim",
+            "amount": "1000"
+          },
+          "description": "Second re‑entrant transfer executed before the original transfer's balance subtraction completes.",
+          "waypoint": "WrappedToken.balanceOf(Victim) == 2000 && WrappedToken.balanceOf(AttackerContract) == 0",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "synapse_bridge_xscope",
+        "wormhole_reentrancy"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Authorized relayer mints 1,000 WrappedToken to the malicious contract."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "ERC777 hook is triggered on receipt; the contract re‑enters WrappedToken.transfer before the balance is debited."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "First re‑entrant transfer from AttackerContract to Victim."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Second re‑entrant transfer executed before the original transfer's balance subtraction completes."
+        }
+      ]
+    },
+    {
+      "scenario_id": "orbit_reentrancy_lock_nonce_reuse",
+      "target_invariant": "uniqueness_lock_nonce_unique",
+      "vulnerability_class": "reentrancy_logic",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MaliciousToken",
+          "function": "transfer(address,uint256)",
+          "params": {
+            "to": "OrbitVault",
+            "amount": 1000
+          },
+          "description": "User initiates a transfer of a malicious ERC777‑compatible token to the vault. The token's `tokensReceived` hook calls back into `OrbitVault.lock` before the vault updates its `lockNonceUsed` mapping.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "lock(address,uint256)",
+          "params": {
+            "token": "MaliciousToken",
+            "amount": 1000
+          },
+          "description": "First invocation of `lock`. At this point the internal check `!lockNonceUsed[user][nonce]` still evaluates to true because the nonce has not been marked yet.",
+          "postcondition": "lockNonceUsed[User][nonce] == false",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "lock(address,uint256)",
+          "params": {
+            "token": "MaliciousToken",
+            "amount": 1000
+          },
+          "description": "Re‑entrant second invocation of `lock` triggered from the token hook, using the same `nonce`. The require check still passes, resulting in a second lock with the identical nonce.",
+          "postcondition": "lockNonceUsed[User][nonce] == true && totalLocked[MaliciousToken] == 2000",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "Ronin bridge reentrancy (2022)",
+        "Wormhole mint replay (2022)"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User initiates a transfer of a malicious ERC777‑compatible token to the vault. The token's `tokensReceived` hook calls back into `OrbitVault.lock` before the vault updates its `lockNonceUsed` mapping."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "First invocation of `lock`. At this point the internal check `!lockNonceUsed[user][nonce]` still evaluates to true because the nonce has not been marked yet."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Re‑entrant second invocation of `lock` triggered from the token hook, using the same `nonce`. The require check still passes, resulting in a second lock with the identical nonce."
+        }
+      ]
+    },
+    {
+      "scenario_id": "orbit_nonce_reentrancy_double_mint_001",
+      "target_invariant": "uniqueness_mint_sets_nonce",
+      "vulnerability_class": "reentrancy_logic_bug",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "lock(address,uint256)",
+          "params": {
+            "to": "MockMultisig",
+            "amount": 1000
+          },
+          "description": "User locks 1000 source tokens; Vault emits Lock event with nonce N (N = 0xdeadbeef).",
+          "waypoint": "totalLocked[token] == 1000 && processedNonce[0xdeadbeef] == false",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "MockMultisig",
+          "function": "execute(address,uint256,bytes)",
+          "params": {
+            "target": "WrappedToken",
+            "value": 0,
+            "data": "0x40c10f19000000000000000000000000aAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa00000000000000000000000000000000000000000000000000000000000003e8",
+            "extra": {
+              "nonce": "0xdeadbeef"
+            }
+          },
+          "description": "Authorized relayer (MockMultisig) calls WrappedToken.mint(to=AttackContract, amount=1000) for nonce N. The call is executed in *faithful* relay mode.",
+          "waypoint": "totalMintedWrapped == 1000 && processedNonce[0xdeadbeef] == false",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "AttackContract",
+          "function": "fallback()",
+          "params": {},
+          "description": "During the first mint, the ERC20 _mint logic triggers a Transfer event to AttackContract. AttackContract’s fallback re‑enters WrappedToken.mint with the same nonce N before the internal `processedNonce[N] = true` statement is reached.",
+          "waypoint": "totalMintedWrapped == 2000 && processedNonce[0xdeadbeef] == false",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "WrappedToken",
+          "function": "finalizeMint(uint256)",
+          "params": {
+            "nonce": "0xdeadbeef"
+          },
+          "description": "After the re‑entrant call returns, the original mint execution finally reaches the line that sets `processedNonce[N] = true`.",
+          "waypoint": "processedNonce[0xdeadbeef] == true",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202",
+        "nomad_20210802"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1000 source tokens; Vault emits Lock event with nonce N (N = 0xdeadbeef)."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Authorized relayer (MockMultisig) calls WrappedToken.mint(to=AttackContract, amount=1000) for nonce N. The call is executed in *faithful* relay mode."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "During the first mint, the ERC20 _mint logic triggers a Transfer event to AttackContract. AttackContract’s fallback re‑enters WrappedToken.mint with the same nonce N before the internal `processedNonce[N] = true` statement is reached."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "After the re‑entrant call returns, the original mint execution finally reaches the line that sets `processedNonce[N] = true`."
+        }
+      ]
+    },
+    {
+      "scenario_id": "orbit_replay_unlock_twice_001",
+      "target_invariant": "uniqueness_unlock_once",
+      "vulnerability_class": "replay_without_idempotency",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "lock(address,uint256)",
+          "params": {
+            "token": "0xTokenAddress",
+            "amount": "1000e18"
+          },
+          "description": "User locks 1000 source tokens, generating lockId = 0xABC123.",
+          "waypoint": "totalLocked[0xTokenAddress] >= 1000e18 && lockNonceUsed[user][nonce] == false",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "unlock(address,address,uint256)",
+          "params": {
+            "token": "0xTokenAddress",
+            "to": "0xUserAddress",
+            "amount": "1000e18",
+            "lockId": "0xABC123"
+          },
+          "description": "Authorized relayer (MockMultisig) forwards the off‑chain message and calls unlock for lockId 0xABC123.",
+          "relay_mode": "faithful",
+          "waypoint": "unlockExecuted[0xABC123] == false && totalLocked[0xTokenAddress] >= 1000e18",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "unlock(address,address,uint256)",
+          "params": {
+            "token": "0xTokenAddress",
+            "to": "0xUserAddress",
+            "amount": "1000e18",
+            "lockId": "0xABC123"
+          },
+          "description": "Attacker replays the same unlock message via a compromised relayer, causing a second execution.",
+          "relay_mode": "replay",
+          "waypoint": "unlockExecuted[0xABC123] == true",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810",
+        "wormhole_20220202"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1000 source tokens, generating lockId = 0xABC123."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Authorized relayer (MockMultisig) forwards the off‑chain message and calls unlock for lockId 0xABC123."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker replays the same unlock message via a compromised relayer, causing a second execution."
+        }
+      ]
+    },
+    {
+      "scenario_id": "orbit_timeliness_refund_bypass_001",
+      "target_invariant": "timeliness_refund_after_timeout",
+      "vulnerability_class": "privileged_state_manipulation",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MockMultisig",
+          "function": "setRefundTimeout(uint256)",
+          "params": {
+            "newTimeout": 0
+          },
+          "description": "Authorized relayer (MockMultisig) calls a poorly‑protected setter on OrbitVault that overwrites the immutable REFUND_TIMEOUT variable, reducing it to zero.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "lock(address,uint256)",
+          "params": {
+            "receiver": "0xAttackerUserAddress",
+            "amount": "1000000000000000000"
+          },
+          "description": "Attacker creates a lock; lockTimestamp[lockId] is recorded (e.g., current block.timestamp = T0).",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "refund(uint256)",
+          "params": {
+            "lockId": "latestLockId"
+          },
+          "description": "Immediately after locking, attacker calls refund. Because REFUND_TIMEOUT == 0, the predicate block.timestamp >= lockTimestamp[lockId] + REFUND_TIMEOUT is satisfied, violating the timeliness invariant.",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810"
+      ],
+      "state_waypoints": [
+        {
+          "predicate": "OrbitVault.REFUND_TIMEOUT == 0",
+          "description": "After action 1, the timeout variable is zero."
+        },
+        {
+          "predicate": "block.timestamp >= OrbitVault.lockTimestamp[latestLockId] + OrbitVault.REFUND_TIMEOUT",
+          "description": "After action 3, the refund requirement evaluates to true despite no elapsed timeout."
+        }
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Authorized relayer (MockMultisig) calls a poorly‑protected setter on OrbitVault that overwrites the immutable REFUND_TIMEOUT variable, reducing it to zero."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker creates a lock; lockTimestamp[lockId] is recorded (e.g., current block.timestamp = T0)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Immediately after locking, attacker calls refund. Because REFUND_TIMEOUT == 0, the predicate block.timestamp >= lockTimestamp[lockId] + REFUND_TIMEOUT is satisfied, violating the timeliness invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "orbit_timeliness_mint_prelock_001",
+      "target_invariant": "timeliness_mint_after_lock",
+      "vulnerability_class": "logic_timestamp_default_zero",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MockMultisig",
+          "function": "execute(address,bytes)",
+          "params": {
+            "target": "WrappedToken",
+            "data": "0x40c10f19000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa00000000000000000000000000000000000000000000000000000000000003e8"
+          },
+          "description": "Compromised relayer (MockMultisig) submits a mint call to WrappedToken for attacker address (0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa) of 1000 units. The lockId used inside the mint call is an unused nonce (e.g., 0) whose lockTimestamp mapping entry is still the default 0.",
+          "post_state": {
+            "lockTimestamp[0]": 0,
+            "block.timestamp": ">= 0",
+            "WrappedToken.totalSupply()": "previousSupply + 1000",
+            "balanceOf[0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]": "previousBalance + 1000"
+          },
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "lock(address,uint256)",
+          "params": {
+            "token": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            "amount": 0
+          },
+          "description": "Attacker optionally triggers a dummy lock with amount 0 to create the lockId entry after the mint, ensuring the invariant check still passes because timestamp 0 < block.timestamp.",
+          "post_state": {
+            "totalLocked[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef]": "unchanged",
+            "lockTimestamp[0]": "block.timestamp"
+          },
+          "step": 2
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Compromised relayer (MockMultisig) submits a mint call to WrappedToken for attacker address (0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa) of 1000 units. The lockId used inside the mint call is an unused nonce (e.g., 0) whose lockTimestamp mapping entry is still the default 0."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker optionally triggers a dummy lock with amount 0 to create the lockId entry after the mint, ensuring the invariant check still passes because timestamp 0 < block.timestamp."
+        }
+      ]
+    },
+    {
+      "scenario_id": "orbit_timeliness_unlock_before_mint_001",
+      "target_invariant": "timeliness_unlock_after_mint",
+      "vulnerability_class": "relay_delay_and_internal_call_exploit",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "lock(address,uint256)",
+          "params": {
+            "token": "0xTokenAddress00000000000000000000000000000000",
+            "amount": "1000"
+          },
+          "description": "Attacker (User) locks 1,000 source tokens. lockId = 42 is created. State predicate after execution: totalLocked[0xTokenAddress00000000000000000000000000000000] == 1000 && minted[42] == false",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "MockMultisig",
+          "function": "relayMint(uint256 lockId,address to,uint256 amount)",
+          "params": {
+            "lockId": "42",
+            "to": "0xAttackerAddress11111111111111111111111111111111",
+            "amount": "0"
+          },
+          "relay_mode": "delayed",
+          "description": "Authorized relayer is expected to call mint after observing the lock. Attacker withholds the legitimate mint and instead submits a zero‑amount mint for the same lockId, marking minted[42] = true without actually minting wrapped tokens.",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "selfUnlock(uint256 lockId)",
+          "params": {
+            "lockId": "42"
+          },
+          "relay_mode": "tampered",
+          "description": "Attacker triggers a low‑level call from the vault to its own unlock function (msg.sender == address(this)). This internal call bypasses the external access control and executes unlock before a proper mint. State predicate after execution: totalLocked[0xTokenAddress00000000000000000000000000000000] == 0 && minted[42] == false",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "ronin_20220223",
+        "wormhole_20211223"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker (User) locks 1,000 source tokens. lockId = 42 is created. State predicate after execution: totalLocked[0xTokenAddress00000000000000000000000000000000] == 1000 && minted[42] == false"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Authorized relayer is expected to call mint after observing the lock. Attacker withholds the legitimate mint and instead submits a zero‑amount mint for the same lockId, marking minted[42] = true without actually minting wrapped tokens."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker triggers a low‑level call from the vault to its own unlock function (msg.sender == address(this)). This internal call bypasses the external access control and executes unlock before a proper mint. State predicate after execution: totalLocked[0xTokenAddress00000000000000000000000000000000] == 0 && minted[42] == false"
+        }
+      ]
+    },
+    {
+      "scenario_id": "orbit_timeliness_timestamp_zero",
+      "target_invariant": "timeliness_lock_timestamp_set",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.85,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "lock(address,uint256)",
+          "params": {
+            "user": "0xAttackerUserAddress",
+            "amount": "1000000000000000000"
+          },
+          "mode": "faithful",
+          "waypoint": "totalLocked[token] == 1000000000000000000",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "source",
+          "contract": "MockMultisig",
+          "function": "relayLock(uint256,bytes)",
+          "params": {
+            "lockId": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            "payload": "0x... (encoded lock(address,uint256) with timestamp=0)"
+          },
+          "mode": "tampered",
+          "waypoint": "lockTimestamp[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == 0",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "processRelayLock(uint256,address,uint256,uint256)",
+          "params": {
+            "lockId": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            "user": "0xAttackerUserAddress",
+            "amount": "1000000000000000000",
+            "timestamp": "0"
+          },
+          "mode": "tampered",
+          "waypoint": "lockTimestamp[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == 0",
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "requestRefund(uint256)",
+          "params": {
+            "lockId": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+          },
+          "mode": "faithful",
+          "waypoint": "block.timestamp >= REFUND_TIMEOUT",
+          "step": 4,
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "socket_20240116"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "orbit_timeliness_timeout_zero",
+      "target_invariant": "timeliness_timeout_positive",
+      "vulnerability_class": "governance_parameter_manipulation",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MockMultisig",
+          "function": "execute(address,bytes)",
+          "params": {
+            "target": "OrbitVault",
+            "data": "0x4f2be91f0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          "description": "Use compromised multisig to call OrbitVault.setRefundTimeout(0)",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "setRefundTimeout(uint256)",
+          "params": {
+            "newTimeout": 0
+          },
+          "description": "Set REFUND_TIMEOUT storage to zero, violating the invariant",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "lock(address,uint256)",
+          "params": {
+            "token": "0xTokenAddress",
+            "amount": 1000000
+          },
+          "description": "Attacker locks a large amount of source token",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "OrbitVault",
+          "function": "requestRefund(uint256)",
+          "params": {
+            "lockId": 1
+          },
+          "description": "Immediately request refund; passes timeliness check because timeout is zero",
+          "step": 4
+        }
+      ],
+      "state_predicates": [
+        "REFUND_TIMEOUT == 0",
+        "OrbitVault.totalLocked(0xTokenAddress) >= 1000000",
+        "block.timestamp >= lockTimestamp[1] + REFUND_TIMEOUT"
+      ],
+      "retrieved_exploits": [
+        "orbit_20240101"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Use compromised multisig to call OrbitVault.setRefundTimeout(0)"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Set REFUND_TIMEOUT storage to zero, violating the invariant"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker locks a large amount of source token"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Immediately request refund; passes timeliness check because timeout is zero"
+        }
+      ]
+    }
+  ]
+}

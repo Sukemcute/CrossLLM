@@ -1,0 +1,2019 @@
+{
+  "bridge_name": "multichain",
+  "scenarios": [
+    {
+      "scenario_id": "multichain_forge_mint_2024_01",
+      "target_invariant": "asset_conservation_locked_equals_minted",
+      "vulnerability_class": "signature_forgery",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "0xTokenSource",
+            "amount": 1,
+            "dstChainId": 56
+          },
+          "precondition": "sourceRouter.totalLocked(token) == L0",
+          "postcondition": "sourceRouter.totalLocked(token) == L0 + 1",
+          "relay_mode": "faithful",
+          "description": "Step 1"
+        },
+        {
+          "step": 2,
+          "chain": "offchain",
+          "contract": "Multisig",
+          "function": "signLockProof(uint256 nonce,uint256 amount,address user)",
+          "params": {
+            "nonce": 2,
+            "amount": 1000,
+            "user": "0xAttacker"
+          },
+          "precondition": "multisig.hasKey == true",
+          "postcondition": "forge.signatureValid == true",
+          "relay_mode": "tampered",
+          "description": "Step 2"
+        },
+        {
+          "step": 3,
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttacker",
+            "amount": 1000
+          },
+          "precondition": "destinationToken.totalMinted(token) == M0",
+          "postcondition": "destinationToken.totalMinted(token) == M0 + 1000",
+          "relay_mode": "tampered",
+          "proof": "forgedSignatureFromMultisig",
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_20220118",
+        "anyswap_20210710"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_reentrancy_negative_balance_01",
+      "target_invariant": "asset_conservation_no_negative_balance",
+      "vulnerability_class": "reentrancy_logic_bug",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock",
+          "params": {
+            "token": "0xTokenAddressOnSource",
+            "amount": "1000000000000000000",
+            "dstChainId": 56
+          },
+          "description": "User (EOA) locks 1 ETH‑worth of source token, triggering a lock proof that will be used for minting on the destination chain.",
+          "state_predicate": "sourceRouter.totalLocked()[0xTokenAddressOnSource] == 1e18",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAttackerEOA",
+            "amount": "1000000000000000000"
+          },
+          "description": "Relay (Multisig) submits a valid lock proof and the router calls mint, crediting the attacker with 1 wrapped token.",
+          "state_predicate": "WrappedToken.balanceOf(0xAttackerEOA) == 1e18",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "MaliciousRecipient",
+          "function": "constructor",
+          "params": {
+            "wrappedToken": "0xWrappedTokenAddress"
+          },
+          "description": "Attacker deploys a contract that implements the ERC777 tokenReceived hook and re‑enters WrappedToken.transfer.",
+          "state_predicate": "codeSize(0xMaliciousRecipient) > 0",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "transfer",
+          "params": {
+            "to": "0xMaliciousRecipient",
+            "amount": "1000000000000000000"
+          },
+          "description": "Attacker calls transfer to the malicious contract. During the transfer the token calls the recipient’s tokenReceived hook, which re‑enters transfer sending the same amount back to the attacker, causing the attacker’s balance to be subtracted twice.",
+          "state_predicate": "WrappedToken.balanceOf(0xAttackerEOA) == 0 && WrappedToken.balanceOf(0xMaliciousRecipient) == 0 && WrappedToken._balances[0xAttackerEOA] == type(uint256).max",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_20230715",
+        "thorchain_20210716"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000000000000000000",
+          "description": "User (EOA) locks 1 ETH‑worth of source token, triggering a lock proof that will be used for minting on the destination chain."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "destRouter.totalMinted() >= 2000000000000000000",
+          "description": "Relay (Multisig) submits a valid lock proof and the router calls mint, crediting the attacker with 1 wrapped token."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker deploys a contract that implements the ERC777 tokenReceived hook and re‑enters WrappedToken.transfer."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Attacker calls transfer to the malicious contract. During the transfer the token calls the recipient’s tokenReceived hook, which re‑enters transfer sending the same amount back to the attacker, causing the attacker’s balance to be subtracted twice."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_overflow_mint_2024_01",
+      "target_invariant": "asset_conservation_total_supply_consistency",
+      "vulnerability_class": "unchecked_overflow",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "0xTokenSrc",
+            "amount": "1000",
+            "dstChainId": "0x2"
+          },
+          "relay_mode": "faithful",
+          "waypoint": "MultichainAnyCallV6.totalLocked(0xTokenSrc) == 1000",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "destination",
+          "contract": "Multisig",
+          "function": "relayProof(bytes)",
+          "params": {
+            "proof": "0xFAKE_PROOF_INFLATED_AMOUNT"
+          },
+          "relay_mode": "tampered",
+          "waypoint": "MultichainAnyCallV6.lastProcessedProof == 0xFAKE_PROOF_INFLATED_AMOUNT",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "relay_mode": "tampered",
+          "waypoint": [
+            "WrappedToken.getTotalSupply() == (prevSupply + 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff) mod 2^256",
+            "WrappedToken.totalMinted() == (prevMinted + 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff) mod 2^256",
+            "sum_{addr}(WrappedToken.balanceOf[addr]) == WrappedToken.getTotalSupply()"
+          ],
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "transfer(address,uint256)",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "1"
+          },
+          "relay_mode": "faithful",
+          "waypoint": "WrappedToken.balanceOf(0xAttacker) == 1",
+          "step": 4,
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "meterio_20220205",
+        "pnetwork_20210920"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_unlock_inflation_via_tampered_relay",
+      "target_invariant": "asset_conservation_unlock_reduces_locked",
+      "vulnerability_class": "relay_tampering_reentrancy",
+      "confidence": 0.88,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock",
+          "params": {
+            "token": "0xTokenAddress",
+            "amount": 10,
+            "dstChainId": 56
+          },
+          "description": "Honest user locks 10 source tokens; router updates totalLocked[token] to 10.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "Multisig",
+          "function": "relayUnlock",
+          "params": {
+            "router": "MultichainAnyCallV6",
+            "to": "0xAttacker",
+            "amount": 10,
+            "dstChainId": 56,
+            "proof": "0xFakeProof"
+          },
+          "relay_mode": "tampered",
+          "description": "Compromised relay submits a forged unlock proof. The router executes unlock(address,address,uint256,uint16) with amount 10. During the unlock call the router makes an external call to WrappedToken.mint (re‑entrancy) before it finishes its internal accounting that should decrement totalLocked.",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "WrappedToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAttacker",
+            "amount": 100
+          },
+          "description": "Re‑entered mint inflates the bridge’s internal totalLocked counter (the router’s unlock logic adds the minted amount to totalLocked before subtracting the unlock amount).",
+          "step": 3
+        }
+      ],
+      "state_predicates": [
+        "totalLocked[0xTokenAddress] == 10 after action 1",
+        "totalLocked[0xTokenAddress] == 10 after action 3"
+      ],
+      "retrieved_exploits": [
+        "evodefi_20220607"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 10",
+          "description": "Honest user locks 10 source tokens; router updates totalLocked[token] to 10."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Compromised relay submits a forged unlock proof. The router executes unlock(address,address,uint256,uint16) with amount 10. During the unlock call the router makes an external call to WrappedToken.mint (re‑entrancy) before it finishes its internal accounting that should decrement totalLocked."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Re‑entered mint inflates the bridge’s internal totalLocked counter (the router’s unlock logic adds the minted amount to totalLocked before subtracting the unlock amount)."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_overflow_mint_2024",
+      "target_invariant": "asset_conservation_mint_increases_total",
+      "vulnerability_class": "integer_overflow_unchecked_addition",
+      "confidence": 0.85,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "0xTokenSource",
+            "amount": "1000000000000000000",
+            "dstChainId": 2
+          },
+          "description": "User locks 1e18 source tokens to generate a legitimate lock proof on the source chain.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+          },
+          "description": "Attacker submits a forged lock proof with the maximal uint256 amount, exploiting an unchecked addition that overflows totalMinted.",
+          "waypoint": "totalMintedPrev[WrappedToken] == 1000000000000000000 && totalMinted[WrappedToken] == (totalMintedPrev + amount) % 2**256",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "transfer(address,uint256)",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "1000000000000000000"
+          },
+          "description": "Attacker transfers a small portion of the newly minted tokens to consolidate control over the overflowed balance.",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "harmony_horizon_20220624",
+        "orbit_20240101",
+        "bnbbridge_20221007"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1e18 source tokens to generate a legitimate lock proof on the source chain."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker submits a forged lock proof with the maximal uint256 amount, exploiting an unchecked addition that overflows totalMinted."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker transfers a small portion of the newly minted tokens to consolidate control over the overflowed balance."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_fee_underreport_tampered_proof_001",
+      "target_invariant": "asset_conservation_fee_not_counted",
+      "vulnerability_class": "proof_tampering_fee_miscount",
+      "confidence": 0.85,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock",
+          "params": {
+            "token": "0xTokenAddress",
+            "amount": 100,
+            "dstChainId": 2
+          },
+          "predicate": "sourceRouter.totalLocked() == 100",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "relay",
+          "contract": "Multisig",
+          "function": "relayProof",
+          "mode": "tampered",
+          "params": {
+            "originalTxHash": "0xdeadbeef1234",
+            "claimedLockedAmount": 200,
+            "proofData": "0x... (modified payload)"
+          },
+          "predicate": "destRouter.claimedLocked() == 200",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": 200
+          },
+          "predicate": "wrappedToken.totalMinted() == 200 && wrappedToken.totalFees() == 2",
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "transfer",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": 98
+          },
+          "predicate": "balanceOf[0xAttackerAddress] == 198",
+          "step": 4,
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_xscope",
+        "wormhole_xscope"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 100",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "destRouter.totalMinted() >= 300",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_replay_unlock_2024_06_22",
+      "target_invariant": "authorization_unlock_requires_relay_signature",
+      "vulnerability_class": "signature_replay",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock",
+          "params": {
+            "token": "0xTokenSrc",
+            "amount": "1000000000000000000",
+            "dstChainId": 2
+          },
+          "waypoint": "sourceRouter.totalLocked(0xTokenSrc) == 1000000000000000000",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "relay",
+          "contract": "Multisig",
+          "function": "signMessage",
+          "params": {
+            "messageHash": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+          },
+          "mode": "faithful",
+          "waypoint": "relaySignature.valid == true",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "MultichainAnyCallV6",
+          "function": "unlock",
+          "params": {
+            "token": "0xTokenDst",
+            "to": "0xAttacker",
+            "amount": "1000000000000000000",
+            "srcChainId": 1,
+            "sig": "0xsigReplay"
+          },
+          "mode": "replay",
+          "waypoint": "destinationRouter.totalMinted(0xTokenDst) == 1000000000000000000 && WrappedToken.balanceOf(0xAttacker) == 1000000000000000000",
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "transfer",
+          "params": {
+            "to": "0xAttackerEOA2",
+            "amount": "1000000000000000000"
+          },
+          "waypoint": "WrappedToken.balanceOf(0xAttackerEOA2) == 1000000000000000000",
+          "step": 4,
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202",
+        "multichain_20230715"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000000000000000000",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_mint_proof_tamper_2024_06",
+      "target_invariant": "authorization_mint_requires_valid_proof",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "0xTokenA000000000000000000000000000000000000",
+            "amount": "1",
+            "dstChainId": "2"
+          },
+          "description": "User locks 1 token on the source chain, generating a legitimate lock proof (proof₁) and emitting LockEvent.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "Multisig",
+          "function": "signProof(bytes)",
+          "params": {
+            "proof": "proof₁_tampered_amount_1000"
+          },
+          "mode": "tampered",
+          "description": "Compromised Multisig (relay) signs a crafted proof that re‑uses the Merkle root of proof₁ but substitutes the amount field with 1000 tokens. The signature is valid, so verifyLockProof will return true.",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttacker00000000000000000000000000000000",
+            "amount": "1000",
+            "proof": "proof₁_tampered_amount_1000"
+          },
+          "description": "Attacker calls mint on the destination chain using the tampered proof. The contract only checks verifyLockProof(proof) which succeeds because the signature is valid, allowing 1000 wrapped tokens to be minted.",
+          "step": 3
+        }
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1 token on the source chain, generating a legitimate lock proof (proof₁) and emitting LockEvent."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Compromised Multisig (relay) signs a crafted proof that re‑uses the Merkle root of proof₁ but substitutes the amount field with 1000 tokens. The signature is valid, so verifyLockProof will return true."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker calls mint on the destination chain using the tampered proof. The contract only checks verifyLockProof(proof) which succeeds because the signature is valid, allowing 1000 wrapped tokens to be minted."
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_20220801",
+        "orbit_20240101"
+      ]
+    },
+    {
+      "scenario_id": "multichain_lock_bypass_via_relay",
+      "target_invariant": "authorization_lock_caller_is_user",
+      "vulnerability_class": "relay_manipulation",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "Multisig",
+          "function": "execute(address,bytes)",
+          "params": {
+            "target": "MultichainAnyCallV6",
+            "data": "0x5c19a95c0000000000000000000000000xAttacker0000000000000000000000000000000000000000000000000de0b6b3a7640000000000000000000000000000000000000000000000000000000000000001"
+          },
+          "mode": "faithful",
+          "waypoint": "MultichainAnyCallV6.totalLocked() == prev_totalLocked + 1000000000000000000",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "1000000000000000000",
+            "dstChainId": 1
+          },
+          "mode": "tampered",
+          "waypoint": "msg.sender == address(Multisig) && tx.origin == address(AttackerEOA) && msg.sender != tx.origin",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "1000000000000000000"
+          },
+          "mode": "replay",
+          "waypoint": "WrappedToken.totalSupply() == prev_totalSupply + 1000000000000000000",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_20230715",
+        "chainswap_20210711"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_balance_check_overflow_001",
+      "target_invariant": "authorization_transfer_requires_sufficient_balance",
+      "vulnerability_class": "integer_overflow_in_mint",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "step_id": "a1",
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "mode": "tampered_relay",
+          "waypoint": "WrappedToken.totalMinted == 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff && WrappedToken.balanceOf[0xAttackerAddress] == 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "step_id": "a2",
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "transfer",
+          "params": {
+            "to": "0xVictimAddress",
+            "amount": "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe"
+          },
+          "mode": "faithful",
+          "waypoint": "WrappedToken.balanceOf[0xAttackerAddress] >= 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe",
+          "step": 2,
+          "description": "Step 2"
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_20230715",
+        "polynetwork_20210810"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "destRouter.totalMinted() >= 1000000000000000000",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        }
+      ]
+    },
+    {
+      "scenario_id": "SCN-001",
+      "target_invariant": "authorization_transfer_from_requires_allowance",
+      "vulnerability_class": "logic_bug_crosschain_anycall",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock",
+          "params": {
+            "token": "0xTokenSource",
+            "amount": 1000,
+            "dstChainId": 2,
+            "payload": {
+              "target": "WrappedToken",
+              "callData": "0x23b872dd0000000000000000000000000xVictimAddress0000000000000000000000000xAttackerAddress0000000000000000000000000000000000000000000000000000000000003e8"
+            }
+          },
+          "description": "User (attacker) locks 1,000 source tokens and embeds a malicious anycall payload that instructs the destination router to invoke WrappedToken.transferFrom(victim, attacker, 1,000) during unlock.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "Multisig",
+          "function": "signRelay",
+          "params": {
+            "nonce": 42,
+            "proof": "validLockProofFromStep1"
+          },
+          "description": "Relay (Multisig) signs the lock proof. The attacker re‑uses the same signature (replay mode) to trigger an unlock on the destination chain.",
+          "step": 2
+        },
+        {
+          "chain": "dest",
+          "contract": "MultichainAnyCallV6",
+          "function": "unlock",
+          "params": {
+            "token": "0xWrappedTokenDest",
+            "to": "0xAttackerAddress",
+            "amount": 1000,
+            "dstChainId": 2,
+            "payload": {
+              "target": "WrappedToken",
+              "callData": "0x23b872dd0000000000000000000000000xVictimAddress0000000000000000000000000xAttackerAddress0000000000000000000000000000000000000000000000000000000000003e8"
+            }
+          },
+          "description": "Faithful relay processing executes the embedded payload. Because the call originates from the router (msg.sender == address(this)), the WrappedToken.transferFrom implementation skips the allowance check, moving 1,000 wrapped tokens from victim to attacker.",
+          "step": 3
+        },
+        {
+          "chain": "dest",
+          "contract": "WrappedToken",
+          "function": "balanceOf",
+          "params": {
+            "account": "0xAttackerAddress"
+          },
+          "description": "State predicate: balanceOf[0xAttackerAddress] == previousBalance + 1000",
+          "step": 4
+        },
+        {
+          "chain": "dest",
+          "contract": "WrappedToken",
+          "function": "allowance",
+          "params": {
+            "owner": "0xVictimAddress",
+            "spender": "0xAttackerAddress"
+          },
+          "description": "State predicate: allowance[0xVictimAddress][0xAttackerAddress] == 0 (no explicit approval was given).",
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_20220801",
+        "synapse_20211109"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000",
+          "description": "User (attacker) locks 1,000 source tokens and embeds a malicious anycall payload that instructs the destination router to invoke WrappedToken.transferFrom(victim, attacker, 1,000) during unlock."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Relay (Multisig) signs the lock proof. The attacker re‑uses the same signature (replay mode) to trigger an unlock on the destination chain."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Faithful relay processing executes the embedded payload. Because the call originates from the router (msg.sender == address(this)), the WrappedToken.transferFrom implementation skips the allowance check, moving 1,000 wrapped tokens from victim to attacker."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "State predicate: balanceOf[0xAttackerAddress] == previousBalance + 1000"
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "State predicate: allowance[0xVictimAddress][0xAttackerAddress] == 0 (no explicit approval was given)."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_nonce_replay_2024_06",
+      "target_invariant": "uniqueness_nonce_processed_once",
+      "vulnerability_class": "replay_logic_bug",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "0x1111111111111111111111111111111111111111",
+            "amount": 1000000,
+            "dstChainId": 2,
+            "nonce": "0xdeadbeef01"
+          },
+          "description": "Honest user initiates a cross‑chain transfer. The router emits a lock event with nonce N=0xdeadbeef01.",
+          "precondition": "MultichainAnyCallV6.processedNonce[0xdeadbeef01] == false",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "Multisig",
+          "function": "submitProof(bytes,uint8)",
+          "params": {
+            "proof": "<validLockProofForNonce0xdeadbeef01>",
+            "mode": "faithful"
+          },
+          "description": "The authorized Multisig relay signs the lock proof and forwards it to the destination chain in faithful mode.",
+          "precondition": "MultichainAnyCallV6.destRouter.processedNonce[0xdeadbeef01] == false",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "MultichainAnyCallV6",
+          "function": "mint(address,uint256,uint16,bytes)",
+          "params": {
+            "to": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "amount": 1000000,
+            "srcChainId": 1,
+            "nonce": "0xdeadbeef01",
+            "proof": "<validLockProofForNonce0xdeadbeef01>"
+          },
+          "description": "Destination router verifies the proof and mints the wrapped token to the user. The nonce is recorded.",
+          "precondition": "MultichainAnyCallV6.destRouter.processedNonce[0xdeadbeef01] == false",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "Multisig",
+          "function": "submitProof(bytes,uint8)",
+          "params": {
+            "proof": "<validLockProofForNonce0xdeadbeef01>",
+            "mode": "replay"
+          },
+          "description": "Attacker (compromised relay) re‑submits the identical lock proof with the same nonce using replay mode. Due to a bug the destination router checks the wrong nonce mapping, so processedNonce[0xdeadbeef01] is still false and the mint is executed a second time.",
+          "precondition": "MultichainAnyCallV6.destRouter.processedNonce[0xdeadbeef01] == false",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "socket_20240116",
+        "gempad_20240419",
+        "bnbbridge_20221007"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Honest user initiates a cross‑chain transfer. The router emits a lock event with nonce N=0xdeadbeef01."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "The authorized Multisig relay signs the lock proof and forwards it to the destination chain in faithful mode."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Destination router verifies the proof and mints the wrapped token to the user. The nonce is recorded."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Attacker (compromised relay) re‑submits the identical lock proof with the same nonce using replay mode. Due to a bug the destination router checks the wrong nonce mapping, so processedNonce[0xdeadbeef01] is still false and the mint is executed a second time."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_mint_idempotent_bypass_001",
+      "target_invariant": "uniqueness_mint_idempotent",
+      "vulnerability_class": "storage_collision_delegatecall",
+      "confidence": 0.88,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "0xTokenSrc",
+            "amount": "1000",
+            "dstChainId": "0x2"
+          },
+          "relay_mode": "faithful",
+          "state_predicate": "sourceRouter.totalLocked(0xTokenSrc) >= 1000",
+          "description": "Step 1"
+        },
+        {
+          "step": 2,
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint(address,uint256,bytes32,bytes)",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "1000",
+            "txHash": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            "proof": "0xproofdata"
+          },
+          "relay_mode": "faithful",
+          "state_predicate": "mintedTxHash[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == false",
+          "description": "Step 2"
+        },
+        {
+          "step": 3,
+          "chain": "destination",
+          "contract": "HijackExploit",
+          "function": "clearMintFlag(address,bytes32)",
+          "params": {
+            "bridge": "0xWrappedToken",
+            "txHash": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+          },
+          "relay_mode": "tampered",
+          "state_predicate": "mintedTxHash[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == true && storageSlot(keccak256(0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef . 0)) == true",
+          "description": "Step 3"
+        },
+        {
+          "step": 4,
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint(address,uint256,bytes32,bytes)",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "1000",
+            "txHash": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            "proof": "0xproofdata"
+          },
+          "relay_mode": "replay",
+          "state_predicate": "mintedTxHash[0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef] == false",
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202",
+        "socket_20240116"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_replay_double_unlock_01",
+      "target_invariant": "uniqueness_unlock_single_use",
+      "vulnerability_class": "replay_without_idempotency_check",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "User",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "0xTokenA",
+            "amount": 1000,
+            "dstChainId": 2
+          },
+          "description": "User initiates a cross‑chain lock; router records lockId L (0xabcde...).",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "Multisig",
+          "function": "signUnlock(bytes32,address,address,uint256)",
+          "params": {
+            "lockId": "0xabcde0000000000000000000000000000000000000000000000000000000000",
+            "token": "0xTokenA",
+            "to": "0xUser",
+            "amount": 1000
+          },
+          "relay_mode": "faithful",
+          "description": "Authorized relay signs an unlock message for lockId L.",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "MultichainAnyCallV6",
+          "function": "unlock(address,address,uint256,uint16)",
+          "params": {
+            "token": "0xTokenA",
+            "to": "0xUser",
+            "amount": 1000,
+            "lockId": 0
+          },
+          "signature": "sig_from_Multisig",
+          "relay_mode": "faithful",
+          "precondition": "destinationRouter.unlockedId[0xabcde0000000000000000000000000000000000000000000000000000000000] == false && destinationRouter.totalLocked[0xTokenA] >= 1000",
+          "postcondition": "destinationRouter.unlockedId[0xabcde0000000000000000000000000000000000000000000000000000000000] == false",
+          "description": "Router processes the signed unlock; due to a bug it does NOT set unlockedId[lockId] to true.",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "MultichainAnyCallV6",
+          "function": "unlock(address,address,uint256,uint16)",
+          "params": {
+            "token": "0xTokenA",
+            "to": "0xUser",
+            "amount": 1000,
+            "lockId": 0
+          },
+          "signature": "sig_from_Multisig",
+          "relay_mode": "replay",
+          "precondition": "destinationRouter.unlockedId[0xabcde0000000000000000000000000000000000000000000000000000000000] == false && destinationRouter.totalLocked[0xTokenA] >= 1000",
+          "postcondition": "destinationRouter.unlockedId[0xabcde0000000000000000000000000000000000000000000000000000000000] == true",
+          "description": "Attacker replays the same signed unlock message; router again mints tokens, violating the uniqueness invariant.",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810",
+        "gempad_20240419",
+        "socket_20240116"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User initiates a cross‑chain lock; router records lockId L (0xabcde...)."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Authorized relay signs an unlock message for lockId L."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Router processes the signed unlock; due to a bug it does NOT set unlockedId[lockId] to true."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Attacker replays the same signed unlock message; router again mints tokens, violating the uniqueness invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_seqnum_reorder_01",
+      "target_invariant": "uniqueness_relay_message_order",
+      "vulnerability_class": "relay_message_reordering",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "0xToken000000000000000000000000000000000001",
+            "amount": 1000,
+            "dstChainId": 56
+          },
+          "description": "User initiates a cross‑chain transfer; router records lock and creates a relay message with seqNum = 1.",
+          "waypoint": "MultichainAnyCallV6.totalLocked(0xToken000000000000000000000000000000000001) == 1000 && MultichainAnyCallV6.lastSeqNum[\"Ethereum\"] == 0",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "Multisig",
+          "function": "relayMessage(uint256,bytes)",
+          "params": {
+            "seqNum": 2,
+            "data": "0xdeadbeef... (encoded unlock payload for seqNum 1)"
+          },
+          "mode": "tampered",
+          "description": "Compromised relay submits a forged message with seqNum = 2 before the legitimate seqNum = 1, breaking monotonicity.",
+          "waypoint": "Multisig.lastSeqNumSent == 2",
+          "step": 2
+        },
+        {
+          "chain": "ethereum",
+          "contract": "MultichainAnyCallV6",
+          "function": "processRelay(uint256,bytes)",
+          "params": {
+            "seqNum": 2,
+            "data": "0xdeadbeef... (same payload as above)"
+          },
+          "mode": "faithful",
+          "description": "Router processes the out‑of‑order relay; due to missing strict check it accepts seqNum 2 even though lastSeqNum = 0.",
+          "waypoint": "MultichainAnyCallV6.lastSeqNumProcessed == 2 && MultichainAnyCallV6.totalLocked(0xToken000000000000000000000000000000000001) == 1000",
+          "step": 3
+        },
+        {
+          "chain": "bsc",
+          "contract": "WrappedToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xUser000000000000000000000000000000000001",
+            "amount": 1000
+          },
+          "description": "Destination router mints wrapped tokens based on the forged proof; attacker now holds 1000 extra wrapped tokens.",
+          "waypoint": "WrappedToken.totalMinted(0xToken000000000000000000000000000000000001) == 1000 && WrappedToken.balanceOf(0xUser000000000000000000000000000000000001) == 1000",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202",
+        "poly_network_20210304"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User initiates a cross‑chain transfer; router records lock and creates a relay message with seqNum = 1."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Compromised relay submits a forged message with seqNum = 2 before the legitimate seqNum = 1, breaking monotonicity."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Router processes the out‑of‑order relay; due to missing strict check it accepts seqNum 2 even though lastSeqNum = 0."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Destination router mints wrapped tokens based on the forged proof; attacker now holds 1000 extra wrapped tokens."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_timeliness_refund_bypass_001",
+      "target_invariant": "timeliness_refund_after_timeout",
+      "vulnerability_class": "logic_bug_refund_timestamp_manipulation",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "0xTokenAddress",
+            "amount": "1000000000000000000",
+            "dstChainId": 2
+          },
+          "description": "User creates a lock of 1 ETH‑equivalent on the source chain. The router records lockTimestamp[1] = block.timestamp and totalLocked[Token] += amount.",
+          "waypoint": "sourceRouter.totalLocked[0xTokenAddress] >= 1000000000000000000 && lockTimestamp[1] == block.timestamp",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "Multisig",
+          "function": "submitProof(uint256,bytes)",
+          "params": {
+            "lockId": 1,
+            "proof": "0xdeadbeef"
+          },
+          "relay_mode": "tampered",
+          "description": "The authorized relay (Multisig) submits a crafted proof that marks the lock as processed (processedNonce[nonce]=true) but does **not** trigger an unlock. The malicious proof also overwrites lockTimestamp[1] to a future value (block.timestamp + 2·LOCK_TIMEOUT).",
+          "waypoint": "processedNonce[nonce_of_lock_1] == true && lockTimestamp[1] > block.timestamp + LOCK_TIMEOUT",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "refund(uint256)",
+          "params": {
+            "lockId": 1
+          },
+          "relay_mode": "faithful",
+          "description": "After the original LOCK_TIMEOUT has elapsed, the user calls refund(). The contract checks `block.timestamp >= lockTimestamp[1] + LOCK_TIMEOUT`, which now evaluates to **false** because the timestamp was artificially pushed forward, causing the refund to revert.",
+          "waypoint": "block.timestamp >= original_lockTimestamp[1] + LOCK_TIMEOUT && lockTimestamp[1] > block.timestamp && userCanRefund == false",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_20220801",
+        "thorchain_20210629"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User creates a lock of 1 ETH‑equivalent on the source chain. The router records lockTimestamp[1] = block.timestamp and totalLocked[Token] += amount."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "The authorized relay (Multisig) submits a crafted proof that marks the lock as processed (processedNonce[nonce]=true) but does **not** trigger an unlock. The malicious proof also overwrites lockTimestamp[1] to a future value (block.timestamp + 2·LOCK_TIMEOUT)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "After the original LOCK_TIMEOUT has elapsed, the user calls refund(). The contract checks `block.timestamp >= lockTimestamp[1] + LOCK_TIMEOUT`, which now evaluates to **false** because the timestamp was artificially pushed forward, causing the refund to revert."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_timeliness_bypass_001",
+      "target_invariant": "timeliness_unlock_before_expiry",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock",
+          "params": {
+            "token": "0xTokenAddress",
+            "amount": "1000e18",
+            "dstChainId": 2
+          },
+          "waypoint": "sourceRouter.lockTimestamp[1] == T0 && sourceRouter.totalLocked[0xTokenAddress] >= 1000e18",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "source",
+          "contract": "Multisig",
+          "function": "signUnlockMessage",
+          "params": {
+            "lockId": 1,
+            "user": "0xUserAddress",
+            "token": "0xTokenAddress",
+            "amount": "1000e18",
+            "dstChainId": 2,
+            "timestamp": "T0"
+          },
+          "waypoint": "signedMessage.valid == true && signedMessage.timestamp == T0",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "unlock",
+          "params": {
+            "to": "0xUserAddress",
+            "token": "0xTokenAddress",
+            "amount": "1000e18",
+            "dstChainId": 2,
+            "relayMode": "delayed",
+            "signature": "0xSignedByMultisig"
+          },
+          "waypoint": "block.timestamp > sourceRouter.lockTimestamp[1] + LOCK_TIMEOUT && sourceRouter.totalLocked[0xTokenAddress] >= 1000e18",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_20230715",
+        "polynetwork_20210810"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000000000000000000",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "destRouter.totalMinted() > 0 && sourceRouter.refunded > 0",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_timeliness_mint_early_001",
+      "target_invariant": "timeliness_mint_only_after_lock_confirmed",
+      "vulnerability_class": "relay_tampering",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "0xAaBbCcDdEeFf0011223344556677889900aAbBcC",
+            "amount": "1000000000000000000",
+            "dstChainId": 2
+          },
+          "description": "User signs a lock transaction but does NOT broadcast it, obtaining the pending txHash H (e.g., 0xdeadbeef...). State predicate after this step: sourceTxConfirmed[H] == false.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttacker1111111111111111111111111111111111",
+            "amount": "1000000000000000000"
+          },
+          "relay_mode": "tampered",
+          "description": "Compromised Multisig (relay) fabricates a lock‑proof that references the pending txHash H and calls mint. The bridge’s verifyLockProof is bypassed, so mint succeeds while sourceTxConfirmed[H] == false. State predicate after this step: mintedTxHash[H] == true && sourceTxConfirmed[H] == false (invariant violated).",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "0xAaBbCcDdEeFf0011223344556677889900aAbBcC",
+            "amount": "1000000000000000000",
+            "dstChainId": 2
+          },
+          "description": "Broadcast the originally prepared lock transaction. It now gets mined, setting sourceTxConfirmed[H] == true, but the mint has already occurred, confirming the timeliness breach.",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_20230715",
+        "orbit_20240101"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User signs a lock transaction but does NOT broadcast it, obtaining the pending txHash H (e.g., 0xdeadbeef...). State predicate after this step: sourceTxConfirmed[H] == false."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Compromised Multisig (relay) fabricates a lock‑proof that references the pending txHash H and calls mint. The bridge’s verifyLockProof is bypassed, so mint succeeds while sourceTxConfirmed[H] == false. State predicate after this step: mintedTxHash[H] == true && sourceTxConfirmed[H] == false (invariant violated)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Broadcast the originally prepared lock transaction. It now gets mined, setting sourceTxConfirmed[H] == true, but the mint has already occurred, confirming the timeliness breach."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_nonce_timeliness_bypass_001",
+      "target_invariant": "timeliness_nonce_expiration",
+      "vulnerability_class": "logic_bug_delegatecall",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "0xAAAABBBBCCCCDDDDEEEEFFFF0000111122223333",
+            "amount": "1000000000000000000000",
+            "nonce": 42
+          },
+          "description": "Honest user locks 1,000 source tokens; router records nonceTimestamp[42] = block.timestamp (t0).",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "state_predicate",
+          "params": {
+            "predicate": "block.timestamp - nonceTimestamp[42] > MAX_NONCE_AGE"
+          },
+          "description": "Wait until the nonce becomes stale (e.g., > 2 days).",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "ExploitHelper",
+          "function": "resetNonceTimestamp(uint16)",
+          "params": {
+            "nonce": 42
+          },
+          "relay_mode": "tampered",
+          "description": "Attacker‑controlled helper contract that, when delegatecalled, overwrites storage slot of nonceTimestamp[42] with the current block.timestamp.",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "MultichainAnyCallV6",
+          "function": "unlock(address,address,uint256,uint16,bytes,address)",
+          "params": {
+            "token": "0xAAAABBBBCCCCDDDDEEEEFFFF0000111122223333",
+            "to": "0xDEADBEefDEADBEefDEADBEefDEADBEefDEADBEef",
+            "amount": "1000000000000000000000",
+            "nonce": 42,
+            "proof": "0xPROOF_FROM_STEP_1",
+            "callback": "0xCCCCDDDD11112222333344445555666677778888"
+          },
+          "description": "Compromised Multisig relay (tampered mode) calls unlock with a valid lock proof and a malicious callback. The router delegatecalls ExploitHelper, which resets nonceTimestamp[42] to the current block.timestamp.",
+          "step": 4
+        },
+        {
+          "chain": "destination",
+          "contract": "MultichainAnyCallV6",
+          "function": "state_predicate",
+          "params": {
+            "predicate": "nonceTimestamp[42] == block.timestamp"
+          },
+          "description": "After the delegatecall, the timeliness check sees a fresh timestamp, so the stale nonce is accepted, violating the invariant.",
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20211201",
+        "orbit_20240101",
+        "harmony_horizon_20220624"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Honest user locks 1,000 source tokens; router records nonceTimestamp[42] = block.timestamp (t0)."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Wait until the nonce becomes stale (e.g., > 2 days)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker‑controlled helper contract that, when delegatecalled, overwrites storage slot of nonceTimestamp[42] with the current block.timestamp."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Compromised Multisig relay (tampered mode) calls unlock with a valid lock proof and a malicious callback. The router delegatecalls ExploitHelper, which resets nonceTimestamp[42] to the current block.timestamp."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "After the delegatecall, the timeliness check sees a fresh timestamp, so the stale nonce is accepted, violating the invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "scn_timeliness_replay_expiry_001",
+      "target_invariant": "timeliness_relay_signature_expiry",
+      "vulnerability_class": "timeliness_logic_bug",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "0xTokenSrc",
+            "amount": "1000e18",
+            "dstChainId": 2
+          },
+          "description": "User locks 1,000 source tokens for destination chain 2, generating a lock event with nonce N.",
+          "waypoint": "MultichainAnyCallV6.totalLocked(0xTokenSrc) == 1000e18",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "Multisig",
+          "function": "signUnlock(bytes32,uint256)",
+          "params": {
+            "lockHash": "keccak256(N,0xTokenSrc,1000e18,2)",
+            "expiry": "block.timestamp + 300"
+          },
+          "description": "Honest relay signs an unlock proof with expiry 5 minutes in the future.",
+          "relay_mode": "faithful",
+          "waypoint": "sigExpiry == block.timestamp + 300",
+          "step": 2
+        },
+        {
+          "chain": "offchain",
+          "contract": "Attacker",
+          "function": "wait(uint256)",
+          "params": {
+            "seconds": 360
+          },
+          "description": "Attacker waits until the signature expiry has passed (block.timestamp > sigExpiry).",
+          "waypoint": "block.timestamp > sigExpiry",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "MultichainAnyCallV6",
+          "function": "unlock(address,address,uint256,uint16,bytes)",
+          "params": {
+            "token": "0xWrappedTokenDst",
+            "to": "0xAttacker",
+            "amount": "1000e18",
+            "srcChainId": 1,
+            "signature": "0xSigFromMultisig"
+          },
+          "description": "Attacker replays the stale signature after expiry. The bridge contract is in 'tampered' mode where expiry check is skipped.",
+          "relay_mode": "tampered",
+          "waypoint": "block.timestamp > sigExpiry && MultichainAnyCallV6.verifyRelaySignature(0xSigFromMultisig) == true",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_20230715",
+        "orbit_20240101"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1,000 source tokens for destination chain 2, generating a lock event with nonce N."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Honest relay signs an unlock proof with expiry 5 minutes in the future."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker waits until the signature expiry has passed (block.timestamp > sigExpiry)."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Attacker replays the stale signature after expiry. The bridge contract is in 'tampered' mode where expiry check is skipped."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_replay_mint_excess_01",
+      "target_invariant": "authorization_mint_cannot_exceed_locked",
+      "vulnerability_class": "replay_missing_nonce_check",
+      "confidence": 0.93,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "0xTokenSource",
+            "amount": "1000",
+            "dstChainId": 2
+          },
+          "mode": "faithful",
+          "state_predicate": "totalLocked[0xTokenSource] == 1000 && lockedAmount[lockId_0] == 1000",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "destination",
+          "contract": "MultichainAnyCallV6",
+          "function": "processLockProof(bytes)",
+          "params": {
+            "proof": "0xProofFromSourceForLockId_0"
+          },
+          "mode": "faithful",
+          "state_predicate": "mintedAmount[lockId_0] == 1000 && totalMinted[WrappedToken] == 1000",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xUserEOA",
+            "amount": "1000"
+          },
+          "mode": "faithful",
+          "state_predicate": "balanceOf[0xUserEOA] == 1000 && totalSupply == 1000",
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "destination",
+          "contract": "MultichainAnyCallV6",
+          "function": "processLockProof(bytes)",
+          "params": {
+            "proof": "0xProofFromSourceForLockId_0"
+          },
+          "mode": "replay",
+          "state_predicate": "mintedAmount[lockId_0] == 2000 && totalMinted[WrappedToken] == 2000 && lockedAmount[lockId_0] == 1000",
+          "step": 4,
+          "description": "Step 4"
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xUserEOA",
+            "amount": "1000"
+          },
+          "mode": "tampered",
+          "state_predicate": "balanceOf[0xUserEOA] == 2000 && totalSupply == 2000",
+          "step": 5,
+          "description": "Step 5"
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_20230215",
+        "synapse_bridge_xscope"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Step 5"
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_partial_refund_state_mismatch_001",
+      "target_invariant": "asset_conservation_partial_refund_preserves_total",
+      "vulnerability_class": "logic_bug_missing_state_update",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "WrappedToken",
+            "amount": 1000,
+            "dstChainId": 2
+          },
+          "relay_mode": "faithful",
+          "waypoint": "sourceRouter.totalLocked(WrappedToken) == 1000 && sourceRouter.lockedAmount[lockId] == 1000 && sourceRouter.remainingLocked[lockId] == 1000",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "source",
+          "contract": "Multisig",
+          "function": "relayUnlock(uint256,bytes)",
+          "params": {
+            "lockId": "lockId",
+            "signature": "0xdeadbeef... (forged signature allowing partial unlock of 400)"
+          },
+          "relay_mode": "tampered",
+          "waypoint": "sourceRouter.refundedAmount[lockId] == 400 && sourceRouter.remainingLocked[lockId] == 1000 && sourceRouter.totalLocked(WrappedToken) == 1000",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "unlock(address,address,uint256,uint16)",
+          "params": {
+            "token": "WrappedToken",
+            "to": "User",
+            "amount": 400,
+            "srcChainId": 1
+          },
+          "relay_mode": "tampered",
+          "waypoint": "sourceRouter.refundedAmount[lockId] == 400 && sourceRouter.remainingLocked[lockId] == 1000 && sourceRouter.totalLocked(WrappedToken) == 1000",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "qubit_20220127",
+        "polynetwork_20210810"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_zero_recipient_transfer_01",
+      "target_invariant": "authorization_transfer_requires_nonzero_recipient",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock",
+          "params": {
+            "token": "0xTokenSource",
+            "amount": 1000000,
+            "dstChainId": 56
+          },
+          "description": "User locks 1,000,000 source tokens for bridging to destination chain.",
+          "waypoint": "sourceRouter.totalLocked(0xTokenSource) >= 1000000",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "Multisig",
+          "function": "submitUnlockSignature",
+          "params": {
+            "nonce": 42,
+            "to": "0x0000000000000000000000000000000000000000",
+            "amount": 1000000,
+            "dstChainId": 56
+          },
+          "description": "Attacker, controlling the relay, signs an unlock message with a tampered recipient set to the zero address.",
+          "relay_mode": "tampered",
+          "waypoint": "destinationRouter.processedNonce[42] == false",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "MultichainAnyCallV6",
+          "function": "unlock",
+          "params": {
+            "token": "0xWrappedTokenDest",
+            "to": "0x0000000000000000000000000000000000000000",
+            "amount": 1000000,
+            "nonce": 42,
+            "sig": "0xAttackerSignature"
+          },
+          "description": "Router processes the forged unlock; it calls WrappedToken.transfer(to, amount) with to == zero address.",
+          "waypoint": "WrappedToken.balanceOf(0x0000000000000000000000000000000000000000) == 1000000",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "chainswap_20210711",
+        "multichain_20220118"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000000",
+          "description": "User locks 1,000,000 source tokens for bridging to destination chain."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker, controlling the relay, signs an unlock message with a tampered recipient set to the zero address."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Router processes the forged unlock; it calls WrappedToken.transfer(to, amount) with to == zero address."
+        }
+      ]
+    },
+    {
+      "scenario_id": "multichain_transfer_replay_01",
+      "target_invariant": "uniqueness_transfer_idempotent",
+      "vulnerability_class": "replay_attack_missing_hash_check",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MultichainAnyCallV6",
+          "function": "lock",
+          "params": {
+            "token": "0xToken",
+            "amount": 1000,
+            "dstChainId": 2
+          },
+          "description": "User locks 1,000 source tokens, generating transaction hash H2.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint",
+          "params": {
+            "to": "0xVictim",
+            "amount": 1000
+          },
+          "description": "Authorized relay (Multisig) processes the lock proof and mints 1,000 wrapped tokens to the victim.",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "transferFrom",
+          "params": {
+            "from": "0xVictim",
+            "to": "0xAttacker",
+            "amount": 500
+          },
+          "relay_mode": "faithful",
+          "description": "Victim has previously set allowance for Attacker; Attacker calls transferFrom to move 500 tokens. Transaction hash = H2.",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "transferFrom",
+          "params": {
+            "from": "0xVictim",
+            "to": "0xAttacker",
+            "amount": 500
+          },
+          "relay_mode": "replay",
+          "description": "Attacker re‑submits the identical transferFrom call with the same txHash H2 via a compromised Multisig relay, exploiting the missing processedTxHash check.",
+          "step": 4
+        }
+      ],
+      "state_predicates": [
+        "processedTxHash[H2] == false before action 3",
+        "processedTxHash[H2] == true after action 3",
+        "processedTxHash[H2] == true before action 4",
+        "balanceOf[0xAttacker] == previous_balance + 500 after action 4"
+      ],
+      "retrieved_exploits": [
+        "bnbbridge_20221007",
+        "rubic_20221225"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000",
+          "description": "User locks 1,000 source tokens, generating transaction hash H2."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "destRouter.totalMinted() >= 2000",
+          "description": "Authorized relay (Multisig) processes the lock proof and mints 1,000 wrapped tokens to the victim."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Victim has previously set allowance for Attacker; Attacker calls transferFrom to move 500 tokens. Transaction hash = H2."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Attacker re‑submits the identical transferFrom call with the same txHash H2 via a compromised Multisig relay, exploiting the missing processedTxHash check."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "bridge_name": "wormhole",
+  "version": "1.0",
+  "nodes": [
+    {
+      "node_id": "User",
+      "node_type": "user",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "tokenbridge",
+      "node_type": "contract",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "is",
+      "node_type": "contract",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "accepts",
+      "node_type": "contract",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "wormholecore",
+      "node_type": "contract",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "bumps",
+      "node_type": "contract",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "has",
+      "node_type": "contract",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "wrappedasset",
+      "node_type": "contract",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "bridge",
+      "node_type": "contract",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "e1",
+      "src": "bridge",
+      "dst": "User",
+      "label": "unlock",
+      "token": "UNKNOWN",
+      "conditions": [],
+      "condition_objects": [],
+      "function_signature": ""
+    }
+  ],
+  "invariants": [
+    {
+      "invariant_id": "inv_authorization",
+      "category": "authorization",
+      "description": "Mint/unlock requires valid prior source-chain lock and proof verification.",
+      "predicate": "mint_or_unlock -> exists(valid_lock && verified_message)",
+      "solidity_assertion": "require(isVerified(messageHash) && lockExists(nonce), 'unauthorized mint/unlock');",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "inv_uniqueness",
+      "category": "uniqueness",
+      "description": "Each deposit/nonce can be consumed at most once.",
+      "predicate": "processed[nonce] == false before consume",
+      "solidity_assertion": "require(!processed[nonce], 'replay');",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "inv_timeliness",
+      "category": "timeliness",
+      "description": "Locked assets become refundable after timeout if destination action not finalized.",
+      "predicate": "expired(timeout) && !finalized -> refundable",
+      "solidity_assertion": "require(block.timestamp >= lockTime + timeout, 'too early');",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "inv_state_consistency",
+      "category": "state_consistency",
+      "description": "Cross-chain state transitions must not diverge from protocol flow.",
+      "predicate": "next_state in allowed_transitions",
+      "solidity_assertion": "assert(validTransition(currentState, nextState));",
+      "related_edges": [
+        "e1"
+      ]
+    }
+  ]
+}

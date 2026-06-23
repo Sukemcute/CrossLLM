@@ -1,0 +1,1544 @@
+{
+  "bridge_name": "qubit",
+  "scenarios": [
+    {
+      "scenario_id": "qubit_overmint_via_tampered_relay_001",
+      "target_invariant": "asset_conservation_total_mint_equals_locked",
+      "vulnerability_class": "relay_signature_forgery",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "deposit(address,uint256,address)",
+          "params": {
+            "user": "0xAttackerUserAddr",
+            "amount": "10000000000000000000",
+            "token": "0x0000000000000000000000000000000000000000"
+          },
+          "mode": "faithful",
+          "predicate": "QBridgeETH.totalLocked() == 10000000000000000000",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "offchain",
+          "contract": "OffchainRelay",
+          "function": "signMessage(bytes32)",
+          "params": {
+            "messageHash": "keccak256(abi.encodePacked(0xAttackerUserAddr,1000000000000000000000,12345))"
+          },
+          "mode": "tampered",
+          "predicate": "relaySignatureValid == true   // attacker controls private key",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "MockToken",
+          "function": "process(address,uint256,uint64)",
+          "params": {
+            "user": "0xAttackerUserAddr",
+            "amount": "1000000000000000000000",
+            "nonce": "12345"
+          },
+          "mode": "faithful",
+          "predicate": "MockToken.totalMinted() == 1000000000000000000000",
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "offchain",
+          "contract": "OffchainRelay",
+          "function": "forwardMessage(bytes)",
+          "params": {
+            "originalDepositNonce": "67890",
+            "originalAmount": "10000000000000000000"
+          },
+          "mode": "delayed",
+          "predicate": "relayMessageQueued == true",
+          "step": 4,
+          "description": "Step 4"
+        },
+        {
+          "chain": "destination",
+          "contract": "MockToken",
+          "function": "process(address,uint256,uint64)",
+          "params": {
+            "user": "0xAttackerUserAddr",
+            "amount": "10000000000000000000",
+            "nonce": "67890"
+          },
+          "mode": "faithful",
+          "predicate": "MockToken.totalMinted() == 1010000000000000000000 && QBridgeETH.totalLocked() == 10000000000000000000",
+          "step": 5,
+          "description": "Step 5"
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_fake_mint",
+        "nomad_replay",
+        "synapse_xscope"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Step 5"
+        }
+      ]
+    },
+    {
+      "scenario_id": "overflow_mint_balance_decrease_001",
+      "target_invariant": "asset_conservation_user_balance_monotonic",
+      "vulnerability_class": "integer_overflow",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "deposit(address,uint256,address)",
+          "params": {
+            "token": "0x0000000000000000000000000000000000000000",
+            "amount": "1000000000000000000",
+            "to": "0xAttackerEOA000000000000000000000000000001"
+          },
+          "description": "User (attacker) locks 1 ETH on the Ethereum side, generating deposit nonce N and recording lock timestamp.",
+          "step": 1
+        },
+        {
+          "chain": "offchain",
+          "contract": "OffchainRelay",
+          "function": "relayProcess(address,uint256,uint64,bytes)",
+          "params": {
+            "user": "0xAttackerEOA000000000000000000000000000001",
+            "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+            "nonce": "N",
+            "sig": "0xForgedValidSignatureFor(N,Attacker,amount)"
+          },
+          "mode": "tampered",
+          "description": "Compromised relay emits a tampered process message with an amount that will overflow the recipient's balance when added unchecked.",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "QBridgeBSC",
+          "function": "process(address,uint256,uint64)",
+          "params": {
+            "user": "0xAttackerEOA000000000000000000000000000001",
+            "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+            "nonce": "N"
+          },
+          "description": "Destination router forwards the malicious process call to MockToken, which executes an unchecked _mint, causing the attacker’s balance to wrap around to a small value (< balanceBefore).",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "erc20_overflow_mint_202012",
+        "poly_network_overflow_2021"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User (attacker) locks 1 ETH on the Ethereum side, generating deposit nonce N and recording lock timestamp."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Compromised relay emits a tampered process message with an amount that will overflow the recipient's balance when added unchecked."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Destination router forwards the malicious process call to MockToken, which executes an unchecked _mint, causing the attacker’s balance to wrap around to a small value (< balanceBefore)."
+        }
+      ]
+    },
+    {
+      "scenario_id": "qubit_overmint_fake_deposit_2024_06_22",
+      "target_invariant": "asset_conservation_no_overmint",
+      "vulnerability_class": "fake_deposit_signature_forgery",
+      "confidence": 0.93,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "deposit(address,uint256,address)",
+          "params": {
+            "user": "0xDEADbeef00000000000000000000000000000001",
+            "amount": "0",
+            "destRouter": "0xBEEFdead00000000000000000000000000000002"
+          },
+          "mode": "faithful",
+          "waypoint": "QBridgeETH.totalLocked() == 0",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "offchain",
+          "contract": "OffchainRelay",
+          "function": "signProcess(address,uint256,uint64)",
+          "params": {
+            "user": "0xDEADbeef00000000000000000000000000000001",
+            "amount": "1000000000000000000",
+            "nonce": "42"
+          },
+          "mode": "tampered",
+          "description": "Relay (controlled by attacker) creates a valid‑looking signature over a forged amount of 1 ETH (1e18 wei) for nonce 42.",
+          "waypoint": "signatureValid == true",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "QBridgeBSC",
+          "function": "process(address,uint256,uint64)",
+          "params": {
+            "user": "0xDEADbeef00000000000000000000000000000001",
+            "amount": "1000000000000000000",
+            "nonce": "42",
+            "sig": "0xFAKE_SIGNATURE"
+          },
+          "mode": "tampered",
+          "description": "Attacker (or compromised relay) calls process with the forged signature, bypassing the nonce‑already‑processed check because nonce 42 is unused.",
+          "waypoint": "processed[42] == true && MockToken.totalMinted() == 1000000000000000000",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "MockToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xDEADbeef00000000000000000000000000000001",
+            "amount": "1000000000000000000"
+          },
+          "mode": "faithful",
+          "description": "Router QBridgeBSC (msg.sender) invokes MockToken.mint as part of process, crediting the user with 1 xQubit.",
+          "waypoint": "MockToken.balanceOf(0xDEADbeef00000000000000000000000000000001) == 1000000000000000000",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "qubit_20220127"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Relay (controlled by attacker) creates a valid‑looking signature over a forged amount of 1 ETH (1e18 wei) for nonce 42."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker (or compromised relay) calls process with the forged signature, bypassing the nonce‑already‑processed check because nonce 42 is unused."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Router QBridgeBSC (msg.sender) invokes MockToken.mint as part of process, crediting the user with 1 xQubit."
+        }
+      ]
+    },
+    {
+      "scenario_id": "qubit_auth_mint_bypass_001",
+      "target_invariant": "authorization_mint_only_by_router",
+      "vulnerability_class": "missing_access_control",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "MockToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xDEADDEADDEADDEADDEADDEADDEADDEADDEADDEAD",
+            "amount": "1000000000000000000000"
+          },
+          "description": "Attacker (off‑chain User) directly calls MockToken.mint, bypassing QBridgeBSC. The call succeeds because MockToken lacks proper access‑control, violating the invariant that only routerBSC may be msg.sender.",
+          "step": 1
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_20210406"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker (off‑chain User) directly calls MockToken.mint, bypassing QBridgeBSC. The call succeeds because MockToken lacks proper access‑control, violating the invariant that only routerBSC may be msg.sender."
+        }
+      ]
+    },
+    {
+      "scenario_id": "qubit_auth_lock_by_contract_2024_06_22",
+      "target_invariant": "authorization_lock_only_by_user",
+      "vulnerability_class": "authorization_logic_flaw",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "setUser(address,bool)",
+          "params": {
+            "user": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "allowed": true
+          },
+          "description": "Attacker registers its malicious contract as a legitimate user in the bridge's isUser mapping.",
+          "state_predicate": "QBridgeETH.isUser[0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa] == true",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "AaveLendingPool",
+          "function": "flashLoan(address,uint256)",
+          "params": {
+            "receiver": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": "1000 ether"
+          },
+          "description": "Attacker contract receives a flash‑loan of 1000 ETH to fund the deposit.",
+          "state_predicate": "AaveLendingPool.outstandingLoan[0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa] == 1000 ether",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "deposit(address,uint256,address)",
+          "params": {
+            "to": "0xBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBb",
+            "amount": "1000 ether",
+            "token": "0x0000000000000000000000000000000000000000"
+          },
+          "description": "Malicious contract calls deposit while being a registered user; the bridge code only checks isUser[msg.sender] and omits the tx.origin check, allowing a contract to lock funds.",
+          "state_predicate": "QBridgeETH.totalLocked() >= 1000 ether && QBridgeETH.lockedBy[0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa] == 1000 ether && tx.origin != 0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "AaveLendingPool",
+          "function": "repay(address,uint256)",
+          "params": {
+            "payer": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": "1000 ether"
+          },
+          "description": "Flash‑loan is repaid, leaving the deposit recorded on‑chain.",
+          "state_predicate": "AaveLendingPool.outstandingLoan[0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa] == 0 && QBridgeETH.totalLocked() >= 1000 ether",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_20230215",
+        "ronin_20220223"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker registers its malicious contract as a legitimate user in the bridge's isUser mapping."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker contract receives a flash‑loan of 1000 ETH to fund the deposit."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Malicious contract calls deposit while being a registered user; the bridge code only checks isUser[msg.sender] and omits the tx.origin check, allowing a contract to lock funds."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Flash‑loan is repaid, leaving the deposit recorded on‑chain."
+        }
+      ]
+    },
+    {
+      "scenario_id": "qubit_reentrancy_nonce_double_mint_001",
+      "target_invariant": "authorization_process_requires_unprocessed_nonce",
+      "vulnerability_class": "reentrancy_logic_bug",
+      "confidence": 0.93,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "deposit(address,uint256,address)",
+          "params": {
+            "token": "0x0000000000000000000000000000000000000000",
+            "amount": "100000000000000000000",
+            " // 100 ETH in wei": "toUserAddr"
+          },
+          "description": "User locks 100 ETH on Ethereum side, creating depositId with nonce=1.",
+          "step": 1
+        },
+        {
+          "chain": "offchain",
+          "contract": "OffchainRelay",
+          "function": "signMessage(address,uint256,uint64)",
+          "params": {
+            "user": "0xAttackerEOA",
+            "amount": "100000000000000000000",
+            "nonce": 1
+          },
+          "relay_mode": "faithful",
+          "description": "Relay produces a valid signature over (user, amount, nonce) for nonce = 1.",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "QBridgeETH",
+          "function": "process(address,uint256,uint64,bytes)",
+          "params": {
+            "user": "0xMaliciousReceiver",
+            "amount": "100000000000000000000",
+            "nonce": 1,
+            "sig": "0xValidSignatureFromRelay"
+          },
+          "description": "Attacker calls process with a malicious receiver contract. The bridge invokes MockToken.mint to the receiver.",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "MaliciousReceiver",
+          "function": "onTokenReceived(address,uint256)",
+          "params": {
+            "from": "0xQBridgeETH",
+            "amount": "100000000000000000000"
+          },
+          "description": "During the mint callback, the malicious contract re‑enters QBridgeETH.process with the same (user, amount, nonce, sig) before the bridge sets processed[nonce] = true.",
+          "step": 4
+        }
+      ],
+      "state_waypoints": [
+        {
+          "predicate": "processed[1] == false",
+          "description": "Nonce 1 is unprocessed before the first process call."
+        },
+        {
+          "predicate": "totalMinted == 2 * 100000000000000000000",
+          "description": "After re‑entrancy, two mint events have occurred for the same nonce."
+        },
+        {
+          "predicate": "processed[1] == true",
+          "description": "Bridge finally marks nonce 1 as processed, but double mint already happened."
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_2022_replay",
+        "poly_network_2021_logic_bug"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 100 ETH on Ethereum side, creating depositId with nonce=1."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Relay produces a valid signature over (user, amount, nonce) for nonce = 1."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker calls process with a malicious receiver contract. The bridge invokes MockToken.mint to the receiver."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "During the mint callback, the malicious contract re‑enters QBridgeETH.process with the same (user, amount, nonce, sig) before the bridge sets processed[nonce] = true."
+        }
+      ]
+    },
+    {
+      "scenario_id": "qubit_sig_tamper_001",
+      "target_invariant": "authorization_process_requires_valid_signature",
+      "vulnerability_class": "relay_compromise_signature_forgery",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "deposit(address,uint256,address)",
+          "params": {
+            "user": "0xAttackerEOA",
+            "amount": "0",
+            "token": "0x0000000000000000000000000000000000000000"
+          },
+          "mode": "faithful",
+          "waypoint": "sourceRouter.totalLocked() == 0 && sourceRouter.lastNonce() == 42",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "offchain",
+          "contract": "OffchainRelay",
+          "function": "signMint(address,uint256,uint64)",
+          "params": {
+            "user": "0xAttackerEOA",
+            "amount": "1000000e18",
+            "nonce": "42"
+          },
+          "mode": "tampered",
+          "waypoint": "sig == ecrecover(keccak256(abi.encodePacked(user, amount, nonce)), v, r, s)",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "QBridgeBSC",
+          "function": "process(address,uint256,uint64,bytes)",
+          "params": {
+            "user": "0xAttackerEOA",
+            "amount": "1000000e18",
+            "nonce": "42",
+            "sig": "<sig_from_step_2>"
+          },
+          "mode": "faithful",
+          "waypoint": "verifySignature(sig, keccak256(abi.encodePacked(user, amount, nonce))) == true && MockToken.totalMinted() >= 1000000e18 && processed[42] == true",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_signature_forgery",
+        "poly_network_replay"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "qubit_nonce_replay_after_refund_001",
+      "target_invariant": "uniqueness_nonce_processed_once",
+      "vulnerability_class": "replay_after_refund_clearing",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "deposit",
+          "params": {
+            "user": "0xAttackerEOA",
+            "amount": "100000000000000000000",
+            "token": "0x0000000000000000000000000000000000000000"
+          },
+          "description": "Attacker locks 100 ETH on the Ethereum side, emitting Deposit event with nonce N.",
+          "state_predicate": "sourceRouter.totalLocked() == 100e18",
+          "step": 1
+        },
+        {
+          "chain": "offchain",
+          "contract": "OffchainRelay",
+          "function": "relayProcess",
+          "params": {
+            "destChain": "destination",
+            "user": "0xAttackerEOA",
+            "amount": "100000000000000000000",
+            "nonce": "N",
+            "signature": "0xValidSigOver(user,amount,nonce)"
+          },
+          "description": "Relay forwards a faithful, correctly signed process message to the destination router.",
+          "relay_mode": "faithful",
+          "state_predicate": "relayMessageQueued == true",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "QBridgeBSC",
+          "function": "process",
+          "params": {
+            "user": "0xAttackerEOA",
+            "amount": "100000000000000000000",
+            "nonce": "N",
+            "sig": "0xValidSigOver(user,amount,nonce)"
+          },
+          "description": "Destination router mints xQubit to the attacker and sets processedCount[N] = 1.",
+          "state_predicate": "processedCount[N] == 1 && totalMinted == 100e18",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "QBridgeBSC",
+          "function": "refund",
+          "params": {
+            "nonce": "N"
+          },
+          "description": "After the lock timeout, attacker calls refund; due to a bug the contract clears processedCount[N] back to 0.",
+          "relay_mode": "delayed",
+          "state_predicate": "processedCount[N] == 0 && refundExecuted[N] == true",
+          "step": 4
+        },
+        {
+          "chain": "destination",
+          "contract": "QBridgeBSC",
+          "function": "process",
+          "params": {
+            "user": "0xAttackerEOA",
+            "amount": "100000000000000000000",
+            "nonce": "N",
+            "sig": "0xValidSigOver(user,amount,nonce)"
+          },
+          "description": "Attacker replays the same process call (replay mode); contract sees processedCount[N]==0 and mints a second xQubit, violating the once‑only nonce invariant.",
+          "relay_mode": "replay",
+          "state_predicate": "processedCount[N] == 1 && totalMinted == 200e18",
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "ronin_20220224",
+        "wormhole_20220202"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 100000000000000000000",
+          "description": "Attacker locks 100 ETH on the Ethereum side, emitting Deposit event with nonce N."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Relay forwards a faithful, correctly signed process message to the destination router."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "replica.processedMessages(messageHash) == true",
+          "description": "Destination router mints xQubit to the attacker and sets processedCount[N] = 1."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "After the lock timeout, attacker calls refund; due to a bug the contract clears processedCount[N] back to 0."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "replica.processedMessages(messageHash) == true",
+          "description": "Attacker replays the same process call (replay mode); contract sees processedCount[N]==0 and mints a second xQubit, violating the once‑only nonce invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "qubit_depositId_replay_via_refund_reset",
+      "target_invariant": "uniqueness_deposit_id_unique",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "deposit(address,uint256,address)",
+          "params": {
+            "user": "User",
+            "amount": "100000000000000000000",
+            "token": "0x0000000000000000000000000000000000000000"
+          },
+          "waypoint": "sourceRouter.totalLocked() >= 100000000000000000000 && depositSeen[keccak256(User,100000000000000000000,1)] == false",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "offchain",
+          "relay": "OffchainRelay",
+          "mode": "faithful",
+          "action": "forwardSignature",
+          "params": {
+            "user": "User",
+            "amount": "100000000000000000000",
+            "nonce": "1",
+            "sig": "SIG(User,100000000000000000000,1)"
+          },
+          "waypoint": "verifySignature(sig, keccak256(User,100000000000000000000,1)) == true",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "QBridgeBSC",
+          "function": "process(address,uint256,uint64,bytes)",
+          "params": {
+            "user": "User",
+            "amount": "100000000000000000000",
+            "nonce": "1",
+            "sig": "SIG(User,100000000000000000000,1)"
+          },
+          "waypoint": "processed[1] == 0 && totalMinted == totalLocked - (totalLocked * feeRate / 10000) && processed[1] == 1 && totalMinted == totalMinted + 100000000000000000000",
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "refund(uint256,uint64)",
+          "params": {
+            "depositId": "keccak256(User,100000000000000000000,1)",
+            "nonce": "1"
+          },
+          "waypoint": "block.timestamp >= lockTimestamp[keccak256(User,100000000000000000000,1)] + timeout && depositSeen[keccak256(User,100000000000000000000,1)] == true && processed[1] == 1 && depositSeen[keccak256(User,100000000000000000000,1)] == false && processed[1] == 0",
+          "step": 4,
+          "description": "Step 4"
+        },
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "deposit(address,uint256,address)",
+          "params": {
+            "user": "User",
+            "amount": "100000000000000000000",
+            "token": "0x0000000000000000000000000000000000000000"
+          },
+          "waypoint": "depositSeen[keccak256(User,100000000000000000000,1)] == false",
+          "step": 5,
+          "description": "Step 5"
+        },
+        {
+          "chain": "destination",
+          "contract": "QBridgeBSC",
+          "function": "process(address,uint256,uint64,bytes)",
+          "params": {
+            "user": "User",
+            "amount": "100000000000000000000",
+            "nonce": "1",
+            "sig": "SIG(User,100000000000000000000,1)"
+          },
+          "waypoint": "processed[1] == 0 && totalMinted == totalMinted + 100000000000000000000",
+          "step": 6,
+          "description": "Step 6"
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202",
+        "poly_network_20211223"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Step 5"
+        },
+        {
+          "waypoint_id": "w6",
+          "after_step": 6,
+          "predicate": "step_6_executed",
+          "description": "Step 6"
+        }
+      ]
+    },
+    {
+      "scenario_id": "qubit_nonce_replay_refund_001",
+      "target_invariant": "uniqueness_no_replay_of_processed_nonce",
+      "vulnerability_class": "logic_bug_race_condition",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "deposit(address,uint256,address)",
+          "params": {
+            "to": "0xUser",
+            "amount": "1000000000000000000",
+            "token": "0x0000000000000000000000000000000000000000"
+          },
+          "mode": "faithful",
+          "waypoint": "sourceRouter.totalLocked() >= 1000000000000000000",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "requestRefund(uint64)",
+          "params": {
+            "nonce": "42"
+          },
+          "mode": "tampered",
+          "waypoint": "refundRequested[42] == true",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "QBridgeBSC",
+          "function": "process(address,uint256,uint64)",
+          "params": {
+            "to": "0xUser",
+            "amount": "1000000000000000000",
+            "nonce": "42"
+          },
+          "mode": "faithful",
+          "waypoint": "processed[42] == true",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "ronin_double_spend_2022",
+        "wormhole_replay_2021"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "qubit_timeliness_refund_early_001",
+      "target_invariant": "timeliness_refund_allowed_after_timeout",
+      "vulnerability_class": "unauthorized_state_modification",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "node_id": "QBridgeETH",
+          "action_type": "contract_call",
+          "function_signature": "deposit(address,uint256,address)",
+          "parameters": {
+            "user": "User",
+            "amount": 1000,
+            "token": "0x0000000000000000000000000000000000000000"
+          },
+          "waypoint": "lockTimestamp[depositId] == block.timestamp && timeout == 86400",
+          "step": 1,
+          "params": {},
+          "description": "Step 1"
+        },
+        {
+          "chain": "offchain",
+          "node_id": "OffchainRelay",
+          "action_type": "relay_message",
+          "mode": "tampered",
+          "function_signature": "setTimeout(uint256)",
+          "parameters": {
+            "newTimeout": 0
+          },
+          "waypoint": "timeout == 0",
+          "step": 2,
+          "params": {},
+          "description": "Step 2"
+        },
+        {
+          "chain": "source",
+          "node_id": "QBridgeETH",
+          "action_type": "contract_call",
+          "function_signature": "refund(bytes32)",
+          "parameters": {
+            "depositId": "depositId"
+          },
+          "waypoint": "refundExecuted[depositId] == true && processed[nonce] == false",
+          "step": 3,
+          "params": {},
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "thorchain_20210628"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "qubit_timeliness_process_after_timeout_01",
+      "target_invariant": "timeliness_process_before_timeout",
+      "vulnerability_class": "logic_bug_delay_replay",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "deposit(address,uint256,address)",
+          "params": {
+            "user": "User",
+            "amount": "1000000000000000000",
+            "dest": "MockToken"
+          },
+          "description": "User locks 1 ETH on the source router. The router records depositId D1, sets lockTimestamp[D1] = block.timestamp and timeout = 3600 seconds.",
+          "waypoint_predicates": [
+            "sourceRouter.lockTimestamp[D1] == block.timestamp",
+            "sourceRouter.timeout == 3600",
+            "depositSeen[D1] == true"
+          ],
+          "step": 1
+        },
+        {
+          "chain": "offchain",
+          "contract": "OffchainRelay",
+          "function": "relayProcess(uint256,bytes)",
+          "params": {
+            "nonce": "D1",
+            "sig": "validSignatureFromRelay(User,1000000000000000000,D1)"
+          },
+          "mode": "delayed",
+          "description": "Compromised relay with delayed mode waits until block.timestamp > lockTimestamp[D1] + timeout, then forwards the signed process message to the destination chain.",
+          "waypoint_predicates": [
+            "block.timestamp > sourceRouter.lockTimestamp[D1] + sourceRouter.timeout"
+          ],
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "MockToken",
+          "function": "process(address,uint256,uint64,bytes)",
+          "params": {
+            "to": "User",
+            "amount": "1000000000000000000",
+            "nonce": "D1",
+            "sig": "validSignatureFromRelay(User,1000000000000000000,D1)"
+          },
+          "description": "MockToken.process validates the signature, checks !processed[nonce], then mints xQubit to User. Because the call occurs after the timeout, the timeliness invariant is violated.",
+          "waypoint_predicates": [
+            "block.timestamp > sourceRouter.lockTimestamp[D1] + sourceRouter.timeout",
+            "processed[D1] == false",
+            "totalMinted == totalLocked - (totalLocked * feeRate / 10000) + amount"
+          ],
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20211202",
+        "polynetwork_20210427"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1 ETH on the source router. The router records depositId D1, sets lockTimestamp[D1] = block.timestamp and timeout = 3600 seconds."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Compromised relay with delayed mode waits until block.timestamp > lockTimestamp[D1] + timeout, then forwards the signed process message to the destination chain."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "MockToken.process validates the signature, checks !processed[nonce], then mints xQubit to User. Because the call occurs after the timeout, the timeliness invariant is violated."
+        }
+      ]
+    },
+    {
+      "scenario_id": "qubit_timeliness_refund_processed_not_cleared_001",
+      "target_invariant": "timeliness_refund_clears_processed",
+      "vulnerability_class": "timeliness_flag_not_cleared",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "deposit",
+          "params": {
+            "user": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": "1000",
+            "token": "0x0000000000000000000000000000000000000000"
+          },
+          "description": "User locks 1000 native tokens on Ethereum, creating depositId and nonce N.",
+          "state_predicate": "depositSeen[depositId_N] == true && processed[N] == false",
+          "step": 1
+        },
+        {
+          "chain": "offchain",
+          "contract": "OffchainRelay",
+          "function": "relaySignature",
+          "params": {
+            "user": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": "1000",
+            "nonce": "N"
+          },
+          "mode": "faithful",
+          "description": "Relay signs (user, amount, nonce) and forwards to destination router.",
+          "state_predicate": "signatureValid == true",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "QBridgeBSC",
+          "function": "process",
+          "params": {
+            "user": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": "1000",
+            "nonce": "N",
+            "sig": "0xSignatureFromRelay"
+          },
+          "description": "Router processes the signed message, minting xQubit to the user.",
+          "state_predicate": "processed[N] == true && refundExecuted[N] == false && totalMinted == totalLocked - fee",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "refund",
+          "params": {
+            "depositId": "depositId_N"
+          },
+          "description": "After timeout, attacker calls refund. Contract sets refundExecuted[N] = true but **fails to clear processed[N]**.",
+          "state_predicate": "block.timestamp >= lockTimestamp[depositId_N] + timeout && refundExecuted[N] == true && processed[N] == true",
+          "step": 4
+        },
+        {
+          "chain": "offchain",
+          "contract": "OffchainRelay",
+          "function": "relaySignature",
+          "params": {
+            "user": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": "1000",
+            "nonce": "N"
+          },
+          "mode": "tampered",
+          "description": "Relay re‑broadcasts the original signature (replay) despite the refund having been executed.",
+          "state_predicate": "signatureValid == true",
+          "step": 5
+        },
+        {
+          "chain": "destination",
+          "contract": "QBridgeBSC",
+          "function": "process",
+          "params": {
+            "user": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": "1000",
+            "nonce": "N",
+            "sig": "0xSignatureFromRelay"
+          },
+          "description": "Router processes the replayed message. Because `processed[N]` was not cleared, the contract erroneously allows a second mint, violating the invariant.",
+          "state_predicate": "totalMinted == 2 * (totalLocked - fee) && refundExecuted[N] == true && processed[N] == true",
+          "step": 6
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000",
+          "description": "User locks 1000 native tokens on Ethereum, creating depositId and nonce N."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Relay signs (user, amount, nonce) and forwards to destination router."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "replica.processedMessages(messageHash) == true",
+          "description": "Router processes the signed message, minting xQubit to the user."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "destRouter.totalMinted() > 0 && sourceRouter.refunded > 0",
+          "description": "After timeout, attacker calls refund. Contract sets refundExecuted[N] = true but **fails to clear processed[N]**."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Relay re‑broadcasts the original signature (replay) despite the refund having been executed."
+        },
+        {
+          "waypoint_id": "w6",
+          "after_step": 6,
+          "predicate": "replica.processedMessages(messageHash) == true",
+          "description": "Router processes the replayed message. Because `processed[N]` was not cleared, the contract erroneously allows a second mint, violating the invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "qubit_timeout_zero_exploit",
+      "target_invariant": "timeliness_timeout_positive",
+      "vulnerability_class": "unprotected_initializer",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "initialize(address,uint256)",
+          "params": {
+            "owner": "0xAttacker",
+            "initialTimeout": 3600
+          },
+          "description": "Exploit missing initializer guard to re‑initialize the router, making the attacker the owner.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "setTimeout(uint256)",
+          "params": {
+            "newTimeout": 0
+          },
+          "description": "Owner (attacker) sets the bridge timeout to zero, directly violating the invariant.",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "deposit(address,uint256,address)",
+          "params": {
+            "to": "0xAttacker",
+            "amount": 1000,
+            "token": "0x0000000000000000000000000000000000000000"
+          },
+          "description": "User locks native ETH, creating a deposit record with a timestamp.",
+          "step": 3
+        },
+        {
+          "chain": "offchain",
+          "contract": "OffchainRelay",
+          "function": "relayProcess(bytes)",
+          "params": {
+            "payload": "<encoded process call for deposit>"
+          },
+          "description": "Relay forwards a signed process message to the destination router QBridgeBSC.",
+          "step": 4
+        },
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "refund(uint256)",
+          "params": {
+            "depositId": "<generated_deposit_id>"
+          },
+          "description": "User invokes refund immediately; the timeout check passes because timeout == 0, allowing a double‑spend.",
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "synapse_20211109"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Exploit missing initializer guard to re‑initialize the router, making the attacker the owner."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Owner (attacker) sets the bridge timeout to zero, directly violating the invariant."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "User locks native ETH, creating a deposit record with a timestamp."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Relay forwards a signed process message to the destination router QBridgeBSC."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "User invokes refund immediately; the timeout check passes because timeout == 0, allowing a double‑spend."
+        }
+      ]
+    },
+    {
+      "scenario_id": "qubit_pause_bypass_lock_001",
+      "target_invariant": "timeliness_global_pause_prevents_lock",
+      "vulnerability_class": "pause_check_bypass_via_unprotected_delegatecall",
+      "confidence": 0.85,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "pause()",
+          "params": {},
+          "description": "Governance (or attacker with compromised admin key) calls the pause() function on the source router, setting QBridgeETH.paused == true.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "execute(bytes)",
+          "params": {
+            "data": "0x4e71d92d0000000000000000000000000000000000000000000000000000000000000000",
+            "note": "The calldata encodes a call to the internal _deposit(address token, uint256 amount, address to) routine (selector 0x4e71d92d) with token = 0x000…0 (native), amount = 1 000 ether, to = attacker address. The execute() function forwards the payload via low‑level call without the pause modifier, thereby bypassing the global‑pause check."
+          },
+          "description": "Attacker invokes the unguarded execute() entrypoint, which delegatecalls into the internal deposit logic, performing a lock (edge e3) while the bridge is paused.",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "totalLocked()",
+          "params": {},
+          "description": "Read totalLocked to confirm that the deposit was recorded despite paused == true (state predicate: QBridgeETH.paused == true && QBridgeETH.totalLocked() >= 1000 ether).",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_20220801"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Governance (or attacker with compromised admin key) calls the pause() function on the source router, setting QBridgeETH.paused == true."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker invokes the unguarded execute() entrypoint, which delegatecalls into the internal deposit logic, performing a lock (edge e3) while the bridge is paused."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Read totalLocked to confirm that the deposit was recorded despite paused == true (state predicate: QBridgeETH.paused == true && QBridgeETH.totalLocked() >= 1000 ether)."
+        }
+      ]
+    },
+    {
+      "scenario_id": "qubit_fee_mismatch_001",
+      "target_invariant": "asset_conservation_fee_deduction",
+      "vulnerability_class": "fee_accounting_mismatch",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "deposit(address,uint256,address)",
+          "params": {
+            "user": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": "1000000000000000000",
+            "token": "0x0000000000000000000000000000000000000000"
+          },
+          "mode": "faithful",
+          "state_predicate": "QBridgeETH.totalFees() == prevTotalFees + (1000000000000000000 * QBridgeETH.feeRate() / 10000)",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "offchain",
+          "contract": "OffchainRelay",
+          "function": "relayProcess",
+          "params": {
+            "destRouter": "QBridgeBSC",
+            "user": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": "990000000000000000",
+            "nonce": "42",
+            "sig": "0xdeadbeef..."
+          },
+          "mode": "tampered",
+          "description": "Relay forwards a process message that reports zero fee (amount = full deposit minus fee, but fee field omitted).",
+          "state_predicate": "QBridgeBSC.accumulatedFees() == prevAccumulatedFees",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "QBridgeBSC",
+          "function": "process(address,uint256,uint64,bytes)",
+          "params": {
+            "user": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": "990000000000000000",
+            "nonce": "42",
+            "sig": "0xdeadbeef..."
+          },
+          "mode": "faithful",
+          "state_predicate": "QBridgeBSC.totalMinted() == prevTotalMinted + 990000000000000000",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "thorchain_20210629"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Relay forwards a process message that reports zero fee (amount = full deposit minus fee, but fee field omitted)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "qubit_inflated_mint_via_tampered_relay",
+      "target_invariant": "authorization_mint_amount_matches_locked",
+      "vulnerability_class": "offchain_relay_tampering",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "QBridgeETH",
+          "function": "deposit(address,uint256,address)",
+          "params": {
+            "user": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": "1000000000000000000",
+            "token": "0x0000000000000000000000000000000000000000"
+          },
+          "description": "User locks 1 ETH on Ethereum (source chain).",
+          "state_predicate": "sourceRouter.totalLocked() >= 1000000000000000000",
+          "step": 1
+        },
+        {
+          "chain": "offchain",
+          "contract": "OffchainRelay",
+          "function": "relayProcess(uint256,uint64,bytes)",
+          "params": {
+            "inflatedAmount": "1500000000000000000",
+            "nonce": "42",
+            "sig": "0xdeadbeef... (signature over (user,inflatedAmount,nonce) signed by compromised relay key)"
+          },
+          "description": "Compromised relay signs a message with an inflated amount (1.5 ETH) for the same nonce and forwards it.",
+          "relay_mode": "tampered",
+          "state_predicate": "relayMessage.amount == 1500000000000000000 && relayMessage.nonce == 42",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "QBridgeBSC",
+          "function": "process(address,uint256,uint64,bytes)",
+          "params": {
+            "user": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": "1500000000000000000",
+            "nonce": "42",
+            "sig": "0xdeadbeef..."
+          },
+          "description": "Destination router accepts the tampered relay message and calls MockToken.mint for the inflated amount.",
+          "state_predicate": "destinationMockToken.totalSupply() == prevSupply + 1500000000000000000 - (1500000000000000000 * feeRate / 10000)",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "MockToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": "1500000000000000000 - (1500000000000000000 * feeRate / 10000)"
+          },
+          "description": "Mint occurs with amount that does not correspond to the originally locked 1 ETH, breaking the invariant.",
+          "state_predicate": "mintedAmount != lockedAmount[42] - (lockedAmount[42] * feeRate / 10000)",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "pnetwork_20210919",
+        "wormhole_2022"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1 ETH on Ethereum (source chain)."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Compromised relay signs a message with an inflated amount (1.5 ETH) for the same nonce and forwards it."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Destination router accepts the tampered relay message and calls MockToken.mint for the inflated amount."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Mint occurs with amount that does not correspond to the originally locked 1 ETH, breaking the invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "qubit_replay_lock_timestamp_mismatch",
+      "target_invariant": "timeliness_lock_timestamp_recorded",
+      "vulnerability_class": "replay_uniqueness_missing",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "QBridgeETH",
+          "function": "deposit(address,uint256,address)",
+          "params": {
+            "user": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": "1000000000000000000",
+            "token": "0x0000000000000000000000000000000000000000"
+          },
+          "description": "Initial legitimate lock (edge e3) creates depositId D = keccak256(user, amount, nonce) and stores lockTimestamp[D] = block.timestamp (t1).",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "QBridgeETH",
+          "function": "deposit(address,uint256,address)",
+          "params": {
+            "user": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": "1000000000000000000",
+            "token": "0x0000000000000000000000000000000000000000"
+          },
+          "description": "Replay the same deposit data after several blocks (t2 > t1). Because the contract lacks a uniqueness check on depositId, it does not overwrite lockTimestamp[D]; the stored value remains t1 while block.timestamp = t2, violating the invariant.",
+          "step": 2
+        }
+      ],
+      "retrieved_exploits": [
+        "poly_network_20210323"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Initial legitimate lock (edge e3) creates depositId D = keccak256(user, amount, nonce) and stores lockTimestamp[D] = block.timestamp (t1)."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Replay the same deposit data after several blocks (t2 > t1). Because the contract lacks a uniqueness check on depositId, it does not overwrite lockTimestamp[D]; the stored value remains t1 while block.timestamp = t2, violating the invariant."
+        }
+      ]
+    }
+  ]
+}

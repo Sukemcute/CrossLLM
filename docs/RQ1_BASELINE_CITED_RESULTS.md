@@ -2,10 +2,12 @@
 
 > **Mục đích**: Đối chiếu trực tiếp với bảng RQ1 (paper §5.3). File này
 > là phiên bản đọc-được của 5 JSON trong [`baselines/_cited_results/`](../baselines/_cited_results/),
-> cộng với 2 tools self-run (ItyFuzz / GPTScan smoke) — toàn bộ data
+> cộng với 2 tools self-run (ItyFuzz / GPTScan — **full sweep 12 bridge, 0/12**) — toàn bộ data
 > *publicly citable* hiện có cho 6 baselines + BridgeSentry.
+> Bảng tổng cuối cùng (authoritative) là matrix ở §"FINAL" phía dưới; §1 là snapshot cite-time đã được thay thế.
+> ItyFuzz/GPTScan 0/12 đã verify trực tiếp từ raw log trên lab 2026-06-17 (`scripts/_verify_ityfuzz_gptscan.py`).
 >
-> Snapshot: 2026-04-28 (cite-only) + 2026-06-04→06 (VS/SS lab sweep, 240 runs × 600s × 12 bridges/tool) + 2026-06-06 (GPTScan full self-run 240 runs × 10s LLM call) + 2026-06-06→07 (ItyFuzz full self-run 240 runs, 8 bridges full-fuzz × 660s + 4 bridges no-ABI fast-exit). **5/6 baselines self-run hoàn tất** — file này sẵn sàng gộp thành `docs/RQ1_FINAL.md` cho LaTeX rendering.
+> Snapshot: 2026-04-28 (cite-only) + 2026-06-04→06 (VS/SS lab sweep, 240 runs × 600s × 12 bridges/tool) + 2026-06-06 (GPTScan full self-run 240 runs × 10s LLM call) + 2026-06-06→07 (ItyFuzz full self-run 240 runs, 8 bridges full-fuzz × 660s + 4 bridges no-ABI fast-exit) + **2026-06-18 (BridgeSentry real-bytecode re-sweep trên data ATG đã regenerate sạch: 240 runs × 60s × 12 bridges → DR 12/12, TTE median 1.2s / mean 1.72s; sweep `realbytecode_regen_20260617T130843Z`)**. **5/6 baselines self-run hoàn tất** — file này sẵn sàng gộp thành `docs/RQ1_FINAL.md` cho LaTeX rendering.
 
 ---
 
@@ -19,24 +21,25 @@ Cột tool ⇄ hàng benchmark. Ô ghi nhận:
 
 | Bridge | ItyFuzz | SmartShot | VulSEye | SmartAxe | GPTScan | XScope |
 |---|---|---|---|---|---|---|
-| nomad        | smoke ok | n/a | n/a | agg | ✗ (smoke) | n/a |
-| qubit        | smoke ok | n/a | n/a | agg | ✗ (smoke) | **✓** |
-| pgala        | n/a      | n/a | n/a | agg | n/a       | n/a |
-| polynetwork  | n/a      | n/a | n/a | agg† | n/a      | n/a |
-| wormhole     | n/a      | n/a | n/a | agg | n/a       | n/a |
-| socket       | n/a      | n/a | n/a | agg | n/a       | n/a |
-| ronin        | n/a      | n/a | n/a | agg | n/a       | n/a |
-| harmony      | n/a      | n/a | n/a | agg | n/a       | n/a |
-| multichain   | n/a      | n/a | n/a | agg | n/a       | n/a‡ |
-| orbit        | n/a      | n/a | n/a | agg | n/a       | n/a |
-| fegtoken     | n/a      | n/a | n/a | agg | n/a       | n/a |
-| gempad       | n/a      | n/a | n/a | agg | n/a       | n/a |
+| nomad        | ✗ (self-run) | n/a | n/a | agg | ✗ (self-run) | n/a |
+| qubit        | ✗ (self-run)‡ | n/a | n/a | agg | ✗ (self-run) | **✓** |
+| pgala        | ✗ (self-run) | n/a | n/a | agg | ✗ (self-run) | n/a |
+| polynetwork  | ✗ (self-run) | n/a | n/a | agg† | ✗ (self-run) | n/a |
+| wormhole     | ✗ (self-run) | n/a | n/a | agg | ✗ (self-run) | n/a |
+| socket       | ✗ (self-run) | n/a | n/a | agg | ✗ (self-run) | n/a |
+| ronin        | ✗ (self-run)‡ | n/a | n/a | agg | ✗ (self-run) | n/a |
+| harmony      | ✗ (self-run) | n/a | n/a | agg | ✗ (self-run) | n/a |
+| multichain   | ✗ (self-run) | n/a | n/a | agg | ✗ (self-run) | n/a‡ |
+| orbit        | ✗ (self-run) | n/a | n/a | agg | ✗ (self-run) | n/a |
+| fegtoken     | ✗ (self-run)‡ | n/a | n/a | agg | ✗ (self-run) | n/a |
+| gempad       | ✗ (self-run)‡ | n/a | n/a | agg | ✗ (self-run) | n/a |
 
 **Chú thích:**
-- **smoke ok** — Member B đã chạy smoke trên lab; không phải full sweep.
-  ItyFuzz Nomad 90s: 44.18% inst-cov / 38.33% branch, 0 objectives in
-  short window. GPTScan Nomad/Qubit: cả 2 detected=false (paper §5.3
-  predicts: 10 DeFi rules không cover bridge bugs).
+- **✗ (self-run)** — ItyFuzz/GPTScan đã chạy **full sweep 12 bridge × 20 runs**; 0/12 detected
+  (verify từ raw log lab 2026-06-17). ItyFuzz: 8 bridge fuzz đủ 660s không trigger oracle;
+  4 bridge đánh dấu **‡** (qubit/ronin/fegtoken/gempad) abort trước khi fuzz — không có ABI
+  on-chain ("there is nothing to fuzz") / GemPad thiếu fork-block timestamp.
+  GPTScan: 10 DeFi rules không cover bridge bugs (paper §5.3 expected).
 - **† polynetwork (SmartAxe)** — Paper §1 nêu PolyNetwork là motivating
   example với loss $600M; nhưng per-bridge detection không enumerate
   trong public materials, chỉ có aggregate precision/recall trên 16-bridge
@@ -62,8 +65,8 @@ Số liệu tóm gọn từng tool — ghi nhận toàn bộ aggregate tools cô
 |---|---|---|
 | Bug coverage | 28 (1st place trong 5 fuzzers) | Paper Table 4 |
 | Speedup vs Smartian | up to 50× | Paper §6 |
-| **Self-run smoke (Nomad, 90s, our lab)** | **44.18% inst-cov / 38.33% branch / 0 objectives** | `baselines/ityfuzz/INSTALL.md` |
-| Status | ✅ Self-runnable, full sweep pending | — |
+| **Self-run full sweep (12 bridge × 20 runs, 660s)** | **0/12 detected** (8 fuzz no-trigger, 4 no-ABI abort) | [`ityfuzz_self_run.json`](../baselines/_cited_results/ityfuzz_self_run.json) |
+| Status | ✅ Full sweep DONE (verify raw log lab 2026-06-17) | — |
 
 ### SmartShot [24] — FSE 2025
 
@@ -106,8 +109,8 @@ Số liệu tóm gọn từng tool — ghi nhận toàn bộ aggregate tools cô
 | Avg scan time per kLOC | 14.39 s | Paper §6 |
 | Avg cost per kLOC (gpt-3.5-turbo) | $0.01 | Paper §6 |
 | Datasets | Web3Bugs, **DefiHacks** (13 non-bridge), Top200 | Paper §5 + datasets repo |
-| **Self-run smoke (Nomad+Qubit, our lab, NIM gpt-oss-120b)** | **2/2 detected=false** (matches paper §5.3 expectation) | `baselines/gptscan/INSTALL.md` |
-| Status | ✅ Self-runnable, full sweep pending | — |
+| **Self-run full sweep (12 bridge × 20 runs, NIM gpt-oss-120b)** | **0/12 detected** (matches paper §5.3 expectation) | [`gptscan_self_run.json`](../baselines/_cited_results/gptscan_self_run.json) |
+| Status | ✅ Full sweep DONE (verify raw log lab 2026-06-17) | — |
 
 ### XScope [6] — ASE 2022
 
@@ -126,8 +129,8 @@ Số liệu tóm gọn từng tool — ghi nhận toàn bộ aggregate tools cô
 
 | Tool | Public artifact? | Self-runnable? | ETA full sweep |
 |---|---|---|---|
-| ItyFuzz | ✅ MIT | ✅ build xong trên lab | ~40h overnight (sau D1) |
-| GPTScan | ✅ Apache 2.0 | ✅ install xong + 2 smoke | ~2h (LLM, không phải fuzz, nhanh — có thể chạy parallel với D1) |
+| ItyFuzz | ✅ MIT | ✅ build xong trên lab | ✅ DONE — full sweep 12×20, 0/12 |
+| GPTScan | ✅ Apache 2.0 | ✅ install xong | ✅ DONE — full sweep 12×20, 0/12 |
 | SmartAxe | ⚠️ figshare 403 | ❌ chưa download được | — (xin email tác giả?) |
 | XScope | ❌ no source | ❌ không thể | — |
 | SmartShot | ❌ no source | ❌ không thể | — |
@@ -179,8 +182,8 @@ thấy rõ data nào tự run, data nào trích, data nào không có.
 > 1/72 cells positive (XScope phát hiện Qubit). Bảng dưới đây ghi
 > nhận kết quả sau khi đã re-implement 2/4 tools (XScope X1-X6,
 > SmartAxe SA1-SA8) + Phase D1 BridgeSentry sweep + ItyFuzz/GPTScan
-> smoke. **22/48 baseline cells (4 re-impl tools × 12 bridges) đã có
-> data thực**, vs 1/72 ban đầu.
+> full self-run (0/12 cả hai). **Toàn bộ 6 baseline × 12 bridge đã có
+> data self-run thực**, vs 1/72 ban đầu.
 
 ## 5. Detection matrix — sau self-run (current state)
 
@@ -242,21 +245,23 @@ Dành cho tools có per-bridge expected-predicate map (XScope spec §4, SmartAxe
 
 ## 7. TTE / Analysis wall-clock (giây)
 
-| Bridge | BridgeSentry | XScope | SmartAxe | ItyFuzz (inst-cov%) | SmartShot | VulSEye | GPTScan |
+> **BridgeSentry TTE = median per-bridge** từ real-bytecode sweep `realbytecode_regen_20260617T130843Z` (240 runs, 20/bridge, budget 60s, fork ETH mainnet block 15259100). Full stats: [`results/lab_sweep_regen_summary.json`](../results/lab_sweep_regen_summary.json).
+
+| Bridge | BridgeSentry (median / mean ± std) | XScope | SmartAxe | ItyFuzz (inst-cov%) | SmartShot | VulSEye | GPTScan |
 |---|---|---|---|---|---|---|---|
-| nomad       | (lab)        | det.* | 4.5  | 660s (36% inst) | **1.43**  | 0.0†  | ~10s LLM |
-| qubit       | (lab)        | det.* | 2.8  | **3s no-ABI‡** | **1.30**  | 0.0†  | ~10s LLM |
-| pgala       | (lab)        | det.* | 2.3  | 660s (53% inst) | **0.011** | 0.0†  | ~10s LLM |
-| polynetwork | (lab)        | det.* | 2.4  | 660s (35% inst) | **0.005** | 0.0†  | ~10s LLM |
-| wormhole    | (lab)        | —     | 4.6  | 660s (26% inst) | **0.004** | 0.0†  | ~10s LLM |
-| socket      | (lab)        | —     | 3.6  | 660s (5% inst)  | **0.011** | 0.0†  | ~10s LLM |
-| ronin       | (lab)        | det.* | 4.3  | **3s no-ABI‡** | **0.012** | 0.0†  | ~10s LLM |
-| harmony     | (lab)        | det.* | 6.1  | 660s (54% inst) | **0.015** | 0.0†  | ~10s LLM |
-| multichain  | (lab)        | det.* | 4.4  | 660s (43% inst) | **5.44**  | 0.0†  | ~10s LLM |
-| orbit       | (lab)        | det.* | 4.4  | 660s (31% inst) | **2.14**  | 0.0†  | ~10s LLM |
-| fegtoken    | (lab)        | det.* | 5.8  | **3s no-ABI‡** | **5.03**  | 0.0†  | ~10s LLM |
-| gempad      | (lab)        | det.* | 3.5  | **0.3s no-ABI‡** | **18.63** | 0.0†  | ~10s LLM |
-| **mean** |              |       | **4.06s** | **~440s** (mix) | **2.84s** | 0.0†  | ~10s |
+| nomad       | **3.77 / 4.07±2.22** | det.* | 4.5  | 660s (36% inst) | **1.43**  | 0.0†  | ~10s LLM |
+| qubit       | **0.001 / 0.002±0.001** | det.* | 2.8  | **3s no-ABI‡** | **1.30**  | 0.0†  | ~10s LLM |
+| pgala       | **0.357 / 0.603±0.41** | det.* | 2.3  | 660s (53% inst) | **0.011** | 0.0†  | ~10s LLM |
+| polynetwork | **3.16 / 3.16±2.23** | det.* | 2.4  | 660s (35% inst) | **0.005** | 0.0†  | ~10s LLM |
+| wormhole    | **0.939 / 1.35±0.75** | —     | 4.6  | 660s (26% inst) | **0.004** | 0.0†  | ~10s LLM |
+| socket      | **2.31 / 3.16±2.56** | —     | 3.6  | 660s (5% inst)  | **0.011** | 0.0†  | ~10s LLM |
+| ronin       | **0.384 / 0.571±0.28** | det.* | 4.3  | **3s no-ABI‡** | **0.012** | 0.0†  | ~10s LLM |
+| harmony     | **1.39 / 1.44±0.72** | det.* | 6.1  | 660s (54% inst) | **0.015** | 0.0†  | ~10s LLM |
+| multichain  | **0.001 / 0.162±0.24** | det.* | 4.4  | 660s (43% inst) | **5.44**  | 0.0†  | ~10s LLM |
+| orbit       | **1.42 / 1.44±0.75** | det.* | 4.4  | 660s (31% inst) | **2.14**  | 0.0†  | ~10s LLM |
+| fegtoken    | **4.87 / 4.69±2.58** | det.* | 5.8  | **3s no-ABI‡** | **5.03**  | 0.0†  | ~10s LLM |
+| gempad      | **0.001 / 0.001±0.0003** | det.* | 3.5  | **0.3s no-ABI‡** | **18.63** | 0.0†  | ~10s LLM |
+| **mean** | **median 1.2s / mean 1.72s** |       | **4.06s** | **~440s** (mix) | **2.84s** | 0.0†  | ~10s |
 
 \* XScope replay-mode là deterministic per-tx classifier — TTE undefined per paper convention.
 
@@ -270,7 +275,7 @@ Dành cho tools có per-bridge expected-predicate map (XScope spec §4, SmartAxe
 
 | Tool | Type | Track | Detected ÷ 12 | Strict-match ÷ 12 | TTE measured | Source |
 |---|---|---|---|---|---|---|
-| **BridgeSentry** | Cross-chain fuzzer (ours) | self-run lab | **12/12** ✓ | n/a | 240 lab runs | `results/lab_sweep_2026_04_27/` |
+| **BridgeSentry** | Cross-chain fuzzer (ours) | self-run lab | **12/12** ✓ | n/a | median 1.2s / mean 1.72s (240 runs) | `results/realbytecode_regen_20260617T130843Z/` (lab) + [`results/lab_sweep_regen_summary.json`](../results/lab_sweep_regen_summary.json) |
 | **XScope** | Rule-based detector | self-run via replay | **10/12** ✓ | **10/12** | (deterministic) | [`xscope_self_run.json`](../baselines/_cited_results/xscope_self_run.json) |
 | **SmartAxe** | Static analysis (Slither) | self-run | **12/12** ✓ | 4/12 | mean 4.06s | [`smartaxe_self_run.json`](../baselines/_cited_results/smartaxe_self_run.json) |
 | **VulSEye** | Directed graybox fuzzer (re-impl) | self-run | **12/12** ✓ | **9/12** | TTE 0.0 (opcode-scan instant) | [`vulseye_self_run.json`](../baselines/_cited_results/vulseye_self_run.json) |
@@ -334,29 +339,24 @@ Sau khi xong: **84/84 = 100% data-rich** RQ1 table — defensible cho paper §5.
 
 
 
-=== ATG sizes (12 bridges) ===
-  nomad         19992B  nodes=  6  edges=  3  invariants= 18
-  qubit         19105B  nodes=  4  edges=  4  invariants= 20
-  pgala         21639B  nodes=  3  edges=  2  invariants= 19
-  polynetwork   16287B  nodes=  3  edges=  1  invariants= 16
-  wormhole      12354B  nodes=  5  edges=  2  invariants= 19
-  socket        25454B  nodes=  4  edges=  4  invariants= 19
-  ronin         13353B  nodes=  4  edges=  5  invariants= 20
-  harmony       13742B  nodes=  7  edges=  7  invariants= 19
-  multichain    11662B  nodes=  4  edges=  3  invariants= 21
-  orbit         10859B  nodes=  4  edges=  3  invariants= 18
-  fegtoken      45997B  nodes=  7  edges=  8  invariants= 20
-  gempad        17944B  nodes=  3  edges=  5  invariants= 20
----
-=== Hypotheses sizes (Module 2 output) ===
-  nomad         62091B  scenarios= 18
-  qubit         65283B  scenarios= 20
-  pgala         67504B  scenarios= 19
-  polynetwork   54746B  scenarios= 16
-  socket        72706B  scenarios= 19
-  ronin         64799B  scenarios= 20
-  harmony       60145B  scenarios= 19
-  multichain    72016B  scenarios= 21
-  orbit         53125B  scenarios= 18
-  fegtoken      77144B  scenarios= 20
-  gempad        56260B  scenarios= 20
+=== ATG + Module 2 sizes (regenerated 2026-06-18, normalized + null-sanitized) ===
+  bridge        nodes  edges  invariants  scenarios
+  nomad           6      2        18          18
+  qubit           5      3        18          18
+  pgala           5      2        21          21
+  polynetwork     5      2        18          18
+  wormhole        5      2        21          21
+  socket          4      4        18          18
+  ronin           3      5        20          20
+  harmony         7      7        19          19
+  multichain      4      5        24          24
+  orbit           4      5        18          18
+  fegtoken        9      8        17          17
+  gempad          3      5        18          18
+  -------------------------------------------------
+  TOTAL          60     50       230         230
+
+Lưu ý: số cũ là 54/47/229/229 (trước regenerate). Bản mới (60/50/230/230) sạch hơn:
+node dedup + gom actor chuẩn (User/Recipient/ZeroAddress), không placeholder, 0 null.
+Module 3 re-sweep trên data mới: DR 12/12, TTE §7. Backup data cũ ở
+benchmarks/_backup_llm_outputs_pre_regen/.

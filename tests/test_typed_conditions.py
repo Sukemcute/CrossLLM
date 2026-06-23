@@ -103,6 +103,25 @@ def test_canonical_endpoint_maps_placeholders():
     assert canonical_endpoint("QBridgeETH") == "QBridgeETH"
 
 
+def test_normalize_atg_dict_sanitizes_null_scalars():
+    """Regression: LLM null on string fields must not survive (Rust expects String)."""
+    from src.module1_semantic.atg_builder import normalize_atg_dict
+    raw = {
+        "nodes": [{"node_id": "Mgr", "node_type": None, "chain": None, "address": None}],
+        "edges": [{"src": "Mgr", "dst": "User", "label": None, "token": None,
+                   "function_signature": None, "conditions": None}],
+    }
+    norm = normalize_atg_dict(raw)
+    e = norm["edges"][0]
+    assert e["token"] == "UNKNOWN" and e["label"] == "verify"
+    assert e["function_signature"] == "" and e["conditions"] == []
+    n = next(x for x in norm["nodes"] if x["node_id"] == "Mgr")
+    assert n["node_type"] == "contract" and n["chain"] == "source" and n["address"] == ""
+    # no null scalar anywhere
+    for ed in norm["edges"]:
+        assert None not in (ed["token"], ed["label"], ed["function_signature"], ed["src"], ed["dst"])
+
+
 def test_normalize_atg_dict_dedups_and_resolves():
     from src.module1_semantic.atg_builder import normalize_atg_dict
     raw = {

@@ -44,7 +44,7 @@
       "src": "EthCrossChainManager",
       "dst": "TargetContract",
       "label": "call",
-      "token": null,
+      "token": "UNKNOWN",
       "conditions": [],
       "condition_objects": [],
       "function_signature": "verifyHeaderAndExecuteTx(address,bytes)"

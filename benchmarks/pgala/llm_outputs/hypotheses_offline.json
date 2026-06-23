@@ -1,0 +1,272 @@
+{
+  "bridge_name": "pgala",
+  "scenarios": [
+    {
+      "scenario_id": "s1_fake_deposit_pgala",
+      "target_invariant": "inv_asset_conservation",
+      "vulnerability_class": "fake_deposit",
+      "confidence": 0.75,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "destination",
+          "contract": "legacycustodian",
+          "function": "process",
+          "params": {
+            "message": "0x0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          "description": "Submit forged message with zero merkle root (Nomad-style bypass)"
+        },
+        {
+          "step": 2,
+          "chain": "destination",
+          "contract": "legacycustodian",
+          "function": "handle",
+          "params": {
+            "amount": "1466000000000000000000",
+            "recipient": "0x000000000000000000000000000000000000dEaD"
+          },
+          "description": "Mint tokens against forged proof without legitimate source deposit"
+        }
+      ],
+      "retrieved_exploits": [
+        "metpassport_20220206",
+        "multichain_20230715",
+        "bnbbridge_20221007",
+        "evodefi_20220607",
+        "thorchain_20210716"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "replica.zero_root_accepted == true",
+          "description": "Submit forged message with zero merkle root (Nomad-style bypass)"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "destRouter.totalMinted() >= 1466000000000000000000",
+          "description": "Mint tokens against forged proof without legitimate source deposit"
+        }
+      ]
+    },
+    {
+      "scenario_id": "s2_signature_forgery_pgala",
+      "target_invariant": "inv_authorization",
+      "vulnerability_class": "signature_forgery",
+      "confidence": 0.75,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "relay",
+          "action": "tamper",
+          "params": {
+            "field": "signatures",
+            "value": "0xforged"
+          },
+          "description": "Inject forged guardian/validator signatures (Wormhole-style)"
+        },
+        {
+          "step": 2,
+          "chain": "destination",
+          "contract": "legacycustodian",
+          "function": "verifyAndExecute",
+          "params": {
+            "amount": "108666000000000000000000"
+          },
+          "description": "Submit forged signature bundle to destination"
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202",
+        "multichain_20220118",
+        "anyswap_20210710",
+        "pnetwork_xscope",
+        "nomad_20220801"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "relay.pendingMessage.amount != sourceRouter.deposits(nonce).amount",
+          "description": "Inject forged guardian/validator signatures (Wormhole-style)"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "destRouter.totalMinted() >= 108666000000000000000000",
+          "description": "Submit forged signature bundle to destination"
+        }
+      ]
+    },
+    {
+      "scenario_id": "s3_replay_attack_pgala",
+      "target_invariant": "inv_uniqueness",
+      "vulnerability_class": "replay_attack",
+      "confidence": 0.75,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "source",
+          "contract": "legacycustodian",
+          "function": "dispatch",
+          "params": {
+            "amount": "1000000000000000000",
+            "nonce": "1"
+          },
+          "description": "Legitimate deposit on source chain"
+        },
+        {
+          "step": 2,
+          "chain": "relay",
+          "action": "faithful",
+          "params": {},
+          "description": "Relay message to destination"
+        },
+        {
+          "step": 3,
+          "chain": "destination",
+          "contract": "legacycustodian",
+          "function": "proveAndProcess",
+          "params": {},
+          "description": "First process on destination (legitimate)"
+        },
+        {
+          "step": 4,
+          "chain": "relay",
+          "action": "replay",
+          "params": {
+            "replay_index": "0"
+          },
+          "description": "Replay same relay message"
+        },
+        {
+          "step": 5,
+          "chain": "destination",
+          "contract": "legacycustodian",
+          "function": "proveAndProcess",
+          "params": {},
+          "description": "Process replayed message (double mint)"
+        }
+      ],
+      "retrieved_exploits": [
+        "pnetwork_20210920",
+        "qbridge_20220128",
+        "meterpassport_20220206",
+        "synapse_20211106",
+        "multichain_20230215"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000000000000000000",
+          "description": "Legitimate deposit on source chain"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Relay message to destination"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "replica.processedMessages(messageHash) == true",
+          "description": "First process on destination (legitimate)"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "relay.message_count > sourceRouter.deposits_count",
+          "description": "Replay same relay message"
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "replica.processedMessages(messageHash) == true",
+          "description": "Process replayed message (double mint)"
+        }
+      ]
+    },
+    {
+      "scenario_id": "s4_timeout_manipulation_pgala",
+      "target_invariant": "inv_timeliness",
+      "vulnerability_class": "timeout_manipulation",
+      "confidence": 0.75,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "source",
+          "contract": "legacycustodian",
+          "function": "dispatch",
+          "params": {
+            "amount": "46000000000000000000"
+          },
+          "description": "Legitimate deposit"
+        },
+        {
+          "step": 2,
+          "chain": "relay",
+          "action": "delayed",
+          "params": {
+            "delta_blocks": "100"
+          },
+          "description": "Delay relay past timeout boundary"
+        },
+        {
+          "step": 3,
+          "chain": "source",
+          "contract": "legacycustodian",
+          "function": "refund",
+          "params": {
+            "nonce": "1"
+          },
+          "description": "Claim refund while relay still pending (race)"
+        },
+        {
+          "step": 4,
+          "chain": "destination",
+          "contract": "legacycustodian",
+          "function": "proveAndProcess",
+          "params": {},
+          "description": "Late relay delivery mints despite refund (double spend)"
+        }
+      ],
+      "retrieved_exploits": [
+        "qbridge_20220128",
+        "thorchain_20210628",
+        "qubit_bridge_xscope",
+        "thorchain_20210629",
+        "meterpassport_20220206"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 46000000000000000000",
+          "description": "Legitimate deposit"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.delayed_count > 0",
+          "description": "Delay relay past timeout boundary"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "destRouter.totalMinted() > 0 && sourceRouter.refunded > 0",
+          "description": "Claim refund while relay still pending (race)"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "replica.processedMessages(messageHash) == true",
+          "description": "Late relay delivery mints despite refund (double spend)"
+        }
+      ]
+    }
+  ]
+}
