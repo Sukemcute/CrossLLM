@@ -652,14 +652,14 @@ The TTE figures are measured from real-bytecode dual-EVM fuzzing: each run forks
 % ItyFuzz/GPTScan full 12x20 sweep -> 0/12 both (verified raw logs lab 2026-06-17,
 % scripts/_verify_ityfuzz_gptscan.py); 4 ityfuzz bridges aborted pre-fuzz -> footnote S.
 
-\subsection{RQ2: Component Ablation Protocol}
+\subsection{RQ2: Component Ablation}
 
-To isolate the contribution of each module, we define four ablated variants. The full ablation sweep is still pending; therefore, we report the protocol but do not use ablation results as evidence for the claims in this draft.
+To isolate the contribution of each module, we define three ablated variants and run them under the same real-bytecode protocol as RQ1:
 
 \begin{itemize}
     \item BridgeSentry$^{-\text{SE}}$: Remove Module~1 (semantic extraction). We feed generic template invariants (the four category placeholders produced by the offline/regex fallback path) and the matching generic scenarios, in place of the LLM-extracted ATG.
     \item BridgeSentry$^{-\text{RAG}}$: Remove Module~2 (RAG scenario generation). We keep the LLM-extracted ATG and invariants but replace the knowledge-guided scenarios with generic template scenarios.
-    \item BridgeSentry$^{-\text{Sync}}$: Remove dual-chain synchronization (the fuzzer would run each chain with independent snapshots). This variant requires a fuzzer build flag that is not yet implemented and is left to future work.
+    \item BridgeSentry$^{-\text{Sync}}$: Remove dual-chain synchronization, implemented as a \texttt{-{}-no-sync} flag that restores the source chain and relay to the selected snapshot while resetting the destination chain to the initial snapshot, so the two chains sit at inconsistent points.
 \end{itemize}
 
 We ran $^{-\text{SE}}$ and $^{-\text{RAG}}$ under the same real-bytecode protocol as RQ1 (20 runs $\times$ 12 bridges, 60\,s budget). The headline result is that \emph{detection rate is not a discriminating metric on this benchmark}: every variant, including both ablations, detects all 12 reconstructions on all 240 runs. This is consistent with the RQ1 finding---the reconstructions are known-buggy and the bug is reachable---and it means a DR-based ablation would misleadingly suggest the modules do not matter. The discriminating signal is \emph{coverage}: Table~\ref{tab:ablation} reports cross-chain coverage (XCC\textsubscript{ATG}) and basic-block coverage alongside detection.
