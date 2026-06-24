@@ -1,0 +1,61 @@
+{
+  "note": "RQ2 ablation, real-bytecode, 240 runs/variant, 2026-06-21. DR saturates 12/12; coverage discriminates.",
+  "full": {
+    "DR": "12/12",
+    "det_runs": "240/240",
+    "tte_median": 1.2,
+    "tte_mean": 1.72,
+    "xcc_atg": 1.0,
+    "bb_src": 482.7,
+    "bb_dst": 484.7,
+    "iters": 85716,
+    "corpus": 248.7
+  },
+  "-SE": {
+    "DR": "12/12*",
+    "det_runs": "240/240",
+    "tte_median": 0.709,
+    "tte_mean": 1.615,
+    "xcc_atg": 0.026,
+    "bb_src": 0,
+    "bb_dst": 0,
+    "iters": 367706,
+    "corpus": 38.5,
+    "note": "detections are hollow generic-invariant trips; xcc 2.6%, 0 basic blocks executed"
+  },
+  "-RAG": {
+    "DR": "12/12*",
+    "det_runs": "240/240",
+    "tte_median": 0.711,
+    "tte_mean": 1.595,
+    "xcc_atg": 0.026,
+    "bb_src": 0,
+    "bb_dst": 0,
+    "iters": 278351,
+    "corpus": 38.9,
+    "note": "same hollow pattern"
+  },
+  "-Sync": {
+    "status": "DONE 2026-06-23 (--no-sync flag implemented + 240-run sweep)",
+    "detected": "12/12",
+    "det_runs": "240/240",
+    "tte_median": 0.812,
+    "xcc_atg": 1.0,
+    "basic_blocks_mean": 926.9,
+    "viol_mean": 152.9,
+    "vs_full": {
+      "full_viol_mean": 154.53,
+      "full_bb": 967.47,
+      "full_xcc": 1.0
+    },
+    "differential": "violated-invariant SET identical to synced on all 240 matched seed-pairs (0 lost, 0 added); only raw violation COUNTS shift per-bridge (nomad 120 vs 140, fegtoken 65 vs 81 down; pgala 259 vs 242, multichain 307 vs 300 up; net ~negligible)",
+    "finding": "Unlike -SE/-RAG (coverage collapse to 0 BB / 2.6% XCC = hollow), -Sync KEEPS full coverage (100% XCC, ~927 BB) and the SAME violated-invariant set; DR stays 12/12. Removing synchronization does not change detection on reconstructed benchmarks (consistent with DR-saturation). Its theoretical FPR-prevention role (spurious cross-chain states) cannot be isolated here without FPR ground-truth labeling \u2014 flagged as limitation/future work.",
+    "outdir": "ablation_sync_20260623T163604Z",
+    "iters_mean": 66165
+  },
+  "outdirs": {
+    "full": "realbytecode_regen_20260617T130843Z",
+    "se": "ablation_se_20260621T091819Z",
+    "rag": "ablation_rag_20260621T091819Z"
+  }
+}

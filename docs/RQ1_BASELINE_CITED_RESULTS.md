@@ -261,7 +261,7 @@ Dành cho tools có per-bridge expected-predicate map (XScope spec §4, SmartAxe
 | orbit       | **1.42 / 1.44±0.75** | det.* | 4.4  | 660s (31% inst) | **2.14**  | 0.0†  | ~10s LLM |
 | fegtoken    | **4.87 / 4.69±2.58** | det.* | 5.8  | **3s no-ABI‡** | **5.03**  | 0.0†  | ~10s LLM |
 | gempad      | **0.001 / 0.001±0.0003** | det.* | 3.5  | **0.3s no-ABI‡** | **18.63** | 0.0†  | ~10s LLM |
-| **mean** | **median 1.2s / mean 1.72s** |       | **4.06s** | **~440s** (mix) | **2.84s** | 0.0†  | ~10s |
+| **mean** | **median 1.2s / mean 1.72s** |       | **4.07s** | **~440s** (mix) | **2.84s** | 0.0†  | ~10s |
 
 \* XScope replay-mode là deterministic per-tx classifier — TTE undefined per paper convention.
 
@@ -277,7 +277,7 @@ Dành cho tools có per-bridge expected-predicate map (XScope spec §4, SmartAxe
 |---|---|---|---|---|---|---|
 | **BridgeSentry** | Cross-chain fuzzer (ours) | self-run lab | **12/12** ✓ | n/a | median 1.2s / mean 1.72s (240 runs) | `results/realbytecode_regen_20260617T130843Z/` (lab) + [`results/lab_sweep_regen_summary.json`](../results/lab_sweep_regen_summary.json) |
 | **XScope** | Rule-based detector | self-run via replay | **10/12** ✓ | **10/12** | (deterministic) | [`xscope_self_run.json`](../baselines/_cited_results/xscope_self_run.json) |
-| **SmartAxe** | Static analysis (Slither) | self-run | **12/12** ✓ | 4/12 | mean 4.06s | [`smartaxe_self_run.json`](../baselines/_cited_results/smartaxe_self_run.json) |
+| **SmartAxe** | Static analysis (Slither) | self-run | **12/12** ✓ | 4/12 | mean 4.07s | [`smartaxe_self_run.json`](../baselines/_cited_results/smartaxe_self_run.json) |
 | **VulSEye** | Directed graybox fuzzer (re-impl) | self-run | **12/12** ✓ | **9/12** | TTE 0.0 (opcode-scan instant) | [`vulseye_self_run.json`](../baselines/_cited_results/vulseye_self_run.json) |
 | **SmartShot** | Mutable-snapshot fuzzer (re-impl) | self-run | **12/12** ✓ | **12/12** | mean 2.84s | [`smartshot_self_run.json`](../baselines/_cited_results/smartshot_self_run.json) |
 | **GPTScan** | LLM + static (re-impl, NIM `gpt-oss-120b`) | **self-run lab** | **0/12** (legitimate ✗) | n/a | mean ~10s LLM-call | [`gptscan_self_run.json`](../baselines/_cited_results/gptscan_self_run.json) |

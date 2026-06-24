@@ -23,6 +23,9 @@
 |---|---|---|
 | [PLAN_VS_ACTUAL_AUDIT.md](PLAN_VS_ACTUAL_AUDIT.md) | **Báo cáo đối chiếu plan gốc ↔ hệ thống thực tế (2026-06-22)**: 11 góp ý của thầy, RQ 5→3, dataset, baseline, mục tiêu số, lệch pha xếp theo mức nghiêm trọng, khuyến nghị | Khi cần biết dự án đang đúng/lệch hướng so với plan |
 | [RQ3_RESULTS_REPORT.md](RQ3_RESULTS_REPORT.md) | **Báo cáo kết quả RQ3 (sensitivity k/β/T) cho Member B** — 420 run real-bytecode, k+β phẳng, chỉ T tác động; kèm lệnh tái lập + việc còn cần Module 3 (`--no-sync`) | Khi xem kết quả RQ3 / chia sẻ với Member B |
+| [FPR_LABELING_GUIDE.md](FPR_LABELING_GUIDE.md) | Hướng dẫn gán nhãn FPR thủ công (2 người) — **đã được thay bằng metric cơ học** bên dưới; giữ cho audit root-cause tương lai | Nếu muốn audit per-instance thủ công |
+
+> **FPR CHỐT (2026-06-24): metric CƠ HỌC instance-level** (`tools/compute_fpr.py` đã superseded). TP = trace có bước `:ok` + imbalance ≥1e15 wei. **Bug-level FPR ≈0% (12/12 thật); instance-level strict FPR = 69,8%** (37.086 instance, range 27,6%–96,1%). Đã viết vào paper §6 (EN+VN). Data: [`results/fpr_instance_level.json`](../results/fpr_instance_level.json). Tính bằng `tools/compute_xcc_s.py`-style scan (xem memory). Lưu ý: agent-labeling (κ=0.854) ban đầu chạy trên sheet thiên-lệch-sampling → **không dùng**; metric cơ học reproducible thay thế.
 
 ---
 

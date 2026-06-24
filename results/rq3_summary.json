@@ -1,0 +1,74 @@
+{
+  "note": "RQ3 parameter sensitivity, real-bytecode. T from existing 240-run data; beta from rq3_beta sweeps (3 vals x12x5); k pending (k-sweep running).",
+  "T_sensitivity": {
+    "metric": "DR(T) over 240 runs",
+    "run_level": {
+      "1ms": "15%",
+      "0.5s": "35%",
+      "1s": "52%",
+      "2s": "70%",
+      "5s": "90%",
+      "10s": "99.6%",
+      "30s": "100%"
+    },
+    "bridge_level": {
+      "1ms": "3/12",
+      "0.5s": "6/12",
+      "1s": "11/12",
+      "2s": "12/12",
+      "5s": "12/12"
+    },
+    "finding": "DR saturates fast; all 12 bridges by T=2s, 100% of runs by 30s; knee ~1-5s; 60s budget ample"
+  },
+  "beta_sensitivity": {
+    "metric": "DR/TTE/XCC vs waypoint weight beta",
+    "0.1": {
+      "bdr": "12/12",
+      "det": "60/60",
+      "tte_median": 0.771,
+      "xcc": 0.998
+    },
+    "0.4": {
+      "bdr": "12/12",
+      "det": "60/60",
+      "tte_median": 0.782,
+      "xcc": 1.0
+    },
+    "0.7": {
+      "bdr": "12/12",
+      "det": "59/60",
+      "tte_median": 0.707,
+      "xcc": 1.0
+    },
+    "finding": "Negligible sensitivity: DR/TTE/XCC flat across beta in {0.1,0.4,0.7}; default 0.4 fine"
+  },
+  "k_sensitivity": {
+    "metric": "DR/TTE/XCC vs RAG top_k (ATG fixed, Module 2 regenerated)",
+    "1": {
+      "bdr": "12/12",
+      "det": "60/60",
+      "tte_median": 0.705,
+      "xcc": 1.0
+    },
+    "3": {
+      "bdr": "12/12",
+      "det": "60/60",
+      "tte_median": 0.71,
+      "xcc": 1.0
+    },
+    "5": {
+      "bdr": "12/12",
+      "det": "59/60",
+      "tte_median": 0.704,
+      "xcc": 1.0
+    },
+    "10": {
+      "bdr": "12/12",
+      "det": "60/60",
+      "tte_median": 0.712,
+      "xcc": 1.0
+    },
+    "finding": "Negligible sensitivity: DR/TTE/XCC flat across k in {1,3,5,10}; k=3 default fine. Reconstructed bugs reachable with as little as 1 retrieved exploit."
+  },
+  "overall_finding": "On the reconstructed benchmark BridgeSentry is robust to both RAG k and waypoint beta (flat DR/TTE/XCC); the only parameter that materially moves detection is the time budget T, which needs ~2s to reach 12/12 bridges. Consistent with RQ1/RQ2 DR-saturation."
+}

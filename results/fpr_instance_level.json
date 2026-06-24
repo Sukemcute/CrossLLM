@@ -1,0 +1,80 @@
+{
+  "nomad": {
+    "instances": 2790,
+    "tp": 234,
+    "fp": 2556,
+    "fpr_pct": 91.6
+  },
+  "qubit": {
+    "instances": 2340,
+    "tp": 1098,
+    "fp": 1242,
+    "fpr_pct": 53.1
+  },
+  "pgala": {
+    "instances": 4830,
+    "tp": 189,
+    "fp": 4641,
+    "fpr_pct": 96.1
+  },
+  "polynetwork": {
+    "instances": 1260,
+    "tp": 342,
+    "fp": 918,
+    "fpr_pct": 72.9
+  },
+  "wormhole": {
+    "instances": 5166,
+    "tp": 714,
+    "fp": 4452,
+    "fpr_pct": 86.2
+  },
+  "socket": {
+    "instances": 594,
+    "tp": 216,
+    "fp": 378,
+    "fpr_pct": 63.6
+  },
+  "ronin": {
+    "instances": 3840,
+    "tp": 2780,
+    "fp": 1060,
+    "fpr_pct": 27.6
+  },
+  "harmony": {
+    "instances": 3629,
+    "tp": 2147,
+    "fp": 1482,
+    "fpr_pct": 40.8
+  },
+  "multichain": {
+    "instances": 6000,
+    "tp": 864,
+    "fp": 5136,
+    "fpr_pct": 85.6
+  },
+  "orbit": {
+    "instances": 2718,
+    "tp": 1602,
+    "fp": 1116,
+    "fpr_pct": 41.1
+  },
+  "fegtoken": {
+    "instances": 1615,
+    "tp": 544,
+    "fp": 1071,
+    "fpr_pct": 66.3
+  },
+  "gempad": {
+    "instances": 2304,
+    "tp": 486,
+    "fp": 1818,
+    "fpr_pct": 78.9
+  },
+  "_overall": {
+    "instances": 37086,
+    "tp": 11216,
+    "fp": 25870,
+    "fpr_pct": 69.8
+  }
+}

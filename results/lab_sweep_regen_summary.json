@@ -1,0 +1,134 @@
+{
+  "nomad": {
+    "runs": 20,
+    "detected": 20,
+    "tte_median": 3.7663,
+    "tte_mean": 4.0675,
+    "tte_std": 2.2154,
+    "tte_min": 0.704,
+    "tte_max": 8.3382,
+    "viol_mean": 139.5,
+    "uniq_inv": 18
+  },
+  "qubit": {
+    "runs": 20,
+    "detected": 20,
+    "tte_median": 0.0014,
+    "tte_mean": 0.0016,
+    "tte_std": 0.0009,
+    "tte_min": 0.0004,
+    "tte_max": 0.0033,
+    "viol_mean": 117,
+    "uniq_inv": 18
+  },
+  "pgala": {
+    "runs": 20,
+    "detected": 20,
+    "tte_median": 0.3566,
+    "tte_mean": 0.6031,
+    "tte_std": 0.4059,
+    "tte_min": 0.346,
+    "tte_max": 1.8911,
+    "viol_mean": 241.5,
+    "uniq_inv": 21
+  },
+  "polynetwork": {
+    "runs": 20,
+    "detected": 20,
+    "tte_median": 3.1611,
+    "tte_mean": 3.1591,
+    "tte_std": 2.2298,
+    "tte_min": 0.6914,
+    "tte_max": 8.5148,
+    "viol_mean": 63,
+    "uniq_inv": 18
+  },
+  "wormhole": {
+    "runs": 20,
+    "detected": 20,
+    "tte_median": 0.9392,
+    "tte_mean": 1.3487,
+    "tte_std": 0.746,
+    "tte_min": 0.6887,
+    "tte_max": 2.7984,
+    "viol_mean": 258.3,
+    "uniq_inv": 21
+  },
+  "socket": {
+    "runs": 20,
+    "detected": 20,
+    "tte_median": 2.3118,
+    "tte_mean": 3.1618,
+    "tte_std": 2.5568,
+    "tte_min": 0.5889,
+    "tte_max": 8.9317,
+    "viol_mean": 29.7,
+    "uniq_inv": 18
+  },
+  "ronin": {
+    "runs": 20,
+    "detected": 20,
+    "tte_median": 0.3843,
+    "tte_mean": 0.5712,
+    "tte_std": 0.2797,
+    "tte_min": 0.3381,
+    "tte_max": 1.0742,
+    "viol_mean": 192,
+    "uniq_inv": 20
+  },
+  "harmony": {
+    "runs": 20,
+    "detected": 20,
+    "tte_median": 1.3926,
+    "tte_mean": 1.439,
+    "tte_std": 0.7232,
+    "tte_min": 0.6894,
+    "tte_max": 3.583,
+    "viol_mean": 181.4,
+    "uniq_inv": 19
+  },
+  "multichain": {
+    "runs": 20,
+    "detected": 20,
+    "tte_median": 0.0007,
+    "tte_mean": 0.1622,
+    "tte_std": 0.2381,
+    "tte_min": 0.0003,
+    "tte_max": 0.7107,
+    "viol_mean": 300,
+    "uniq_inv": 24
+  },
+  "orbit": {
+    "runs": 20,
+    "detected": 20,
+    "tte_median": 1.4238,
+    "tte_mean": 1.4404,
+    "tte_std": 0.7543,
+    "tte_min": 0.3381,
+    "tte_max": 3.3542,
+    "viol_mean": 135.9,
+    "uniq_inv": 18
+  },
+  "fegtoken": {
+    "runs": 20,
+    "detected": 20,
+    "tte_median": 4.8709,
+    "tte_mean": 4.6892,
+    "tte_std": 2.5785,
+    "tte_min": 1.3858,
+    "tte_max": 10.0226,
+    "viol_mean": 80.8,
+    "uniq_inv": 17
+  },
+  "gempad": {
+    "runs": 20,
+    "detected": 20,
+    "tte_median": 0.0005,
+    "tte_mean": 0.0006,
+    "tte_std": 0.0003,
+    "tte_min": 0.0003,
+    "tte_max": 0.0016,
+    "viol_mean": 115.2,
+    "uniq_inv": 18
+  }
+}

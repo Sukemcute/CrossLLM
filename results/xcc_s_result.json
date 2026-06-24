@@ -1,0 +1,93 @@
+{
+  "nomad": {
+    "total_functions": 21,
+    "total_contracts": 8,
+    "cross_contract_edges": 2,
+    "entry_functions_matched": 3,
+    "functions_reached": 3,
+    "xcc_s_pct": 14.3
+  },
+  "qubit": {
+    "total_functions": 7,
+    "total_contracts": 4,
+    "cross_contract_edges": 1,
+    "entry_functions_matched": 7,
+    "functions_reached": 7,
+    "xcc_s_pct": 100.0
+  },
+  "pgala": {
+    "total_functions": 11,
+    "total_contracts": 3,
+    "cross_contract_edges": 1,
+    "entry_functions_matched": 6,
+    "functions_reached": 7,
+    "xcc_s_pct": 63.6
+  },
+  "polynetwork": {
+    "total_functions": 12,
+    "total_contracts": 3,
+    "cross_contract_edges": 2,
+    "entry_functions_matched": 5,
+    "functions_reached": 7,
+    "xcc_s_pct": 58.3
+  },
+  "wormhole": {
+    "error": "no call graph parsed"
+  },
+  "socket": {
+    "total_functions": 12,
+    "total_contracts": 4,
+    "cross_contract_edges": 2,
+    "entry_functions_matched": 8,
+    "functions_reached": 9,
+    "xcc_s_pct": 75.0
+  },
+  "ronin": {
+    "total_functions": 20,
+    "total_contracts": 4,
+    "cross_contract_edges": 2,
+    "entry_functions_matched": 15,
+    "functions_reached": 15,
+    "xcc_s_pct": 75.0
+  },
+  "harmony": {
+    "total_functions": 30,
+    "total_contracts": 7,
+    "cross_contract_edges": 6,
+    "entry_functions_matched": 19,
+    "functions_reached": 21,
+    "xcc_s_pct": 70.0
+  },
+  "multichain": {
+    "total_functions": 19,
+    "total_contracts": 4,
+    "cross_contract_edges": 2,
+    "entry_functions_matched": 13,
+    "functions_reached": 15,
+    "xcc_s_pct": 78.9
+  },
+  "orbit": {
+    "total_functions": 19,
+    "total_contracts": 4,
+    "cross_contract_edges": 2,
+    "entry_functions_matched": 6,
+    "functions_reached": 7,
+    "xcc_s_pct": 36.8
+  },
+  "fegtoken": {
+    "total_functions": 30,
+    "total_contracts": 8,
+    "cross_contract_edges": 5,
+    "entry_functions_matched": 17,
+    "functions_reached": 19,
+    "xcc_s_pct": 63.3
+  },
+  "gempad": {
+    "total_functions": 13,
+    "total_contracts": 3,
+    "cross_contract_edges": 2,
+    "entry_functions_matched": 12,
+    "functions_reached": 12,
+    "xcc_s_pct": 92.3
+  }
+}
