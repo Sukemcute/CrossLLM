@@ -282,8 +282,15 @@ pub fn run(ctx: &RuntimeContext) -> Result<FuzzingResults> {
             serde_json::from_slice(&mutated_bytes).unwrap_or_else(|_| seed_scenario.clone());
 
         let snap_idx = pool.select_for_seed(&mutated_bytes);
-        pool.restore(snap_idx, dual.as_mut(), &mut relay)
-            .map_err(|e| eyre!(e))?;
+        if ctx.config.sync_snapshots {
+            pool.restore(snap_idx, dual.as_mut(), &mut relay)
+                .map_err(|e| eyre!(e))?;
+        } else {
+            // Ablation --no-sync: source+relay from snap_idx, dest from initial
+            // snapshot (0) → chains desynchronized (RQ2 contribution measurement).
+            pool.restore_unsynced(snap_idx, 0, dual.as_mut(), &mut relay)
+                .map_err(|e| eyre!(e))?;
+        }
 
         let trace = execute_scenario(
             &s_prime,

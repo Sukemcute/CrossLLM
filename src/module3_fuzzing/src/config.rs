@@ -159,6 +159,13 @@ pub struct CliArgs {
     #[arg(long, default_value_t = false)]
     pub no_dynamic_snapshots: bool,
 
+    /// Ablation (RQ2): desynchronize the dual-EVM snapshot restore. Source
+    /// chain + relay restore to the selected snapshot; destination chain
+    /// restores to the initial snapshot, so the two chains sit at inconsistent
+    /// points. Measures the contribution of synchronized snapshot management.
+    #[arg(long, default_value_t = false)]
+    pub no_sync: bool,
+
     /// Enable verbose logging
     #[arg(long, short = 'v', default_value_t = false)]
     pub verbose: bool,
@@ -479,6 +486,7 @@ fn resolve_config(cli: &CliArgs, base: Option<FuzzerConfig>) -> Result<FuzzerCon
         max_corpus: 256,
         max_snapshots: 64,
         dynamic_snapshots: true,
+        sync_snapshots: true,
     });
 
     Ok(FuzzerConfig {
@@ -499,6 +507,7 @@ fn resolve_config(cli: &CliArgs, base: Option<FuzzerConfig>) -> Result<FuzzerCon
         max_corpus: cli.max_corpus.unwrap_or(base.max_corpus),
         max_snapshots: cli.max_snapshots.unwrap_or(base.max_snapshots),
         dynamic_snapshots: base.dynamic_snapshots && !cli.no_dynamic_snapshots,
+        sync_snapshots: base.sync_snapshots && !cli.no_sync,
     })
 }
 
@@ -733,6 +742,7 @@ mod tests {
             max_corpus: 256,
             max_snapshots: 64,
             dynamic_snapshots: true,
+        sync_snapshots: true,
         };
 
         // Should succeed — mock fixtures have matching invariant IDs
@@ -764,6 +774,7 @@ mod tests {
             max_corpus: None,
             max_snapshots: None,
             no_dynamic_snapshots: false,
+            no_sync: false,
             metadata: None,
             baseline_mode: BaselineMode::Bridgesentry,
             verbose: true,
@@ -802,6 +813,7 @@ mod tests {
             max_corpus: 128,
             max_snapshots: 32,
             dynamic_snapshots: true,
+        sync_snapshots: true,
         };
 
         let cli = CliArgs {
@@ -823,6 +835,7 @@ mod tests {
             max_corpus: None,
             max_snapshots: None,
             no_dynamic_snapshots: false,
+            no_sync: false,
             metadata: None,
             baseline_mode: BaselineMode::Bridgesentry,
             verbose: false,
@@ -869,6 +882,7 @@ mod tests {
             max_corpus: None,
             max_snapshots: None,
             no_dynamic_snapshots: false,
+            no_sync: false,
             metadata: None,
             baseline_mode: BaselineMode::Bridgesentry,
             verbose: false,
@@ -906,6 +920,7 @@ mod tests {
             max_corpus: None,
             max_snapshots: None,
             no_dynamic_snapshots: false,
+            no_sync: false,
             metadata: None,
             baseline_mode: BaselineMode::Bridgesentry,
             verbose: true,

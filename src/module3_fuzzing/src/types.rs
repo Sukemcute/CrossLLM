@@ -375,6 +375,14 @@ pub struct FuzzerConfig {
     /// When false, only the initial snapshot is used (no dynamic captures).
     #[serde(default = "default_true")]
     pub dynamic_snapshots: bool,
+    /// When false (ablation `--no-sync`), the dual-EVM snapshot restore is
+    /// desynchronized: the source chain + relay are restored to the selected
+    /// snapshot while the destination chain is restored to the initial
+    /// snapshot, so the two chains sit at inconsistent points. This models the
+    /// state that a properly synchronized global snapshot prevents and is used
+    /// to quantify the contribution of synchronized snapshot management (RQ2).
+    #[serde(default = "default_true")]
+    pub sync_snapshots: bool,
 }
 
 fn default_runs() -> u32 {

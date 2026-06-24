@@ -22,10 +22,12 @@ BRIDGES="${BRIDGES:-nomad qubit pgala polynetwork wormhole socket ronin harmony 
 [ -x "$BIN" ] || { echo "ERROR: binary missing: $BIN"; exit 1; }
 [ -z "${ETH_RPC_URL:-}" ] && { echo "ERROR: ETH_RPC_URL not set"; exit 1; }
 
+EXTRA=()
 case "$ABLATION" in
-  se)  ATG_FILE="atg_offline.json";  SCEN_FILE="hypotheses_offline.json" ;;
-  rag) ATG_FILE="atg.json";          SCEN_FILE="hypotheses_offline.json" ;;
-  *)   echo "ERROR: ABLATION must be se|rag"; exit 1 ;;
+  se)   ATG_FILE="atg_offline.json";  SCEN_FILE="hypotheses_offline.json" ;;
+  rag)  ATG_FILE="atg.json";          SCEN_FILE="hypotheses_offline.json" ;;
+  sync) ATG_FILE="atg.json";          SCEN_FILE="hypotheses.json"; EXTRA=(--no-sync) ;;
+  *)    echo "ERROR: ABLATION must be se|rag|sync"; exit 1 ;;
 esac
 
 mkdir -p "$OUTDIR"
@@ -45,7 +47,7 @@ for b in $BRIDGES; do
         --output "$BOUT/run_${rstr}.json" --budget "$BUDGET" \
         --source-rpc "$ETH_RPC_URL" --dest-rpc "$ETH_RPC_URL" \
         --source-block "$block" --dest-block "$block" --runs 1 --seed "$seed" \
-        > "$BOUT/run_${rstr}.log" 2>&1; then ok=$((ok+1)); tag=ok; else fail=$((fail+1)); tag=FAIL; fi
+        "${EXTRA[@]}" > "$BOUT/run_${rstr}.log" 2>&1; then ok=$((ok+1)); tag=ok; else fail=$((fail+1)); tag=FAIL; fi
     printf "[%6ds] %-12s %s  %s   total=%d ok=%d fail=%d\n" "$(( $(date +%s)-t0 ))" "$b" "$rstr" "$tag" "$total" "$ok" "$fail"
   done
 done

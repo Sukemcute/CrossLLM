@@ -91,6 +91,43 @@ impl SnapshotPool {
         Ok(())
     }
 
+    /// Ablation (`--no-sync`, RQ2): restore WITHOUT cross-chain synchronization.
+    /// The relay and the **source** chain are restored from snapshot `index`,
+    /// but the **destination** chain is restored from `initial_index` (the
+    /// initial fork snapshot, normally 0). The two chains therefore sit at
+    /// inconsistent points — exactly the state that a synchronized global
+    /// snapshot prevents. Used only to quantify the contribution of
+    /// synchronized snapshot management; it deliberately admits cross-chain
+    /// states that cannot arise under consistent execution.
+    pub fn restore_unsynced(
+        &self,
+        index: usize,
+        initial_index: usize,
+        dual: Option<&mut DualEvm>,
+        relay: &mut MockRelay,
+    ) -> Result<(), String> {
+        let snap = self
+            .snapshots
+            .get(index)
+            .ok_or_else(|| format!("snapshot index {index} out of bounds"))?;
+        relay.restore_state(snap.relay.clone());
+        if let Some(d) = dual {
+            let init_dest = self
+                .snapshots
+                .get(initial_index)
+                .and_then(|s| s.evm.as_ref())
+                .map(|e| e.dest.clone());
+            if let Some(src_snap) = snap.evm.as_ref() {
+                let mut hybrid = src_snap.clone();
+                if let Some(dest) = init_dest {
+                    hybrid.dest = dest; // splice initial dest → deliberate desync
+                }
+                d.restore_snapshot(hybrid);
+            }
+        }
+        Ok(())
+    }
+
     /// Paper Alg. 1: pick snapshot whose `action_fingerprints` is the longest **prefix** of the seed's actions.
     pub fn select_for_seed(&self, seed: &[u8]) -> usize {
         let Ok(scenario) = serde_json::from_slice::<Scenario>(seed) else {
