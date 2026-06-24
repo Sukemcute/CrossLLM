@@ -1,0 +1,1650 @@
+{
+  "bridge_name": "wormhole",
+  "scenarios": [
+    {
+      "scenario_id": "wormhole_overmint_via_tampered_vaa",
+      "target_invariant": "asset_conservation_total",
+      "vulnerability_class": "tampered_relay_proof",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "TokenBridge",
+          "function": "lock(address,uint256,uint16)",
+          "params": {
+            "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+            "amount": 100,
+            "targetChain": 2
+          },
+          "description": "User locks 100 USDC on the source chain, emitting a VAA payload that records amount = 100 and transferId = 0xabc.",
+          "waypoint": "sourceTokenBridge.totalLocked[\"USDC\"] == 100",
+          "step": 1
+        },
+        {
+          "chain": "relay",
+          "contract": "WormholeCore",
+          "function": "publishVAA(bytes)",
+          "params": {
+            "vaa": "0xdeadbeef...tampered"
+          },
+          "description": "Attacker, who controls one guardian key, publishes a tampered VAA that claims amount = 200 USDC for the same transferId = 0xabc. The VAA is signed by a quorum, so TokenBridge treats it as valid.",
+          "relay_mode": "tampered",
+          "waypoint": "tamperedVAA.amount == 200 && tamperedVAA.transferId == 0xabc",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "completeTransfer(bytes)",
+          "params": {
+            "vaa": "0xdeadbeef...tampered"
+          },
+          "description": "TokenBridge verifies the VAA (valid == true, !completed[hash]) and calls the internal Minter to mint 200 WrappedAsset to the attacker.",
+          "waypoint": "destinationTokenBridge.totalMinted[\"WrappedUSDC\"] == 200",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "Minter",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": 200
+          },
+          "description": "Internal mint executed by TokenBridge as part of completeTransfer; attacker receives 200 WrappedUSDC.",
+          "waypoint": "WrappedAsset.balanceOf(0xAttackerAddress) == 200",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_2021_exploit",
+        "polyNetwork_2021"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 100 USDC on the source chain, emitting a VAA payload that records amount = 100 and transferId = 0xabc."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Attacker, who controls one guardian key, publishes a tampered VAA that claims amount = 200 USDC for the same transferId = 0xabc. The VAA is signed by a quorum, so TokenBridge treats it as valid."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "TokenBridge verifies the VAA (valid == true, !completed[hash]) and calls the internal Minter to mint 200 WrappedAsset to the attacker."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Internal mint executed by TokenBridge as part of completeTransfer; attacker receives 200 WrappedUSDC."
+        }
+      ]
+    },
+    {
+      "scenario_id": "wormhole_fee_underflow_2024_01",
+      "target_invariant": "asset_conservation_fee_nonnegative",
+      "vulnerability_class": "logic_bug_fee_underflow",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "relay",
+          "contract": "WormholeCore",
+          "function": "publishVAA",
+          "params": {
+            "payload": {
+              "sourceChain": "srcChain",
+              "destChain": "destination",
+              "token": "WrappedAsset",
+              "amount": "1",
+              "fee": "1000000000000000000000000000000",
+              "nonce": "9999"
+            },
+            "signatures": [
+              "0xdeadbeef..."
+            ],
+            "mode": "tampered"
+          },
+          "description": "Attacker forges a VAA with an absurdly large fee value while keeping the amount tiny. The VAA is signed by a compromised relayer key, making it appear valid to TokenBridge.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "completeTransfer",
+          "params": {
+            "vaa": "0xmaliciousVAAhash...",
+            "mode": "faithful"
+          },
+          "description": "TokenBridge processes the malicious VAA. Due to a logic bug it subtracts the fee from totalFees instead of adding it, driving totalFees[\"destination\"][\"WrappedAsset\"] negative.",
+          "waypoint_predicates": [
+            "totalFees[\"destination\"][\"WrappedAsset\"] < 0"
+          ],
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "Minter",
+          "function": "mint",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": "1",
+            "mode": "faithful"
+          },
+          "description": "Attacker finalizes the transfer and receives the wrapped token, completing the profitable path while the fee counter is negative.",
+          "waypoint_predicates": [
+            "mintedAmount[\"transferId_0xmaliciousVAAhash\"] == 1",
+            "totalFees[\"destination\"][\"WrappedAsset\"] < 0"
+          ],
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_2022_overmint",
+        "poly_network_2021_fee_bug"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "relay.message_count > 0",
+          "description": "Attacker forges a VAA with an absurdly large fee value while keeping the amount tiny. The VAA is signed by a compromised relayer key, making it appear valid to TokenBridge."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "TokenBridge processes the malicious VAA. Due to a logic bug it subtracts the fee from totalFees instead of adding it, driving totalFees[\"destination\"][\"WrappedAsset\"] negative."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "destRouter.totalMinted() >= 1",
+          "description": "Attacker finalizes the transfer and receives the wrapped token, completing the profitable path while the fee counter is negative."
+        }
+      ]
+    },
+    {
+      "scenario_id": "wormhole_overmint_001",
+      "target_invariant": "asset_conservation_no_overmint",
+      "vulnerability_class": "key_compromise",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "offchain",
+          "contract": "GuardianKeyCompromise",
+          "function": "compromiseKeys",
+          "params": {
+            "compromisedGuardians": [
+              0,
+              1
+            ]
+          },
+          "description": "Attacker obtains the private keys of two Wormhole guardian nodes (out‑of‑six threshold), giving the ability to produce a VAA that will be accepted as valid by the destination contracts.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "WormholeCore",
+          "function": "forgeVAA",
+          "params": {
+            "transferId": "0xdeadbeefcafebabe0011223344556677",
+            "sourceChain": "Ethereum",
+            "targetChain": "Solana",
+            "nonce": 42,
+            "lockedAmount": "100 ether",
+            "inflatedAmount": "1000 ether",
+            "signatures": [
+              "0xsig0",
+              "0xsig1"
+            ]
+          },
+          "description": "Using the compromised guardian keys, attacker creates a tampered VAA whose `amount` field is set to 1000 ETH (inflatedAmount) while the original locked amount on the source chain was only 100 ETH. The VAA passes `valid == true` and yields a fresh `vm.hash`.",
+          "relay_mode": "tampered",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "completeTransfer",
+          "params": {
+            "vaa": "0xforgeVAAbytes..."
+          },
+          "description": "Attacker submits the forged VAA to TokenBridge.completeTransfer. All on‑chain checks succeed (`valid`, `!completed[vm.hash]`, `wrapped != address(0)`), causing the bridge to mint `inflatedAmount` (1000 ETH) of WrappedAsset to the attacker’s address.",
+          "relay_mode": "faithful",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "harmony_horizon_20220624",
+        "anyswap_20210710"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker obtains the private keys of two Wormhole guardian nodes (out‑of‑six threshold), giving the ability to produce a VAA that will be accepted as valid by the destination contracts."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Using the compromised guardian keys, attacker creates a tampered VAA whose `amount` field is set to 1000 ETH (inflatedAmount) while the original locked amount on the source chain was only 100 ETH. The VAA passes `valid == true` and yields a fresh `vm.hash`."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker submits the forged VAA to TokenBridge.completeTransfer. All on‑chain checks succeed (`valid`, `!completed[vm.hash]`, `wrapped != address(0)`), causing the bridge to mint `inflatedAmount` (1000 ETH) of WrappedAsset to the attacker’s address."
+        }
+      ]
+    },
+    {
+      "scenario_id": "wormhole_balance_consistency_break_01",
+      "target_invariant": "asset_conservation_balance_consistency",
+      "vulnerability_class": "authorization_key_compromise",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "Minter",
+          "function": "mint",
+          "params": {
+            "to": "User",
+            "amount": "1000000000000000000000"
+          },
+          "description": "Compromised minter address calls mint() to credit the user with 1,000 WrappedAsset tokens.",
+          "pre_state": "bridgeBalance[WrappedAsset] == B0 && totalMinted[destination][WrappedAsset] == M0 && sumBalances[User][WrappedAsset] == U0",
+          "post_state": "bridgeBalance[WrappedAsset] == B0 && totalMinted[destination][WrappedAsset] == M0 + 1000000000000000000000 && sumBalances[User][WrappedAsset] == U0 + 1000000000000000000000",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "completeTransfer",
+          "params": {
+            "vaa": "0xFAKE_TAMPERED_VAA"
+          },
+          "description": "Attacker submits a tampered VAA (relay mode: tampered) that passes the TokenBridge validation checks, causing a second mint to the same user.",
+          "relay_mode": "tampered",
+          "pre_state": "bridgeBalance[WrappedAsset] == B0 && totalMinted[destination][WrappedAsset] == M0 + 1000000000000000000000 && sumBalances[User][WrappedAsset] == U0 + 1000000000000000000000",
+          "post_state": "bridgeBalance[WrappedAsset] == B0 && totalMinted[destination][WrappedAsset] == M0 + 2000000000000000000000 && sumBalances[User][WrappedAsset] == U0 + 2000000000000000000000",
+          "step": 2
+        }
+      ],
+      "retrieved_exploits": [
+        "orbit_20240101"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "destRouter.totalMinted() >= 1000000000000000000000",
+          "description": "Compromised minter address calls mint() to credit the user with 1,000 WrappedAsset tokens."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker submits a tampered VAA (relay mode: tampered) that passes the TokenBridge validation checks, causing a second mint to the same user."
+        }
+      ]
+    },
+    {
+      "scenario_id": "wormhole_invalid_relay_mint_01",
+      "target_invariant": "auth_mint_requires_valid_relay",
+      "vulnerability_class": "relay_proof_tampering",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "TokenBridge",
+          "function": "lock(address,uint256)",
+          "params": {
+            "to": "User",
+            "amount": 1000
+          },
+          "description": "User locks 1,000 original tokens on the source chain. TokenBridge emits a Wormhole VAA (hash H) that records the transfer details.",
+          "waypoint": "TokenBridge.totalLocked[\"source\"][\"WrappedAsset\"] >= 1000",
+          "step": 1
+        },
+        {
+          "chain": "relay",
+          "contract": "WormholeCore",
+          "function": "publishMessage(uint32,bytes)",
+          "params": {
+            "nonce": 42,
+            "payload": "<encoded transfer payload>"
+          },
+          "relay_mode": "tampered",
+          "description": "Attacker‑controlled relayer intercepts the VAA, rewrites the internal `valid` flag to false while preserving the message format, and publishes the tampered VAA to the destination chain.",
+          "waypoint": "WormholeCore.relayedVAA[H].valid == false",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "completeTransfer(bytes)",
+          "params": {
+            "vaa": "<tampered VAA>"
+          },
+          "description": "TokenBridge processes the tampered VAA. Due to a storage‑collision bug the contract reads `valid` as true even though the proof is invalid, allowing minting of wrapped tokens.",
+          "waypoint": "WrappedAsset.balanceOf(User) >= 1000 && TokenBridge.completed[H] == true && WormholeCore.relayedVAA[H].valid == false",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202",
+        "evodefi_20220607"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1,000 original tokens on the source chain. TokenBridge emits a Wormhole VAA (hash H) that records the transfer details."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Attacker‑controlled relayer intercepts the VAA, rewrites the internal `valid` flag to false while preserving the message format, and publishes the tampered VAA to the destination chain."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "TokenBridge processes the tampered VAA. Due to a storage‑collision bug the contract reads `valid` as true even though the proof is invalid, allowing minting of wrapped tokens."
+        }
+      ]
+    },
+    {
+      "scenario_id": "wormhole_unregistered_asset_mint_tampered_vaa",
+      "target_invariant": "auth_mint_requires_registered_asset",
+      "vulnerability_class": "signature_forgery_and_logic_bug",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "WormholeCore",
+          "function": "publishMessage",
+          "params": {
+            "payload": "0x0000000000000000000000000000000000000000|0x00000000000000000000000000000000000003e8|0xUserAddress",
+            "nonce": 42
+          },
+          "description": "Attacker, possessing a compromised guardian private key, creates a VAA whose payload encodes the wrapped asset address as 0x0 (zero address), amount 1000, and destination user address.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "WormholeCore",
+          "function": "verifyAndPublishVAA",
+          "params": {
+            "vaa": "0xSignedByCompromisedGuardian",
+            "mode": "tampered"
+          },
+          "description": "Relay node (or attacker acting as relay) submits the forged VAA to the destination WormholeCore. Because a guardian key is compromised, the signature verification succeeds and the VAA is marked as valid.",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "completeTransfer",
+          "params": {
+            "vm": "0xSignedByCompromisedGuardian"
+          },
+          "description": "TokenBridge processes the VAA. The generic checks `valid` and replay protection pass. Due to a logic bug, the contract reads the `wrapped` address from the tampered payload after the `require(wrapped != address(0))` check, allowing the mint path to continue with `wrapped == address(0)`.",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "Minter",
+          "function": "mint",
+          "params": {
+            "to": "0xUserAddress",
+            "amount": 1000
+          },
+          "description": "TokenBridge calls the internal Minter contract. The call is made with `wrapped == address(0)`. The call succeeds (no code at address(0)), but the bridge updates its internal accounting `totalMinted[destination][0x0]` to 1000, violating the invariant that unregistered assets must not be minted.",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "chainswap_20210711",
+        "socket_20240116"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker, possessing a compromised guardian private key, creates a VAA whose payload encodes the wrapped asset address as 0x0 (zero address), amount 1000, and destination user address."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Relay node (or attacker acting as relay) submits the forged VAA to the destination WormholeCore. Because a guardian key is compromised, the signature verification succeeds and the VAA is marked as valid."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "TokenBridge processes the VAA. The generic checks `valid` and replay protection pass. Due to a logic bug, the contract reads the `wrapped` address from the tampered payload after the `require(wrapped != address(0))` check, allowing the mint path to continue with `wrapped == address(0)`."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "destRouter.totalMinted() >= 1000",
+          "description": "TokenBridge calls the internal Minter contract. The call is made with `wrapped == address(0)`. The call succeeds (no code at address(0)), but the bridge updates its internal accounting `totalMinted[destination][0x0]` to 1000, violating the invariant that unregistered assets must not be minted."
+        }
+      ]
+    },
+    {
+      "scenario_id": "wormhole_auth_mint_bypass_01",
+      "target_invariant": "auth_mint_by_minter_only",
+      "vulnerability_class": "delegatecall_privilege_escalation",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "TokenBridge",
+          "function": "lock(address,uint256)",
+          "params": {
+            "token": "OriginalAsset",
+            "to": "0xAttackerDest",
+            "amount": 1000
+          },
+          "description": "Attacker locks tokens on the source chain, causing the bridge to emit a VAA that authorizes a mint on the destination chain.",
+          "state_predicate": "TokenBridge.totalLocked() >= 1000",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "WormholeCore",
+          "function": "publishMessage(bytes)",
+          "params": {
+            "payload": "0xdeadbeef...tampered_payload..."
+          },
+          "relay_mode": "tampered",
+          "description": "Attacker intercepts the VAA and replaces the original payload (which would call Minter.mint) with a payload that invokes Attacker.execute(address,uint256) via a low‑level call from TokenBridge.",
+          "state_predicate": "WormholeCore.lastPublishedVAA().payload contains 0xabcdef12 (Attacker.execute selector)",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "Attacker",
+          "function": "execute(address,uint256)",
+          "params": {
+            "target": "0xMinter",
+            "amount": 1000
+          },
+          "relay_mode": "faithful",
+          "description": "TokenBridge, believing the payload is legitimate, calls Attacker.execute. The Attacker contract then delegatecalls the Minter contract's internal mint logic, which does not contain the `require(msg.sender == minter)` check, thereby minting WrappedAsset to the attacker without authorization.",
+          "state_predicate": "WrappedAsset.balanceOf(0xAttacker) >= 1000",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "chainswap_20210711",
+        "nomad_20220801"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker locks tokens on the source chain, causing the bridge to emit a VAA that authorizes a mint on the destination chain."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker intercepts the VAA and replaces the original payload (which would call Minter.mint) with a payload that invokes Attacker.execute(address,uint256) via a low‑level call from TokenBridge."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "TokenBridge, believing the payload is legitimate, calls Attacker.execute. The Attacker contract then delegatecalls the Minter contract's internal mint logic, which does not contain the `require(msg.sender == minter)` check, thereby minting WrappedAsset to the attacker without authorization."
+        }
+      ]
+    },
+    {
+      "scenario_id": "wormhole_upgrade_bypass_unlock_proof_001",
+      "target_invariant": "auth_unlock_requires_proof",
+      "vulnerability_class": "governance_upgrade_exploit",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "ethereum",
+          "contract": "TokenBridgeProxy",
+          "function": "proposeUpgrade(address)",
+          "params": {
+            "newImplementation": "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF"
+          },
+          "description": "Attacker, who has become the proxy admin via a timelock governance bug, proposes a malicious implementation for the TokenBridge.",
+          "step": 1
+        },
+        {
+          "chain": "ethereum",
+          "contract": "Timelock",
+          "function": "execute(address,bytes)",
+          "params": {
+            "target": "0xTokenBridgeProxyAddress",
+            "data": "0x5c60da1b000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+          },
+          "description": "After the required delay, the attacker executes the upgrade, swapping the legitimate TokenBridge logic with a malicious version that omits the `completed[vaaHash]` check.",
+          "step": 2
+        },
+        {
+          "chain": "ethereum",
+          "contract": "TokenBridge",
+          "function": "completeTransfer(bytes)",
+          "params": {
+            "vaa": "0x00"
+          },
+          "description": "Using the upgraded contract, the attacker calls `completeTransfer` with an empty (or malformed) VAA. The malicious implementation skips the `require(completed[vm.hash])` check, allowing the unlock to proceed without a stored proof.",
+          "step": 3
+        },
+        {
+          "chain": "ethereum",
+          "contract": "TokenBridge",
+          "function": "release(address,uint256,address)",
+          "params": {
+            "token": "0xOriginalTokenAddress",
+            "amount": "1000000000000000000",
+            "to": "0xAttackerEOA"
+          },
+          "description": "The contract releases the locked original tokens to the attacker. No entry is written to `completed[vaaHash]` because the check was removed.",
+          "step": 4
+        }
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker, who has become the proxy admin via a timelock governance bug, proposes a malicious implementation for the TokenBridge."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "After the required delay, the attacker executes the upgrade, swapping the legitimate TokenBridge logic with a malicious version that omits the `completed[vaaHash]` check."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Using the upgraded contract, the attacker calls `completeTransfer` with an empty (or malformed) VAA. The malicious implementation skips the `require(completed[vm.hash])` check, allowing the unlock to proceed without a stored proof."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "The contract releases the locked original tokens to the attacker. No entry is written to `completed[vaaHash]` because the check was removed."
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810",
+        "wormhole_replay_2022"
+      ]
+    },
+    {
+      "scenario_id": "wormhole_replay_via_admin_reset_01",
+      "target_invariant": "uniqueness_replay_protection_e1",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "User",
+          "function": "lock(uint256)",
+          "params": {
+            "token": "OriginalAsset",
+            "amount": 1000
+          },
+          "description": "User locks 1,000 OriginalAsset tokens into TokenBridge, causing WormholeCore to emit a VAA (VAA_0xabc...).",
+          "state_predicate": "TokenBridge.lockedBalance(User,OriginalAsset) == 1000",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "completeTransfer(bytes)",
+          "params": {
+            "vaa": "0xabc..."
+          },
+          "description": "Faithful relayer submits the legitimate VAA; TokenBridge mints 1,000 WrappedAsset to User.",
+          "state_predicate": "completed[keccak256(0xabc...)] == true && WrappedAsset.balanceOf(User) == 1000",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "WormholeCore",
+          "function": "clearCompleted(bytes32)",
+          "params": {
+            "hash": "keccak256(0xabc...)"
+          },
+          "description": "Attacker (compromised guardian) calls an admin‑only function to delete the completed flag for the VAA hash.",
+          "state_predicate": "completed[keccak256(0xabc...)] == false",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "completeTransfer(bytes)",
+          "params": {
+            "vaa": "0xabc..."
+          },
+          "description": "Attacker re‑submits the same VAA; TokenBridge mints an additional 1,000 WrappedAsset, violating the replay‑protection invariant.",
+          "state_predicate": "WrappedAsset.balanceOf(Attacker) == 2000 && completed[keccak256(0xabc...)] == true",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1,000 OriginalAsset tokens into TokenBridge, causing WormholeCore to emit a VAA (VAA_0xabc...)."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Faithful relayer submits the legitimate VAA; TokenBridge mints 1,000 WrappedAsset to User."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker (compromised guardian) calls an admin‑only function to delete the completed flag for the VAA hash."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Attacker re‑submits the same VAA; TokenBridge mints an additional 1,000 WrappedAsset, violating the replay‑protection invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "wormhole_replay_nonce_e2_001",
+      "target_invariant": "uniqueness_replay_protection_e2",
+      "vulnerability_class": "logic_bug_missing_nonce_check",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "Minter",
+          "function": "mint",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": "1000000000000000000",
+            "nonce": "0x1a2b3c4d5e6f"
+          },
+          "description": "First legitimate mint; nonce N is recorded as processed (nonceProcessed[N] becomes true).",
+          "waypoint_before": "nonceProcessed[0x1a2b3c4d5e6f] == false",
+          "waypoint_after": "nonceProcessed[0x1a2b3c4d5e6f] == true && totalMinted[\"WrappedAsset\"] == 1e18",
+          "step": 1
+        },
+        {
+          "chain": "relay",
+          "contract": "WormholeCore",
+          "function": "relayVAA",
+          "params": {
+            "vaa_hash": "0xdeadbeefcafebabe1122334455667788",
+            "payload": "0x... (encoded call to TokenBridge.completeTransfer with the same VAA bytes as step 1)"
+          },
+          "mode": "replay",
+          "description": "Replay the already‑processed VAA. TokenBridge.completeTransfer will forward the payload to Minter, causing a second mint with the same nonce.",
+          "waypoint_before": "completed[0xdeadbeefcafebabe1122334455667788] == true",
+          "waypoint_after": "totalMinted[\"WrappedAsset\"] == 2e18 && nonceProcessed[0x1a2b3c4d5e6f] == true",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "Minter",
+          "function": "mint",
+          "params": {
+            "to": "0xAttackerAddress",
+            "amount": "1000000000000000000",
+            "nonce": "0x1a2b3c4d5e6f"
+          },
+          "description": "Direct call to Minter.mint with the same nonce. Because the contract does not check nonceProcessed, the call succeeds and mints additional tokens.",
+          "waypoint_before": "nonceProcessed[0x1a2b3c4d5e6f] == true",
+          "waypoint_after": "totalMinted[\"WrappedAsset\"] == 3e18",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_20220801",
+        "wormhole_replay_2022"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "destRouter.totalMinted() >= 1000000000000000000",
+          "description": "First legitimate mint; nonce N is recorded as processed (nonceProcessed[N] becomes true)."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Replay the already‑processed VAA. TokenBridge.completeTransfer will forward the payload to Minter, causing a second mint with the same nonce."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "destRouter.totalMinted() >= 2000000000000000000",
+          "description": "Direct call to Minter.mint with the same nonce. Because the contract does not check nonceProcessed, the call succeeds and mints additional tokens."
+        }
+      ]
+    },
+    {
+      "scenario_id": "wormhole_nonce_monotonic_break_001",
+      "target_invariant": "uniqueness_nonce_monotonic",
+      "vulnerability_class": "relay_tampering_nonce_reuse",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "TokenBridge",
+          "function": "transferTokens(address,uint256,uint16)",
+          "params": {
+            "recipient": "User",
+            "amount": 1000,
+            "targetChainId": 2
+          },
+          "description": "Legitimate user locks 1,000 OriginalAsset on the source chain. TokenBridge calls WormholeCore.publishMessage which emits a VAA with nonce = 100 (high). Waypoint: TokenBridge.lastProcessedNonce[\"source\"] == 0 before, VAA hash stored, completed[hash] == false.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "completeTransfer(bytes)",
+          "params": {
+            "vaa": "VAA_high_nonce_100"
+          },
+          "description": "Faithful relay forwards the high‑nonce VAA to the destination chain. TokenBridge verifies the VAA, checks nonce > lastProcessedNonce (0), updates lastProcessedNonce[\"source\"] to 100 and mints 1,000 WrappedAsset to User. Waypoint: TokenBridge.lastProcessedNonce[\"source\"] == 100.",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "FakeEmitter",
+          "function": "publishMessage(uint16,uint256,bytes)",
+          "params": {
+            "nonce": 50,
+            "payload": {
+              "action": "mint",
+              "token": "WrappedAsset",
+              "amount": 500,
+              "to": "Attacker"
+            }
+          },
+          "description": "Attacker‑controlled contract publishes a low‑nonce VAA (nonce = 50) containing a mint instruction. Relay manipulation mode: **tampered** – the off‑chain relayer rewrites the VAA header, replacing the emitter address with the legitimate TokenBridge address so that the destination TokenBridge believes the message originates from TokenBridge.",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "completeTransfer(bytes)",
+          "params": {
+            "vaa": "VAA_low_nonce_50_tampered"
+          },
+          "description": "Tampered low‑nonce VAA is submitted. Because the bridge only checks `nonce > lastProcessedNonce[srcChain]` per source chain (not per emitter) and the nonce check is mistakenly bypassed after a successful high‑nonce processing, the contract accepts nonce 50, updates internal state, and mints 500 WrappedAsset to Attacker. Waypoint: TokenBridge.lastProcessedNonce[\"source\"] == 50 (now less than previous value 100) → invariant violation.",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "rainbow_20220505",
+        "anyswap_20210710"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Legitimate user locks 1,000 OriginalAsset on the source chain. TokenBridge calls WormholeCore.publishMessage which emits a VAA with nonce = 100 (high). Waypoint: TokenBridge.lastProcessedNonce[\"source\"] == 0 before, VAA hash stored, completed[hash] == false."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Faithful relay forwards the high‑nonce VAA to the destination chain. TokenBridge verifies the VAA, checks nonce > lastProcessedNonce (0), updates lastProcessedNonce[\"source\"] to 100 and mints 1,000 WrappedAsset to User. Waypoint: TokenBridge.lastProcessedNonce[\"source\"] == 100."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker‑controlled contract publishes a low‑nonce VAA (nonce = 50) containing a mint instruction. Relay manipulation mode: **tampered** – the off‑chain relayer rewrites the VAA header, replacing the emitter address with the legitimate TokenBridge address so that the destination TokenBridge believes the message originates from TokenBridge."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Tampered low‑nonce VAA is submitted. Because the bridge only checks `nonce > lastProcessedNonce[srcChain]` per source chain (not per emitter) and the nonce check is mistakenly bypassed after a successful high‑nonce processing, the contract accepts nonce 50, updates internal state, and mints 500 WrappedAsset to Attacker. Waypoint: TokenBridge.lastProcessedNonce[\"source\"] == 50 (now less than previous value 100) → invariant violation."
+        }
+      ]
+    },
+    {
+      "scenario_id": "wormhole_replay_different_hash_same_transfer",
+      "target_invariant": "uniqueness_one_message_per_transfer",
+      "vulnerability_class": "replay_via_hash_malleability",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "node_id": "User",
+          "function_signature": "lockAsset(address token,uint256 amount,uint256 nonce)",
+          "params": {
+            "token": "0xTokenA",
+            "amount": "1000e18",
+            "nonce": "0x01"
+          },
+          "relay_mode": "faithful",
+          "state_predicate": "TokenBridge.completed[H1] == false && mintedTransfer[0xabc] == false",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "destination",
+          "node_id": "WormholeCore",
+          "function_signature": "publishVAA(bytes payload,bytes[] signatures)",
+          "params": {
+            "payload": "0x...{transferId:0xabc,amount:1000e18,token:0xTokenA,nonce:0x01}...",
+            "signatures": "validGuardianSigs"
+          },
+          "relay_mode": "faithful",
+          "state_predicate": "TokenBridge.completed[H1] == true && mintedTransfer[0xabc] == true",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "node_id": "WormholeCore",
+          "function_signature": "publishVAA(bytes payload,bytes[] signatures)",
+          "params": {
+            "payload": "0x...{transferId:0xabc,amount:1000e18,token:0xTokenA,nonce:0x01,extraField:0xdeadbeef}...",
+            "signatures": "validGuardianSigsWithExtra"
+          },
+          "relay_mode": "tampered",
+          "state_predicate": "TokenBridge.completed[H2] == false && mintedTransfer[0xabc] == true",
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "destination",
+          "node_id": "TokenBridge",
+          "function_signature": "completeTransfer(bytes vm)",
+          "params": {
+            "vm": "0xVAA2_with_hash_H2"
+          },
+          "relay_mode": "tampered",
+          "state_predicate": "TokenBridge.completed[H2] == true && mintedTransfer[0xabc] == true",
+          "step": 4,
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_2022_replay_hash"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "wormhole_timeliness_refund_timeout_001",
+      "target_invariant": "timeliness_refund_after_timeout",
+      "vulnerability_class": "relay_tampering_and_timeout",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "TokenBridge",
+          "function": "lockTransfer(address,uint256,uint16,bytes32)",
+          "params": {
+            "sender": "0xVictim",
+            "amount": "1000e18",
+            "targetChain": "dest",
+            "targetAddress": "0xAttacker"
+          },
+          "description": "Victim locks 1000 tokens for transfer to destination chain; bridge creates transferId 0xabc, sets transferTimeout[0xabc] = block.timestamp + 1h and refundable[0xabc] = false.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "WormholeCore",
+          "function": "publishMessage(bytes)",
+          "params": {
+            "vmHash": "0xhash_tampered",
+            "payload": {
+              "transferId": "0xabc",
+              "amount": "0",
+              "valid": true,
+              "nonce": 42,
+              "sourceChain": "source"
+            }
+          },
+          "relay_mode": "tampered_delayed",
+          "description": "Malicious relayer withholds the legitimate VAA and instead publishes a tampered VAA that reports amount 0 while still marked as valid.",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "completeTransfer(bytes)",
+          "params": {
+            "vaa": "0xhash_tampered"
+          },
+          "description": "TokenBridge processes the tampered VAA, passes generic checks, records completed[0xhash_tampered] = true, and mints 0 WrappedAsset to Attacker. The bridge now believes the transfer has been completed.",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "TokenBridge",
+          "function": "refundTransfer(uint256)",
+          "params": {
+            "transferId": "0xabc"
+          },
+          "description": "After block.timestamp > transferTimeout[0xabc], Attacker (or anyone) calls refundTransfer. Because the contract marks the transfer as already processed (via internal flag set when VAA was seen), refundable[0xabc] remains false, causing the call to revert.",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "ronin_20220323"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Victim locks 1000 tokens for transfer to destination chain; bridge creates transferId 0xabc, sets transferTimeout[0xabc] = block.timestamp + 1h and refundable[0xabc] = false."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Malicious relayer withholds the legitimate VAA and instead publishes a tampered VAA that reports amount 0 while still marked as valid."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "TokenBridge processes the tampered VAA, passes generic checks, records completed[0xhash_tampered] = true, and mints 0 WrappedAsset to Attacker. The bridge now believes the transfer has been completed."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "After block.timestamp > transferTimeout[0xabc], Attacker (or anyone) calls refundTransfer. Because the contract marks the transfer as already processed (via internal flag set when VAA was seen), refundable[0xabc] remains false, causing the call to revert."
+        }
+      ]
+    },
+    {
+      "scenario_id": "wormhole_timeliness_mint_before_lock_001",
+      "target_invariant": "timeliness_no_mint_before_timeout",
+      "vulnerability_class": "relay_tampering",
+      "confidence": 0.85,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "WormholeCore",
+          "function": "publishMessage(uint32 nonce,bytes payload,uint8 consistencyLevel)",
+          "params": {
+            "nonce": 999999,
+            "payload": "0xdeadbeef...<ABI‑encoded Transfer{transferId:0xabc123, amount:1000, tokenChain:1, tokenAddress:0xToken, toChain:2, to:0xAttacker, timeout:0}>",
+            "consistencyLevel": 1
+          },
+          "description": "Compromised guardian (off‑chain) signs a VAA where `transferTimeout` is deliberately set to 0. The attacker injects this VAA into the Wormhole network using a tampered relay (relay_mode = \"tampered\").",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "completeTransfer(bytes vm)",
+          "params": {
+            "vm": "0xfeedc0de...<tampered VAA containing the zero‑timeout payload>"
+          },
+          "relay_mode": "tampered",
+          "description": "Submit the tampered VAA to the destination TokenBridge. The guard checks `valid == true` (signatures are accepted because the attacker controls a quorum of guardians) and `wrapped != address(0)`, so the mint proceeds despite `transferTimeout[transferId] == 0`.",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedAsset",
+          "function": "transfer(address to,uint256 amount)",
+          "params": {
+            "to": "0xAttacker",
+            "amount": 1000
+          },
+          "description": "Attacker moves the freshly minted wrapped tokens to their own address, extracting value.",
+          "step": 3
+        }
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Compromised guardian (off‑chain) signs a VAA where `transferTimeout` is deliberately set to 0. The attacker injects this VAA into the Wormhole network using a tampered relay (relay_mode = \"tampered\")."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Submit the tampered VAA to the destination TokenBridge. The guard checks `valid == true` (signatures are accepted because the attacker controls a quorum of guardians) and `wrapped != address(0)`, so the mint proceeds despite `transferTimeout[transferId] == 0`."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker moves the freshly minted wrapped tokens to their own address, extracting value."
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_2022_replay"
+      ]
+    },
+    {
+      "scenario_id": "wormhole_timeout_overwrite_001",
+      "target_invariant": "timeliness_timeout_update_once",
+      "vulnerability_class": "relay_tampering",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "node_id": "User",
+          "function_signature": "initiateTransfer(uint256 amount,address token,address recipient,uint256 timeout)",
+          "params": {
+            "amount": 1000,
+            "token": "0xTokenSource",
+            "recipient": "0xUserDest",
+            "timeout": 1000
+          },
+          "mode": "faithful",
+          "waypoint": "transferId == 0xABCD1234 && transferTimeoutSet[0xABCD1234] == false",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "destination",
+          "node_id": "TokenBridge",
+          "function_signature": "completeTransfer(bytes vm)",
+          "params": {
+            "vm": "VAA{transferId:0xABCD1234, timeout:1000, ...valid signatures...}"
+          },
+          "mode": "faithful",
+          "waypoint": "transferTimeoutSet[0xABCD1234] == true && transferTimeout[0xABCD1234] == 1000",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "relay",
+          "node_id": "WormholeCore",
+          "function_signature": "completeTransfer(bytes vm)",
+          "params": {
+            "vm": "VAA{transferId:0xABCD1234, timeout:10, ...tampered signatures...}"
+          },
+          "mode": "tampered",
+          "waypoint": "transferTimeout[0xABCD1234] == 10 && transferTimeoutSet[0xABCD1234] == false",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "relay.message_count > 0",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "wormhole_timeliness_completed_not_cleared_001",
+      "target_invariant": "timeliness_expired_state_cleared",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "TokenBridge",
+          "function": "lockTransfer(address token,uint256 amount,address to,uint16 toChainId)",
+          "params": {
+            "token": "0xTokenA",
+            "amount": "1000",
+            "to": "0xUserDest",
+            "toChainId": "2"
+          },
+          "mode": "faithful",
+          "waypoint": "transferTimeout[transferId] == block.timestamp + 86400 && completed[H1] == false",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "source",
+          "contract": "TokenBridge",
+          "function": "advanceTime(uint256 seconds)",
+          "params": {
+            "seconds": "86500"
+          },
+          "mode": "faithful",
+          "waypoint": "block.timestamp > transferTimeout[transferId]",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "completeTransfer(bytes)",
+          "params": {
+            "vaa": "<refundVAA_encoded>"
+          },
+          "mode": "delayed",
+          "waypoint": "refundable[transferId] == true && completed[H1] == true",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "ronin_20220323",
+        "socket_20240116",
+        "thorchain_20210628",
+        "harmony_horizon_20220624",
+        "pgala_20221103"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "wormhole_fee_early_withdrawal_001",
+      "target_invariant": "timeliness_fee_withdrawal_window",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "withdrawFees",
+          "params": {
+            "transferId": "0xdeadbeefcafebabef00dfeedface1234"
+          },
+          "mode": "faithful",
+          "state_predicate": "feeWithdrawn[0xdeadbeefcafebabef00dfeedface1234] == true && completed[0xdeadbeefcafebabef00dfeedface1234] == false && refundable[0xdeadbeefcafebabef00dfeedface1234] == false",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "destination",
+          "contract": "WormholeCore",
+          "function": "publishVAA",
+          "params": {
+            "vaa": "0xfeedfacebadc0ffee0ddf00ddeadbeef",
+            "signature": "tampered_signature"
+          },
+          "mode": "tampered",
+          "state_predicate": "valid == true && vm.hash == 0xfeedfacebadc0ffee0ddf00ddeadbeef",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "completeTransfer",
+          "params": {
+            "vaa": "0xfeedfacebadc0ffee0ddf00ddeadbeef"
+          },
+          "mode": "faithful",
+          "state_predicate": "completed[0xfeedfacebadc0ffee0ddf00ddeadbeef] == true && mintedAmount[0xdeadbeefcafebabef00dfeedface1234] == lockedAmount[0xdeadbeefcafebabef00dfeedface1234]",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "wormhole_timeliness_double_spend_001",
+      "target_invariant": "timeliness_locked_state_consistency",
+      "vulnerability_class": "replay_without_state_update + tampered_relay",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "completeTransfer(bytes)",
+          "params": {
+            "vaa": "vaa1_tampered"
+          },
+          "relay_mode": "tampered",
+          "description": "Attacker (relay) submits a crafted VAA that passes signature verification (valid == true) but omits the internal `completed[vm.hash] = true` write due to a malformed payload. The TokenBridge mints `amount = 1000` WrappedAsset to the attacker’s address.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "completeTransfer(bytes)",
+          "params": {
+            "vaa": "vaa2_replay"
+          },
+          "relay_mode": "replay",
+          "description": "Attacker re‑uses the same `transferId` but with a different VAA hash (nonce) that bypasses the replay guard because `completed[vm.hash]` is still false. The second call mints another `1000` WrappedAsset to the attacker, resulting in `mintedAmount[transferId] == 2000` while the source lock remains `lockedAmount[transferId] == 1000`.",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "TokenBridge",
+          "function": "unlock(bytes)",
+          "params": {
+            "vaa": "vaa3_valid"
+          },
+          "relay_mode": "faithful",
+          "description": "A legitimate VAA (generated by the guardian set) is later submitted to the source‑chain bridge to unlock the original 1000 tokens. Because the destination side already minted twice, the original locked funds become double‑spent.",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker (relay) submits a crafted VAA that passes signature verification (valid == true) but omits the internal `completed[vm.hash] = true` write due to a malformed payload. The TokenBridge mints `amount = 1000` WrappedAsset to the attacker’s address."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker re‑uses the same `transferId` but with a different VAA hash (nonce) that bypasses the replay guard because `completed[vm.hash]` is still false. The second call mints another `1000` WrappedAsset to the attacker, resulting in `mintedAmount[transferId] == 2000` while the source lock remains `lockedAmount[transferId] == 1000`."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "A legitimate VAA (generated by the guardian set) is later submitted to the source‑chain bridge to unlock the original 1000 tokens. Because the destination side already minted twice, the original locked funds become double‑spent."
+        }
+      ]
+    },
+    {
+      "scenario_id": "wormhole_auth_mint_wrong_recipient_001",
+      "target_invariant": "auth_mint_requires_correct_destination",
+      "vulnerability_class": "authorization_logic_flaw",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "TokenBridge",
+          "function": "lockTransfer(address token, uint256 amount, uint16 targetChain, address recipient)",
+          "params": {
+            "token": "0xAAA...111",
+            "amount": "1000000000000000000",
+            "targetChain": 2,
+            "recipient": "0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+          },
+          "description": "Alice locks 1 ETH‑equivalent token on the source chain, specifying Bob (0xBBBB…) as the destination recipient. The bridge emits a VAA containing the recipient field.",
+          "step": 1
+        },
+        {
+          "chain": "offchain",
+          "contract": "WormholeCore",
+          "function": "observeVAA(bytes vm)",
+          "params": {
+            "vm": "<VAA bytes emitted in step 1>"
+          },
+          "description": "Attacker monitors the Wormhole network and extracts the signed VAA for Alice’s transfer. The VAA is valid (guardian signatures are correct).",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "completeTransfer(bytes vm)",
+          "params": {
+            "vm": "<VAA bytes from step 2>"
+          },
+          "description": "Attacker (address 0xATTACKER) calls completeTransfer with the legitimate VAA. The contract validates the signatures (valid == true) and proceeds to mint WrappedAsset to the recipient encoded in the VAA (Bob). No check that msg.sender equals payload.recipient, so the invariant msg.sender == payload.recipient is violated.",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedAsset",
+          "function": "transfer(address to, uint256 amount)",
+          "params": {
+            "to": "0xATTACKER",
+            "amount": "1000000000000000000"
+          },
+          "description": "After the mint, the attacker transfers the freshly minted WrappedAsset from Bob’s balance to his own address, extracting the value.",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202",
+        "poly_network_20210810"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Alice locks 1 ETH‑equivalent token on the source chain, specifying Bob (0xBBBB…) as the destination recipient. The bridge emits a VAA containing the recipient field."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker monitors the Wormhole network and extracts the signed VAA for Alice’s transfer. The VAA is valid (guardian signatures are correct)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker (address 0xATTACKER) calls completeTransfer with the legitimate VAA. The contract validates the signatures (valid == true) and proceeds to mint WrappedAsset to the recipient encoded in the VAA (Bob). No check that msg.sender equals payload.recipient, so the invariant msg.sender == payload.recipient is violated."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "After the mint, the attacker transfers the freshly minted WrappedAsset from Bob’s balance to his own address, extracting the value."
+        }
+      ]
+    },
+    {
+      "scenario_id": "wormhole_fee_omission_2024_01",
+      "target_invariant": "asset_conservation_fee_deduction",
+      "vulnerability_class": "key_compromise",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "Minter",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "User",
+            "amount": "1000e18"
+          },
+          "description": "Attacker, holding the compromised private key of the authorized minter address, calls the internal mint function to credit the user directly.",
+          "relay_mode": "faithful",
+          "state_predicate": "Minter.totalMinted[WrappedAsset] == previous_totalMinted + 1000e18",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "totalLocked()",
+          "params": {},
+          "description": "Read the bridge's accounting of assets locked on the source chain – it remains unchanged because no lock transaction occurred.",
+          "relay_mode": "faithful",
+          "state_predicate": "TokenBridge.totalLocked[WrappedAsset] == previous_totalLocked",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "feeCollected()",
+          "params": {},
+          "description": "Verify that the bridge's fee accumulator has not increased; the fee that should have been deducted is missing.",
+          "relay_mode": "faithful",
+          "state_predicate": "TokenBridge.feeCollected[WrappedAsset] == previous_feeCollected",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "ronin_20220323"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker, holding the compromised private key of the authorized minter address, calls the internal mint function to credit the user directly."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Read the bridge's accounting of assets locked on the source chain – it remains unchanged because no lock transaction occurred."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Verify that the bridge's fee accumulator has not increased; the fee that should have been deducted is missing."
+        }
+      ]
+    },
+    {
+      "scenario_id": "wormhole_replay_storage_collision_2024_06_22",
+      "target_invariant": "uniqueness_completed_flag_set_once",
+      "vulnerability_class": "storage_collision_reentrancy",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "destination",
+          "contract": "MaliciousWrapped",
+          "function": "constructor",
+          "params": {},
+          "mode": "faithful",
+          "description": "Deploy a malicious ERC20 token that will be registered as the wrapped asset for the source token.",
+          "waypoint": "TokenBridge.wrappedAsset[sourceToken] == address(MaliciousWrapped)",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "TokenBridge",
+          "function": "lockTransfer",
+          "params": {
+            "token": "0xSourceToken",
+            "amount": "1000",
+            "toChain": "destination",
+            "toAddress": "0xAttacker"
+          },
+          "mode": "faithful",
+          "description": "Attacker locks 1,000 source tokens, generating a VAA (hash H).",
+          "waypoint": "sourceBridge.totalLocked[0xSourceToken] == 1000",
+          "step": 2
+        },
+        {
+          "chain": "relay",
+          "contract": "WormholeCore",
+          "function": "publishVAA",
+          "params": {
+            "vaa": "0xVAA_bytes"
+          },
+          "mode": "faithful",
+          "description": "Guardian network publishes the VAA; the proof is marked valid.",
+          "waypoint": "WormholeCore.validVAA[0xVAA_hash] == true",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "completeTransfer",
+          "params": {
+            "vaa": "0xVAA_bytes"
+          },
+          "mode": "faithful",
+          "description": "First call to completeTransfer – passes replay check because completed[H] == false.",
+          "waypoint": "completed[0xVAA_hash] == false",
+          "step": 4
+        },
+        {
+          "chain": "destination",
+          "contract": "MaliciousWrapped",
+          "function": "mint",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "1000"
+          },
+          "mode": "tampered",
+          "description": "During TokenBridge.completeTransfer, the token's mint function is invoked. It uses assembly to write zero into the storage slot that holds completed[H], resetting the flag after TokenBridge sets it to true.",
+          "waypoint": "completed[0xVAA_hash] == true && storageSlot[completed_slot] == 0",
+          "step": 5
+        },
+        {
+          "chain": "relay",
+          "contract": "WormholeCore",
+          "function": "publishVAA",
+          "params": {
+            "vaa": "0xVAA_bytes"
+          },
+          "mode": "replay",
+          "description": "Attacker re‑submits the same VAA (replay mode) after the flag has been cleared by the malicious token.",
+          "waypoint": "completed[0xVAA_hash] == false",
+          "step": 6
+        },
+        {
+          "chain": "destination",
+          "contract": "TokenBridge",
+          "function": "completeTransfer",
+          "params": {
+            "vaa": "0xVAA_bytes"
+          },
+          "mode": "faithful",
+          "description": "Second call to completeTransfer succeeds because completed[H] is false again, minting another 1,000 wrapped tokens.",
+          "waypoint": "totalMinted[destination][WrappedAsset] == 2000 && completed[0xVAA_hash] == true",
+          "step": 7
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202",
+        "bnbbridge_20221007"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Deploy a malicious ERC20 token that will be registered as the wrapped asset for the source token."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker locks 1,000 source tokens, generating a VAA (hash H)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "relay.message_count > 0",
+          "description": "Guardian network publishes the VAA; the proof is marked valid."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "First call to completeTransfer – passes replay check because completed[H] == false."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "destRouter.totalMinted() >= 2000",
+          "description": "During TokenBridge.completeTransfer, the token's mint function is invoked. It uses assembly to write zero into the storage slot that holds completed[H], resetting the flag after TokenBridge sets it to true."
+        },
+        {
+          "waypoint_id": "w6",
+          "after_step": 6,
+          "predicate": "relay.message_count > 0",
+          "description": "Attacker re‑submits the same VAA (replay mode) after the flag has been cleared by the malicious token."
+        },
+        {
+          "waypoint_id": "w7",
+          "after_step": 7,
+          "predicate": "step_7_executed",
+          "description": "Second call to completeTransfer succeeds because completed[H] is false again, minting another 1,000 wrapped tokens."
+        }
+      ]
+    }
+  ]
+}

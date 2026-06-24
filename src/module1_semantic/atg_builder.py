@@ -25,6 +25,7 @@ The Rust side ignores unknown fields (``serde`` default), so existing
 binaries keep working without changes.
 """
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -96,6 +97,118 @@ def parse_condition(text: str | dict | Condition) -> Condition:
     return Condition(type="generic", params={"expression": s})
 
 
+# ---------------------------------------------------------- node normalization
+# LLM asset-flow extraction frequently fills ``src``/``dst`` with *function
+# parameter names* (``from``/``to``/``msg.sender``) or raw addresses rather than
+# actual entities, producing placeholder nodes and leaving real contracts
+# disconnected. We collapse these into a small set of canonical actor roles so
+# the graph reflects entity-level asset flow rather than parameter noise.
+_CALLER_ALIASES = {
+    "msg.sender", "msgsender", "sender", "caller", "tx.origin", "txorigin",
+    "from", "src", "source", "owner", "spender", "attacker", "user", "eoa",
+    "account", "payer", "holder",
+}
+_RECIPIENT_ALIASES = {
+    "to", "recipient", "receiver", "dst", "destination", "beneficiary", "payee",
+}
+_ZERO_RE = re.compile(r"^0x0+$")
+_ACTOR_TYPE = {"User": "user", "Recipient": "user", "ZeroAddress": "external"}
+
+
+def canonical_endpoint(name: Any) -> str:
+    """Map a parameter-name / address endpoint to a canonical actor, else keep it.
+
+    Real entity names (e.g. ``FEGSwap``, ``QBridgeETH``) are returned unchanged.
+    """
+    if not name:
+        return str(name or "")
+    raw = str(name).strip()
+    key = raw.lower()
+    for tok in ("(parameter)", "parameter"):
+        key = key.replace(tok, "")
+    key = key.strip().strip("_()").replace(" ", "")
+    if not key:
+        return raw
+    if _ZERO_RE.match(key) or key in {"address(0)", "zero", "zeroaddress", "null", "0x0"}:
+        return "ZeroAddress"
+    if key in _CALLER_ALIASES:
+        return "User"
+    if key in _RECIPIENT_ALIASES:
+        return "Recipient"
+    return raw
+
+
+def normalize_atg_dict(atg: dict) -> dict:
+    """Clean an ATG JSON dict in place: canonicalize endpoints, dedup nodes/edges.
+
+    Deterministic and LLM-free, so it is safe to apply both inside the pipeline
+    (``ATGBuilder.to_json``) and at visualization time. Idempotent.
+    """
+    # 1. canonicalize edge endpoints + sanitize null scalar fields.
+    #    The LLM occasionally emits explicit ``null`` for string fields (e.g.
+    #    ``"token": null``); the Rust fuzzer deserializes these as ``String``
+    #    (not ``Option<String>``) and panics on null. Coerce to safe defaults.
+    for e in atg.get("edges", []):
+        e["src"] = canonical_endpoint(e.get("src", ""))
+        e["dst"] = canonical_endpoint(e.get("dst", ""))
+        e["label"] = e.get("label") or "verify"
+        e["token"] = e.get("token") or "UNKNOWN"
+        e["function_signature"] = e.get("function_signature") or ""
+        if e.get("conditions") is None:
+            e["conditions"] = []
+
+    # 2. canonicalize + dedup nodes by node_id (keep the richest record)
+    merged: dict[str, dict] = {}
+    order: list[str] = []
+    for n in atg.get("nodes", []):
+        nid = canonical_endpoint(n.get("node_id", ""))
+        if not nid:
+            continue
+        node = {**n, "node_id": nid}
+        node["node_type"] = node.get("node_type") or "contract"
+        node["chain"] = node.get("chain") or "source"
+        node["address"] = node.get("address") or ""
+        if nid not in merged:
+            merged[nid] = node
+            order.append(nid)
+        else:
+            cur = merged[nid]
+            if not cur.get("address") and node.get("address"):
+                cur["address"] = node["address"]
+            if cur.get("chain") in (None, "", "unknown") and node.get("chain") not in (None, "", "unknown"):
+                cur["chain"] = node["chain"]
+
+    # 3. ensure every edge endpoint exists as a node
+    for e in atg.get("edges", []):
+        for ep in (e.get("src"), e.get("dst")):
+            if ep and ep not in merged:
+                merged[ep] = {
+                    "node_id": ep,
+                    "node_type": _ACTOR_TYPE.get(ep, "contract"),
+                    "chain": "external" if ep in _ACTOR_TYPE else "source",
+                    "address": "",
+                    "functions": [],
+                }
+                order.append(ep)
+    atg["nodes"] = [merged[k] for k in order]
+
+    # 4. drop exact-duplicate edges, reindex edge_id
+    seen: set = set()
+    deduped: list[dict] = []
+    idx = 1
+    for e in atg.get("edges", []):
+        sig = (e.get("src"), e.get("dst"), e.get("label"),
+               e.get("function_signature"), tuple(e.get("conditions") or []))
+        if sig in seen:
+            continue
+        seen.add(sig)
+        e["edge_id"] = f"e{idx}"
+        idx += 1
+        deduped.append(e)
+    atg["edges"] = deduped
+    return atg
+
+
 @dataclass
 class ATGNode:
     """A node in the Atomic Transfer Graph."""
@@ -122,17 +235,25 @@ class ATGEdge:
     conditions: list = field(default_factory=list)
     condition_objects: list[Condition] = field(default_factory=list)
 
-    def set_conditions(self, raw: list[Any] | None) -> None:
+    def set_conditions(self, raw: list[Any] | str | dict | None) -> None:
         """Populate both ``conditions`` (strings) and ``condition_objects`` from a mixed list.
 
         LLM responses sometimes return ``null`` for ``conditions`` when no
         conditions apply, which would otherwise crash the iteration. Treat
         ``None`` and missing-but-supplied values as an empty list.
+
+        They also sometimes return a single condition as a bare ``str`` (e.g.
+        ``"require(!processed(nonce))"``) or a single ``dict`` instead of a
+        one-element list. Iterating a bare string yields individual characters,
+        producing one bogus condition per character; coerce such scalars into a
+        single-element list first.
         """
         if not raw:
             self.condition_objects = []
             self.conditions = []
             return
+        if isinstance(raw, (str, dict)):
+            raw = [raw]
         typed = [parse_condition(c) for c in raw]
         self.condition_objects = typed
         self.conditions = [c.to_string() for c in typed]
@@ -179,8 +300,8 @@ class ATGBuilder:
                 src=src,
                 dst=dst,
                 label=label,
-                token=flow.get("token", "UNKNOWN"),
-                function_signature=flow.get("function_signature", self._guess_signature(label, functions)),
+                token=flow.get("token") or "UNKNOWN",
+                function_signature=flow.get("function_signature") or self._guess_signature(label, functions),
             )
             edge.set_conditions(flow.get("conditions", []))
             atg.edges.append(edge)
@@ -205,8 +326,8 @@ class ATGBuilder:
         return atg
 
     def to_json(self, atg: ATG) -> dict:
-        """Serialize ATG to JSON-compatible dict."""
-        return {
+        """Serialize ATG to JSON-compatible dict (normalized: deduped + canonical actors)."""
+        result = {
             "bridge_name": "unknown_bridge",
             "version": "1.0",
             "nodes": [
@@ -236,6 +357,7 @@ class ATGBuilder:
             ],
             "invariants": atg.invariants,
         }
+        return normalize_atg_dict(result)
 
     def from_json(self, data: dict) -> ATG:
         """Deserialize ATG from JSON dict.

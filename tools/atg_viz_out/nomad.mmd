@@ -1,0 +1,10 @@
+%% ATG nomad
+flowchart LR
+  n_BridgeRouter["BridgeRouter"]
+  n_Replica["Replica"]
+  n_MockToken["MockToken"]
+  n_User["User"]
+  n_NomadMessage["NomadMessage"]
+  n_ZeroAddress["ZeroAddress"]
+  n_BridgeRouter -- "mint" --> n_User
+  n_ZeroAddress -- "mint" --> n_User

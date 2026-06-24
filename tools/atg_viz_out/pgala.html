@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="utf-8"><title>ATG — pgala</title>
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<style>
+ body{font-family:system-ui,Segoe UI,Arial;margin:0;background:#fafafa}
+ #hdr{padding:10px 16px;background:#263238;color:#fff}
+ #hdr b{font-size:18px} #hdr span{opacity:.8;font-size:13px;margin-left:10px}
+ #net{width:100vw;height:calc(100vh - 110px);border-top:1px solid #ccc}
+ #legend{padding:6px 16px;font-size:12px;background:#eceff1}
+ .chip{display:inline-block;padding:2px 8px;border-radius:10px;color:#fff;margin-right:6px}
+</style></head><body>
+<div id="hdr"><b>ATG — pgala</b>
+ <span>5 nodes · 2 edges · 21 invariants — kéo để di chuyển, lăn chuột để zoom, rê chuột vào cạnh để xem guard</span></div>
+<div id="legend">
+ <span class="chip" style="background:#4f86c6">contract</span>
+ <span class="chip" style="background:#e8a33d">user/eoa</span>
+ <span class="chip" style="background:#7d5ba6">relay</span>
+ <span class="chip" style="background:#3aa66f">token</span>
+ <span class="chip" style="background:#2e7d32">lock/mint</span>
+ <span class="chip" style="background:#b71c1c">withdraw/burn</span>
+</div>
+<div id="net"></div>
+<script>
+ const nodes=new vis.DataSet([{"id": "LegacyCustodian", "label": "LegacyCustodian", "group": "destination", "color": "#4f86c6", "title": "LegacyCustodian\\ntype: contract\\nchain: destination"}, {"id": "pGALAToken", "label": "pGALAToken", "group": "destination", "color": "#3aa66f", "title": "pGALAToken\\ntype: token\\nchain: destination"}, {"id": "User", "label": "User", "group": "destination", "color": "#90a4ae", "title": "User\\ntype: actor\\nchain: destination"}, {"id": "LegacySigner", "label": "LegacySigner", "group": "offchain", "color": "#90a4ae", "title": "LegacySigner\\ntype: actor\\nchain: offchain"}, {"id": "Custodian", "label": "Custodian", "group": "destination", "color": "#90a4ae", "title": "Custodian\\ntype: actor\\nchain: destination"}]);
+ const edges=new vis.DataSet([{"from": "LegacyCustodian", "to": "User", "label": "mint", "color": "#1565c0", "title": "label: mint\\nfn: mint(address,uint256)\\ntoken: pGALAToken\\nguard: require(!used[nonce]) ; require(recovered == signer)", "arrows": "to"}, {"from": "Custodian", "to": "User", "label": "mint", "color": "#1565c0", "title": "label: mint\\nfn: mint(address,uint256)\\ntoken: pGALA", "arrows": "to"}]);
+ new vis.Network(document.getElementById('net'),{nodes,edges},{
+   nodes:{shape:'box',font:{color:'#fff',size:14},margin:8,borderWidth:0},
+   edges:{font:{size:12,align:'middle',background:'#fff'},smooth:{type:'cubicBezier'}},
+   physics:{stabilization:true,barnesHut:{springLength:160}},
+   layout:{improvedLayout:true}
+ });
+</script></body></html>

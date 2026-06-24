@@ -1,8 +1,8 @@
 {
   "benchmark": "harmony",
   "artifacts": {
-    "atg": "results/harmony_llm/atg.json",
-    "hypotheses": "results/harmony_llm/hypotheses.json"
+    "atg": "results\\harmony_regen\\atg.json",
+    "hypotheses": "results\\harmony_regen\\hypotheses.json"
   },
   "module1": {
     "contracts_processed": 3,

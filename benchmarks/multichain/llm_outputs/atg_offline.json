@@ -1,0 +1,116 @@
+{
+  "bridge_name": "multichain",
+  "version": "1.0",
+  "nodes": [
+    {
+      "node_id": "User",
+      "node_type": "user",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "multichainanycallv6",
+      "node_type": "contract",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "verified",
+      "node_type": "contract",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "is",
+      "node_type": "contract",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "wrappedtoken",
+      "node_type": "contract",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    },
+    {
+      "node_id": "bridge",
+      "node_type": "contract",
+      "chain": "source",
+      "address": "",
+      "functions": []
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "e1",
+      "src": "User",
+      "dst": "bridge",
+      "label": "lock",
+      "token": "UNKNOWN",
+      "conditions": [],
+      "condition_objects": [],
+      "function_signature": "lock(address token,uint256 amount,uint16 destChainId)"
+    },
+    {
+      "edge_id": "e2",
+      "src": "bridge",
+      "dst": "User",
+      "label": "unlock",
+      "token": "UNKNOWN",
+      "conditions": [],
+      "condition_objects": [],
+      "function_signature": ""
+    }
+  ],
+  "invariants": [
+    {
+      "invariant_id": "inv_asset_conservation",
+      "category": "asset_conservation",
+      "description": "Locked value (minus fee) should match minted/unlocked value.",
+      "predicate": "sum(locked) - fee == sum(minted_or_unlocked)",
+      "solidity_assertion": "assert(totalLocked() >= totalMinted() + totalUnlocked());",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "inv_authorization",
+      "category": "authorization",
+      "description": "Mint/unlock requires valid prior source-chain lock and proof verification.",
+      "predicate": "mint_or_unlock -> exists(valid_lock && verified_message)",
+      "solidity_assertion": "require(isVerified(messageHash) && lockExists(nonce), 'unauthorized mint/unlock');",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "inv_uniqueness",
+      "category": "uniqueness",
+      "description": "Each deposit/nonce can be consumed at most once.",
+      "predicate": "processed[nonce] == false before consume",
+      "solidity_assertion": "require(!processed[nonce], 'replay');",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "inv_timeliness",
+      "category": "timeliness",
+      "description": "Locked assets become refundable after timeout if destination action not finalized.",
+      "predicate": "expired(timeout) && !finalized -> refundable",
+      "solidity_assertion": "require(block.timestamp >= lockTime + timeout, 'too early');",
+      "related_edges": [
+        "e1",
+        "e2"
+      ]
+    }
+  ]
+}

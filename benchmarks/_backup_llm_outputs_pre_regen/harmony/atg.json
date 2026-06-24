@@ -1,0 +1,393 @@
+{
+  "bridge_name": "harmony",
+  "version": "1.0",
+  "nodes": [
+    {
+      "node_id": "EthBucket",
+      "node_type": "contract",
+      "chain": "Ethereum",
+      "address": "deployed_address",
+      "functions": []
+    },
+    {
+      "node_id": "WrappedToken",
+      "node_type": "token",
+      "chain": "Ethereum",
+      "address": "external_token_address",
+      "functions": []
+    },
+    {
+      "node_id": "HorizonEthManager",
+      "node_type": "contract",
+      "chain": "Ethereum",
+      "address": "0x<manager_address_placeholder>",
+      "functions": []
+    },
+    {
+      "node_id": "EthBucket",
+      "node_type": "contract",
+      "chain": "Ethereum",
+      "address": "0x<bucket_address_placeholder>",
+      "functions": []
+    },
+    {
+      "node_id": "Token",
+      "node_type": "token",
+      "chain": "Ethereum",
+      "address": "0x<token_address_placeholder>",
+      "functions": []
+    },
+    {
+      "node_id": "SignerSet",
+      "node_type": "signer_set",
+      "chain": "Ethereum",
+      "address": "0x<signer_set_placeholder>",
+      "functions": []
+    },
+    {
+      "node_id": "WrappedToken",
+      "node_type": "token",
+      "chain": "Ethereum",
+      "address": "",
+      "functions": []
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "e1",
+      "src": "from",
+      "dst": "EthBucket",
+      "label": "lock",
+      "token": "token",
+      "conditions": [
+        "msg.sender == manager"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "msg.sender == manager"
+          }
+        }
+      ],
+      "function_signature": "deposit(address token, address from, uint256 amount)"
+    },
+    {
+      "edge_id": "e2",
+      "src": "EthBucket",
+      "dst": "recipient",
+      "label": "unlock",
+      "token": "token",
+      "conditions": [
+        "msg.sender == manager",
+        "totalLocked[token] >= amount"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "msg.sender == manager"
+          }
+        },
+        {
+          "type": "balance",
+          "params": {
+            "expression": "totalLocked[token] >= amount"
+          }
+        }
+      ],
+      "function_signature": "release(address token, address recipient, uint256 amount)"
+    },
+    {
+      "edge_id": "e3",
+      "src": "msg.sender (depositor)",
+      "dst": "EthBucket (custody pool)",
+      "label": "deposit",
+      "token": "token (parameter)",
+      "conditions": [],
+      "condition_objects": [],
+      "function_signature": "lock(address,uint256)"
+    },
+    {
+      "edge_id": "e4",
+      "src": "EthBucket (custody pool)",
+      "dst": "recipient (address)",
+      "label": "withdraw",
+      "token": "token (parameter)",
+      "conditions": [
+        "msg.sender == address(this) (must be called via MockMultisig.execute)",
+        "bucket.onlyManager guard (only manager can trigger release)"
+      ],
+      "condition_objects": [
+        {
+          "type": "generic",
+          "params": {
+            "expression": "msg.sender == address(this) (must be called via MockMultisig.execute)"
+          }
+        },
+        {
+          "type": "generic",
+          "params": {
+            "expression": "bucket.onlyManager guard (only manager can trigger release)"
+          }
+        }
+      ],
+      "function_signature": "unlock(address,address,uint256)"
+    },
+    {
+      "edge_id": "e5",
+      "src": "caller",
+      "dst": "WrappedToken",
+      "label": "mint",
+      "token": "WrappedToken",
+      "conditions": [],
+      "condition_objects": [],
+      "function_signature": "mint(address,uint256)"
+    },
+    {
+      "edge_id": "e6",
+      "src": "msg.sender",
+      "dst": "to",
+      "label": "transfer",
+      "token": "WrappedToken",
+      "conditions": [
+        "require(balanceOf[msg.sender] >= amount)"
+      ],
+      "condition_objects": [
+        {
+          "type": "balance",
+          "params": {
+            "expression": "require(balanceOf[msg.sender] >= amount)"
+          }
+        }
+      ],
+      "function_signature": "transfer(address,uint256)"
+    },
+    {
+      "edge_id": "e7",
+      "src": "from",
+      "dst": "to",
+      "label": "transfer",
+      "token": "WrappedToken",
+      "conditions": [
+        "require(allowance[from][msg.sender] >= amount)",
+        "require(balanceOf[from] >= amount)"
+      ],
+      "condition_objects": [
+        {
+          "type": "balance",
+          "params": {
+            "expression": "require(allowance[from][msg.sender] >= amount)"
+          }
+        },
+        {
+          "type": "balance",
+          "params": {
+            "expression": "require(balanceOf[from] >= amount)"
+          }
+        }
+      ],
+      "function_signature": "transferFrom(address,address,uint256)"
+    }
+  ],
+  "invariants": [
+    {
+      "invariant_id": "asset_conservation_total_locked_equals_minted",
+      "category": "asset_conservation",
+      "description": "For every supported token the amount locked in the Ethereum bucket must equal the amount of wrapped tokens minted on the destination chain minus accumulated fees.",
+      "predicate": "totalLocked[token] == mintedWrapped[token] - feesCollected[token]",
+      "solidity_assertion": "assert(totalLocked[_token] == mintedWrapped[_token] - feesCollected[_token]);",
+      "related_edges": [
+        "e1",
+        "e5",
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_no_negative_balance",
+      "category": "asset_conservation",
+      "description": "No account may hold a negative balance of the wrapped token.",
+      "predicate": "balanceOf[account] >= 0",
+      "solidity_assertion": "assert(balanceOf[_account] >= 0);",
+      "related_edges": [
+        "e6",
+        "e7"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_unlock_not_exceed_locked",
+      "category": "asset_conservation",
+      "description": "An unlock (release) operation cannot withdraw more than the currently locked amount for the token.",
+      "predicate": "amount <= totalLocked[token]",
+      "solidity_assertion": "require(amount <= totalLocked[_token], \"Unlock exceeds locked amount\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_mint_only_after_lock",
+      "category": "asset_conservation",
+      "description": "Wrapped tokens may be minted only after a corresponding lock event has been recorded for the same deposit identifier.",
+      "predicate": "lockRecorded[depositId] == true => mintedWrappedForDeposit[depositId] == amount",
+      "solidity_assertion": "require(lockRecorded[_depositId], \"Lock not recorded for mint\");",
+      "related_edges": [
+        "e1",
+        "e5"
+      ]
+    },
+    {
+      "invariant_id": "asset_conservation_refund_preserves_total",
+      "category": "asset_conservation",
+      "description": "When a deposit is refunded after timeout, the total locked amount decreases exactly by the refunded amount.",
+      "predicate": "totalLocked[token] == totalLockedBefore - refundedAmount",
+      "solidity_assertion": "assert(totalLocked[_token] == totalLockedBefore - _refundedAmount);",
+      "related_edges": [
+        "e3",
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "authorization_only_manager_can_unlock",
+      "category": "authorization",
+      "description": "Only the designated manager contract may invoke the unlock (release) function.",
+      "predicate": "msg.sender == manager",
+      "solidity_assertion": "require(msg.sender == manager, \"Caller is not manager\");",
+      "related_edges": [
+        "e2",
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "authorization_mint_requires_valid_signature",
+      "category": "authorization",
+      "description": "Minting of wrapped tokens must be authorized by a quorum of signers whose signatures verify the deposit hash.",
+      "predicate": "isValidSignature(depositHash, signatures) == true",
+      "solidity_assertion": "require(isValidSignature(_depositHash, _signatures), \"Invalid mint signature\");",
+      "related_edges": [
+        "e5"
+      ]
+    },
+    {
+      "invariant_id": "authorization_release_requires_relay_verified",
+      "category": "authorization",
+      "description": "A release (unlock) can be executed only after the off‑chain relay has been marked as verified for the deposit.",
+      "predicate": "relayVerified[depositId] == true",
+      "solidity_assertion": "require(relayVerified[_depositId], \"Relay not verified\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "authorization_transfer_requires_sufficient_balance",
+      "category": "authorization",
+      "description": "Direct transfer of wrapped tokens must check that the sender’s balance covers the amount.",
+      "predicate": "balanceOf[msg.sender] >= amount",
+      "solidity_assertion": "require(balanceOf[msg.sender] >= amount, \"Insufficient balance\");",
+      "related_edges": [
+        "e6"
+      ]
+    },
+    {
+      "invariant_id": "authorization_transferfrom_requires_allowance",
+      "category": "authorization",
+      "description": "transferFrom must ensure the caller is allowed to spend at least the requested amount on behalf of the source address.",
+      "predicate": "allowance[from][msg.sender] >= amount",
+      "solidity_assertion": "require(allowance[_from][msg.sender] >= amount, \"Allowance too low\");",
+      "related_edges": [
+        "e7"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_nonce_processed_once",
+      "category": "uniqueness",
+      "description": "Each deposit nonce can be processed only a single time to prevent replay attacks.",
+      "predicate": "!processedNonce[nonce]",
+      "solidity_assertion": "require(!processedNonce[_nonce], \"Nonce already processed\");",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_depositid_unique",
+      "category": "uniqueness",
+      "description": "A deposit identifier must not be used for more than one mint operation.",
+      "predicate": "!minted[depositId]",
+      "solidity_assertion": "require(!minted[_depositId], \"Deposit already minted\");",
+      "related_edges": [
+        "e5"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_release_processed_once",
+      "category": "uniqueness",
+      "description": "A release (unlock) for a given deposit identifier may be executed only once.",
+      "predicate": "!released[depositId]",
+      "solidity_assertion": "require(!released[_depositId], \"Release already executed\");",
+      "related_edges": [
+        "e2"
+      ]
+    },
+    {
+      "invariant_id": "uniqueness_mint_unique_per_deposit",
+      "category": "uniqueness",
+      "description": "The mint function must not mint more than once for the same deposit hash.",
+      "predicate": "mintedAmount[depositHash] == 0",
+      "solidity_assertion": "require(mintedAmount[_depositHash] == 0, \"Mint already performed for this deposit\");",
+      "related_edges": [
+        "e5"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_refund_after_timeout",
+      "category": "timeliness",
+      "description": "A depositor may claim a refund only after the lock timestamp plus the configured timeout has elapsed.",
+      "predicate": "block.timestamp >= lockTimestamp[depositId] + TIMEOUT",
+      "solidity_assertion": "require(block.timestamp >= lockTimestamp[_depositId] + TIMEOUT, \"Timeout not reached for refund\");",
+      "related_edges": [
+        "e3",
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_cannot_mint_after_timeout",
+      "category": "timeliness",
+      "description": "Minting of wrapped tokens is prohibited once the lock timeout has passed; the deposit must be refunded instead.",
+      "predicate": "block.timestamp <= lockTimestamp[depositId] + TIMEOUT",
+      "solidity_assertion": "require(block.timestamp <= lockTimestamp[_depositId] + TIMEOUT, \"Deposit timed out, cannot mint\");",
+      "related_edges": [
+        "e5"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_manager_can_force_release_after_timeout",
+      "category": "timeliness",
+      "description": "The manager may force an unlock after timeout to return assets to the original sender.",
+      "predicate": "msg.sender == manager && block.timestamp >= lockTimestamp[depositId] + TIMEOUT",
+      "solidity_assertion": "require(msg.sender == manager && block.timestamp >= lockTimestamp[_depositId] + TIMEOUT, \"Manager cannot force release before timeout\");",
+      "related_edges": [
+        "e2",
+        "e4"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_prevent_replay_after_timeout",
+      "category": "timeliness",
+      "description": "A nonce that has been processed remains marked as used even after timeout, preventing any later replay.",
+      "predicate": "processedNonce[nonce] == true => block.timestamp > lockTimestamp[depositId] + TIMEOUT",
+      "solidity_assertion": "assert(processedNonce[_nonce] == true); // nonce stays consumed after timeout",
+      "related_edges": [
+        "e1"
+      ]
+    },
+    {
+      "invariant_id": "timeliness_unlock_cannot_exceed_timeout_window",
+      "category": "timeliness",
+      "description": "If a release is attempted before the timeout, it must be authorized by the manager; otherwise it must be a forced release after timeout.",
+      "predicate": "(block.timestamp < lockTimestamp[depositId] + TIMEOUT) ? (msg.sender == manager) : true",
+      "solidity_assertion": "if (block.timestamp < lockTimestamp[_depositId] + TIMEOUT) { require(msg.sender == manager, \"Only manager can release before timeout\"); }",
+      "related_edges": [
+        "e2"
+      ]
+    }
+  ]
+}

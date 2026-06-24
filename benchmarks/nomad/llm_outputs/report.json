@@ -1,13 +1,13 @@
 {
   "benchmark": "nomad",
   "artifacts": {
-    "atg": "results/nomad_llm/atg.json",
-    "hypotheses": "results/nomad_llm/hypotheses.json"
+    "atg": "results\\nomad_regen\\atg.json",
+    "hypotheses": "results\\nomad_regen\\hypotheses.json"
   },
   "module1": {
     "contracts_processed": 4,
     "entities": 6,
-    "edges": 3,
+    "edges": 2,
     "invariants": 18
   },
   "module2": {

@@ -136,7 +136,7 @@ cat > "$OUTPUT_FILE" <<EOF
     "wall_clock_s": $ELAPSED,
     "exit_status": "$([[ $EXIT_CODE -eq 0 ]] && echo ok || echo exit_${EXIT_CODE})"
   },
-  "stderr_excerpt": "$(tail -20 "$RAW_LOG" 2>/dev/null | sed 's/"/\\"/g' | tr '\n' '|' | head -c 1000)",
+  "stderr_excerpt": "$(tail -20 "$RAW_LOG" 2>/dev/null | sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g' | sed 's/"/\\"/g' | tr '\n' '|' | head -c 1000)",
   "raw_output_path": "$RAW_LOG"
 }
 EOF

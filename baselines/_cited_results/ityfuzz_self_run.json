@@ -1,0 +1,158 @@
+{
+  "tool": "ityfuzz",
+  "tool_type": "stateful_evm_fuzzer_self_run",
+  "source": "Self-run ItyFuzz (fuzzland/ityfuzz, commit 80e3b44170...) against the 12 benchmark suite via baselines/ityfuzz/adapter.sh onchain mode.",
+  "doi_or_url": "Shou et al., ItyFuzz, ISSTA 2023 \u2014 arxiv 2306.17135",
+  "extraction_date": "2026-06-07",
+  "methodology_note": "Onchain mode: forks at metadata fork_block_number, fetches ABI via Etherscan. Default detectors = high_confidence. Budget 660s per run (paper convention). Detected if any oracle/objective triggered (grep heuristic on fuzzer log).",
+  "detection_summary": {
+    "detected_bridges": 0,
+    "total_bridges": 12
+  },
+  "results": {
+    "nomad": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": null,
+      "wall_clock_s_mean": 660.0,
+      "mean_instruction_cov_pct": 36.38333333333333,
+      "mean_branch_cov_pct": 36.11333333333334,
+      "objectives_top": {},
+      "note": "ItyFuzz onchain mode on 20 runs \u00d7 660s budget; 0 runs triggered oracle"
+    },
+    "qubit": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": null,
+      "wall_clock_s_mean": 2.55,
+      "mean_instruction_cov_pct": null,
+      "mean_branch_cov_pct": null,
+      "objectives_top": {},
+      "note": "ItyFuzz onchain mode on 20 runs \u00d7 660s budget; 0 runs triggered oracle"
+    },
+    "pgala": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": null,
+      "wall_clock_s_mean": 660.0,
+      "mean_instruction_cov_pct": 52.55764285714286,
+      "mean_branch_cov_pct": 47.42214285714286,
+      "objectives_top": {},
+      "note": "ItyFuzz onchain mode on 20 runs \u00d7 660s budget; 0 runs triggered oracle"
+    },
+    "polynetwork": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": null,
+      "wall_clock_s_mean": 660.0,
+      "mean_instruction_cov_pct": 34.924375,
+      "mean_branch_cov_pct": 31.213124999999998,
+      "objectives_top": {},
+      "note": "ItyFuzz onchain mode on 20 runs \u00d7 660s budget; 0 runs triggered oracle"
+    },
+    "wormhole": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": null,
+      "wall_clock_s_mean": 660.05,
+      "mean_instruction_cov_pct": 26.1365,
+      "mean_branch_cov_pct": 31.129749999999998,
+      "objectives_top": {},
+      "note": "ItyFuzz onchain mode on 20 runs \u00d7 660s budget; 0 runs triggered oracle"
+    },
+    "socket": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": null,
+      "wall_clock_s_mean": 660.0,
+      "mean_instruction_cov_pct": 5.082327586206897,
+      "mean_branch_cov_pct": 8.60471264367816,
+      "objectives_top": {},
+      "note": "ItyFuzz onchain mode on 20 runs \u00d7 660s budget; 0 runs triggered oracle"
+    },
+    "ronin": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": null,
+      "wall_clock_s_mean": 2.7,
+      "mean_instruction_cov_pct": null,
+      "mean_branch_cov_pct": null,
+      "objectives_top": {},
+      "note": "ItyFuzz onchain mode on 20 runs \u00d7 660s budget; 0 runs triggered oracle"
+    },
+    "harmony": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": null,
+      "wall_clock_s_mean": 660.0,
+      "mean_instruction_cov_pct": 53.58,
+      "mean_branch_cov_pct": 51.22,
+      "objectives_top": {},
+      "note": "ItyFuzz onchain mode on 20 runs \u00d7 660s budget; 0 runs triggered oracle"
+    },
+    "multichain": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": null,
+      "wall_clock_s_mean": 660.0,
+      "mean_instruction_cov_pct": 43.450208333333336,
+      "mean_branch_cov_pct": 39.763958333333335,
+      "objectives_top": {},
+      "note": "ItyFuzz onchain mode on 20 runs \u00d7 660s budget; 0 runs triggered oracle"
+    },
+    "orbit": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": null,
+      "wall_clock_s_mean": 660.0,
+      "mean_instruction_cov_pct": 30.61475,
+      "mean_branch_cov_pct": 27.3535,
+      "objectives_top": {},
+      "note": "ItyFuzz onchain mode on 20 runs \u00d7 660s budget; 0 runs triggered oracle"
+    },
+    "fegtoken": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": null,
+      "wall_clock_s_mean": 2.6,
+      "mean_instruction_cov_pct": null,
+      "mean_branch_cov_pct": null,
+      "objectives_top": {},
+      "note": "ItyFuzz onchain mode on 20 runs \u00d7 660s budget; 0 runs triggered oracle"
+    },
+    "gempad": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": null,
+      "wall_clock_s_mean": 0.3,
+      "mean_instruction_cov_pct": null,
+      "mean_branch_cov_pct": null,
+      "objectives_top": {},
+      "note": "ItyFuzz onchain mode on 20 runs \u00d7 660s budget; 0 runs triggered oracle"
+    }
+  }
+}

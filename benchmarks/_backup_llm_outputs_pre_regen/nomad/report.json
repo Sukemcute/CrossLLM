@@ -1,0 +1,21 @@
+{
+  "benchmark": "nomad",
+  "artifacts": {
+    "atg": "results/nomad_llm/atg.json",
+    "hypotheses": "results/nomad_llm/hypotheses.json"
+  },
+  "module1": {
+    "contracts_processed": 4,
+    "entities": 6,
+    "edges": 3,
+    "invariants": 18
+  },
+  "module2": {
+    "scenarios": 18
+  },
+  "module3": {
+    "runs_attempted": 0,
+    "runs_completed": 0,
+    "violations_total": 0
+  }
+}

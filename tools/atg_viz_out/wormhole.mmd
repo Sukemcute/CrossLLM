@@ -1,0 +1,9 @@
+%% ATG wormhole
+flowchart LR
+  n_TokenBridge["TokenBridge"]
+  n_WormholeCore["WormholeCore"]
+  n_WrappedAsset["WrappedAsset"]
+  n_User["User"]
+  n_Minter["Minter"]
+  n_TokenBridge -- "mint" --> n_User
+  n_Minter -- "mint" --> n_User

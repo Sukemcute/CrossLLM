@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="utf-8"><title>ATG — fegtoken</title>
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<style>
+ body{font-family:system-ui,Segoe UI,Arial;margin:0;background:#fafafa}
+ #hdr{padding:10px 16px;background:#263238;color:#fff}
+ #hdr b{font-size:18px} #hdr span{opacity:.8;font-size:13px;margin-left:10px}
+ #net{width:100vw;height:calc(100vh - 110px);border-top:1px solid #ccc}
+ #legend{padding:6px 16px;font-size:12px;background:#eceff1}
+ .chip{display:inline-block;padding:2px 8px;border-radius:10px;color:#fff;margin-right:6px}
+</style></head><body>
+<div id="hdr"><b>ATG — fegtoken</b>
+ <span>9 nodes · 8 edges · 17 invariants — kéo để di chuyển, lăn chuột để zoom, rê chuột vào cạnh để xem guard</span></div>
+<div id="legend">
+ <span class="chip" style="background:#4f86c6">contract</span>
+ <span class="chip" style="background:#e8a33d">user/eoa</span>
+ <span class="chip" style="background:#7d5ba6">relay</span>
+ <span class="chip" style="background:#3aa66f">token</span>
+ <span class="chip" style="background:#2e7d32">lock/mint</span>
+ <span class="chip" style="background:#b71c1c">withdraw/burn</span>
+</div>
+<div id="net"></div>
+<script>
+ const nodes=new vis.DataSet([{"id": "FEGSwap", "label": "FEGSwap", "group": "source", "color": "#90a4ae", "title": "FEGSwap\\ntype: router\\nchain: source"}, {"id": "FEGToken", "label": "FEGToken", "group": "source", "color": "#3aa66f", "title": "FEGToken\\ntype: token\\nchain: source"}, {"id": "MockToken", "label": "MockToken", "group": "source", "color": "#3aa66f", "title": "MockToken\\ntype: token\\nchain: source"}, {"id": "UserFrom", "label": "UserFrom", "group": "source", "color": "#90a4ae", "title": "UserFrom\\ntype: actor\\nchain: source"}, {"id": "UserTo", "label": "UserTo", "group": "source", "color": "#90a4ae", "title": "UserTo\\ntype: actor\\nchain: source"}, {"id": "Migrator", "label": "Migrator", "group": "source", "color": "#90a4ae", "title": "Migrator\\ntype: actor\\nchain: source"}, {"id": "User", "label": "User", "group": "source", "color": "#90a4ae", "title": "User\\ntype: actor\\nchain: source"}, {"id": "FlashLoanProvider", "label": "FlashLoanProvider", "group": "source", "color": "#4f86c6", "title": "FlashLoanProvider\\ntype: contract\\nchain: source"}, {"id": "ZeroAddress", "label": "ZeroAddress", "group": "source", "color": "#90a4ae", "title": "ZeroAddress\\ntype: system\\nchain: source"}]);
+ const edges=new vis.DataSet([{"from": "UserFrom", "to": "UserTo", "label": "transfer", "color": "#455a64", "title": "label: transfer\\nfn: transferFrom(address,address,uint256)\\ntoken: MockToken\\nguard: msg.sender == feg.migrator()", "arrows": "to"}, {"from": "FEGToken", "to": "User", "label": "mint", "color": "#1565c0", "title": "label: mint\\nfn: mint(address,uint256)\\ntoken: FEG", "arrows": "to"}, {"from": "User", "to": "User", "label": "transfer", "color": "#455a64", "title": "label: transfer\\nfn: transfer(address,uint256)\\ntoken: FEG\\nguard: balanceOf[msg.sender] >= amount", "arrows": "to"}, {"from": "User", "to": "User", "label": "transferFrom", "color": "#78909c", "title": "label: transferFrom\\nfn: transferFrom(address,address,uint256)\\ntoken: FEG\\nguard: allowance[from][msg.sender] >= amount ; balanceOf[from] >= amount", "arrows": "to"}, {"from": "FlashLoanProvider", "to": "User", "label": "withdraw", "color": "#b71c1c", "title": "label: withdraw\\nfn: flashLoan(uint256,bytes)\\ntoken: FEGToken\\nguard: balanceBefore >= amount", "arrows": "to"}, {"from": "User", "to": "FlashLoanProvider", "label": "repay", "color": "#78909c", "title": "label: repay\\nfn: flashLoan(uint256,bytes)\\ntoken: FEGToken\\nguard: feg.balanceOf(address(this)) >= balanceBefore", "arrows": "to"}, {"from": "ZeroAddress", "to": "User", "label": "mint", "color": "#1565c0", "title": "label: mint\\nfn: mint(address,uint256)\\ntoken: MockToken", "arrows": "to"}, {"from": "User", "to": "User", "label": "transfer", "color": "#455a64", "title": "label: transfer\\nfn: transferFrom(address,address,uint256)\\ntoken: MockToken\\nguard: allowance[from][msg.sender] >= amount ; balanceOf[from] >= amount", "arrows": "to"}]);
+ new vis.Network(document.getElementById('net'),{nodes,edges},{
+   nodes:{shape:'box',font:{color:'#fff',size:14},margin:8,borderWidth:0},
+   edges:{font:{size:12,align:'middle',background:'#fff'},smooth:{type:'cubicBezier'}},
+   physics:{stabilization:true,barnesHut:{springLength:160}},
+   layout:{improvedLayout:true}
+ });
+</script></body></html>

@@ -345,6 +345,59 @@ helper chứ không phải benchmark). Convention: thư mục con của
 
 ---
 
+## Harness contracts trong ATG (MockToken, MockMultisig) — vì sao xuất hiện
+
+> Đọc khi thấy node lạ như `MockToken` / `MockMultisig` trong đồ thị ATG
+> (`tools/atg_viz_out/*.html`) hoặc trong `llm_outputs/atg.json`.
+
+Mỗi benchmark là một **bản tái dựng tự-chứa (self-contained)** của vụ hack để
+chạy offline mà không cần OpenZeppelin / mainnet. Vì vậy contracts/ thường có
+các hợp đồng **harness** đứng thay cho thành phần thật:
+
+| Harness | Thay cho | Hàm tiêu biểu |
+|---|---|---|
+| `MockToken.sol` | token dự án bị khóa/đúc (LP token, stablecoin pegged...) | `mint`, `approve`, `transfer`, `transferFrom` |
+| `_shared/MockMultisig.sol` | validator set K-of-N (Ronin/Harmony/Orbit/Multichain) | `submit`, `confirm`, ECDSA threshold |
+
+### Vì sao chúng lọt vào ATG
+- `slither_parser.py` (đường Tier-1 offline) **CÓ** bộ lọc `_skip_contract()` bỏ
+  contract tên chứa `test/mock/fake/harness` ([slither_parser.py:109](../src/module1_semantic/slither_parser.py#L109)).
+- **Đường LLM extraction (`extractor.py`, Tier-2) KHÔNG áp dụng bộ lọc này** →
+  khi chạy pipeline ở chế độ LLM, harness contract được đẩy thẳng cho LLM và
+  **xuất hiện trong ATG**. Đây là điểm bất nhất giữa 2 đường trích xuất.
+
+### Quyết định: GIỮ harness node trong ATG (không lọc)
+Lý do: với một số benchmark, **hành vi của token harness CHÍNH là vector tấn
+công**, không phải scaffolding vô nghĩa:
+- **gempad**: exploit = *"deploy ERC20 mà `transferFrom` luôn trả `true` nhưng
+  không trừ balance → gọi `lock`; locker tin giá trị trả về → đúc token ở đích
+  dù nguồn không thực sự bị khóa"*. Token độc hại là trung tâm của bug.
+- **fegtoken**: tương tự, kết hợp flash-loan + `swapToSwap` migrator-role.
+
+→ Lọc bỏ MockToken sẽ **mất** biểu diễn token-attack ở các ca này. Vì vậy
+convention hiện tại là **giữ** node harness. Các cạnh ERC20 generic
+(`mint`/`transfer`/`transferFrom`) ở những benchmark mà token chỉ là scaffolding
+(nomad, ronin...) là **nhiễu chấp nhận được** — phản ánh đúng nhận định
+"ATG node count phản ánh entity contract, không phải exploit complexity"
+(paper §6 Limitations).
+
+### Cách đọc node trong đồ thị ATG (sau chuẩn hóa)
+`normalize_atg_dict()` trong [atg_builder.py](../src/module1_semantic/atg_builder.py)
+dedup node + gom các endpoint placeholder (tên tham số) về **actor chuẩn**:
+
+| Node bạn thấy | Nghĩa |
+|---|---|
+| Tên hợp đồng thật (`GemPadLocker`, `QBridgeETH`, `MockToken`...) | entity/contract — giữ nguyên |
+| `User` | gom từ `msg.sender` / `from` / `sender` / `caller`... (bên gọi) |
+| `Recipient` | gom từ `to` / `recipient` / `receiver`... (bên nhận) |
+| `ZeroAddress` | gom từ `0x0` / `address(0)` — nguồn `mint` / đích `burn` |
+
+→ Nếu muốn ATG chỉ còn hợp đồng bridge thật (bỏ harness), thêm bộ lọc mock vào
+`extractor.py` cho đồng bộ với `slither_parser.py` — nhưng cân nhắc đánh đổi nêu
+trên (mất vector token-attack ở gempad/fegtoken).
+
+---
+
 ## Reference: Qubit smoke test đã chạy thành công
 
 | Tier | Command | Output |

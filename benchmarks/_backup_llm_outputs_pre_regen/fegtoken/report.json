@@ -1,0 +1,21 @@
+{
+  "benchmark": "fegtoken",
+  "artifacts": {
+    "atg": "results/fegtoken_llm/atg.json",
+    "hypotheses": "results/fegtoken_llm/hypotheses.json"
+  },
+  "module1": {
+    "contracts_processed": 4,
+    "entities": 7,
+    "edges": 8,
+    "invariants": 20
+  },
+  "module2": {
+    "scenarios": 20
+  },
+  "module3": {
+    "runs_attempted": 0,
+    "runs_completed": 0,
+    "violations_total": 0
+  }
+}

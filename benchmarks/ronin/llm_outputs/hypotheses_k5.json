@@ -1,0 +1,1648 @@
+{
+  "bridge_name": "ronin",
+  "scenarios": [
+    {
+      "scenario_id": "ronin_replay_mint_break_asset_conservation_001",
+      "target_invariant": "asset_conservation_total_locked_equals_minted_minus_fees",
+      "vulnerability_class": "replay_attack",
+      "confidence": 0.93,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "lock(address,uint256)",
+          "params": {
+            "to": "0xAttacker00000000000000000000000000000000",
+            "amount": 100
+          },
+          "mode": "faithful",
+          "waypoint": "totalLocked[WrappedToken] == 100",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttacker00000000000000000000000000000000",
+            "amount": 100
+          },
+          "mode": "replay",
+          "waypoint": "totalMinted[WrappedToken] == 200",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "unlock(address,address,uint256)",
+          "params": {
+            "token": "WrappedToken",
+            "to": "0xAttacker00000000000000000000000000000000",
+            "amount": 100
+          },
+          "mode": "faithful",
+          "waypoint": "totalLocked[WrappedToken] == 0 && totalMinted[WrappedToken] == 200 && totalFees[WrappedToken] == 0",
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "synapse_bridge_xscope",
+        "ronin_hack_2022"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "ronin_negative_total_locked_replay",
+      "target_invariant": "asset_conservation_no_negative_total_locked",
+      "vulnerability_class": "uniqueness_replay",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "step": 1,
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "lock(address,uint256)",
+          "params": {
+            "user": "0xAttackerAddress",
+            "amount": "100"
+          },
+          "description": "Attacker (as User) locks 100 WrappedToken. totalLocked[WrappedToken] increases to 100.",
+          "state_predicate": "RoninBridgeManager.totalLocked(address(WrappedToken)) == 100"
+        },
+        {
+          "step": 2,
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "unlock(address,address,uint256)",
+          "params": {
+            "to": "0xAttackerAddress",
+            "token": "WrappedToken",
+            "amount": "100"
+          },
+          "relay_mode": "replay",
+          "description": "Attacker replays the legitimate unlock message (same lockId) before the bridge clears processedLockId. First unlock succeeds, decreasing totalLocked to 0.",
+          "state_predicate": "RoninBridgeManager.totalLocked(address(WrappedToken)) == 0"
+        },
+        {
+          "step": 3,
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "unlock(address,address,uint256)",
+          "params": {
+            "to": "0xAttackerAddress",
+            "token": "WrappedToken",
+            "amount": "100"
+          },
+          "relay_mode": "replay",
+          "description": "Attacker replays the same unlock a second time. Because the contract fails to check processedLockId, it subtracts 100 from a zero balance, causing totalLocked to become negative (underflow).",
+          "state_predicate": "RoninBridgeManager.totalLocked(address(WrappedToken)) < 0"
+        }
+      ],
+      "retrieved_exploits": [
+        "chainswap_20210711",
+        "wormhole_xscope"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker (as User) locks 100 WrappedToken. totalLocked[WrappedToken] increases to 100."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker replays the legitimate unlock message (same lockId) before the bridge clears processedLockId. First unlock succeeds, decreasing totalLocked to 0."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker replays the same unlock a second time. Because the contract fails to check processedLockId, it subtracts 100 from a zero balance, causing totalLocked to become negative (underflow)."
+        }
+      ]
+    },
+    {
+      "scenario_id": "ronin_overflow_mint_attack_001",
+      "target_invariant": "asset_conservation_mint_increases_total_minted",
+      "vulnerability_class": "integer_overflow",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "lock(address,uint256)",
+          "params": {
+            "token": "WrappedToken",
+            "amount": 1
+          },
+          "mode": "faithful",
+          "precondition": "registered[WrappedToken] == true",
+          "postcondition": "totalLocked[WrappedToken] == totalLocked_before + 1",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "relay",
+          "contract": "BridgeRelay",
+          "function": "forwardLock(uint256,bytes)",
+          "params": {
+            "nonce": "N1",
+            "amount": "MAX_UINT256 - totalMinted_before"
+          },
+          "mode": "tampered",
+          "precondition": "processedNonce[N1] == false",
+          "postcondition": "processedNonce[N1] == true",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "Attacker",
+            "amount": "MAX_UINT256 - totalMinted_before"
+          },
+          "mode": "faithful",
+          "precondition": "totalMinted[WrappedToken] == totalMinted_before",
+          "postcondition": "totalMinted[WrappedToken] == (totalMinted_before + amount) mod 2**256",
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "destination",
+          "contract": "User",
+          "function": "transfer(address,uint256)",
+          "params": {
+            "to": "AttackerEOA",
+            "amount": 1000
+          },
+          "mode": "faithful",
+          "precondition": "balanceOf[Attacker] >= 1000",
+          "postcondition": "balanceOf[AttackerEOA] == balanceOf_before[AttackerEOA] + 1000",
+          "step": 4,
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "synapse_20211106",
+        "pnetwork_20210920",
+        "ronin_20220323"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "ronin_unlock_underflow_replay",
+      "target_invariant": "asset_conservation_unlock_decreases_total_locked",
+      "vulnerability_class": "replay_attack_missing_nonce_guard",
+      "confidence": 0.85,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "lock",
+          "params": {
+            "token": "WrappedToken",
+            "amount": 1,
+            "to": "Attacker"
+          },
+          "mode": "faithful",
+          "state_predicates_before": [
+            "registered[WrappedToken] == true",
+            "totalLocked[WrappedToken] == 0"
+          ],
+          "state_predicates_after": [
+            "totalLocked[WrappedToken] == 1"
+          ],
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "unlock",
+          "params": {
+            "token": "WrappedToken",
+            "to": "Attacker",
+            "amount": 1,
+            "lockId": "0xdeadbeef"
+          },
+          "mode": "faithful",
+          "state_predicates_before": [
+            "msg.sender == address(this)",
+            "totalLocked[WrappedToken] >= 1",
+            "processedLockId[0xdeadbeef] == false"
+          ],
+          "state_predicates_after": [
+            "totalLocked[WrappedToken] == 0",
+            "processedLockId[0xdeadbeef] == true"
+          ],
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "unlock",
+          "params": {
+            "token": "WrappedToken",
+            "to": "Attacker",
+            "amount": 1,
+            "lockId": "0xdeadbeef"
+          },
+          "mode": "replay",
+          "state_predicates_before": [
+            "msg.sender == address(this)",
+            "totalLocked[WrappedToken] >= 1",
+            "processedLockId[0xdeadbeef] == true"
+          ],
+          "state_predicates_after": [
+            "totalLocked[WrappedToken] == 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          ],
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "evodefi_20220607",
+        "qanxbridge_20220518"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "destRouter.totalMinted() > 0 && sourceRouter.refunded > 0",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "destRouter.totalMinted() > 0 && sourceRouter.refunded > 0",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "ronin_reentrancy_mint_via_transfer_001",
+      "target_invariant": "asset_conservation_transfer_preserves_total_supply",
+      "vulnerability_class": "reentrancy_logic_bug",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "lock(address,uint256)",
+          "params": {
+            "token": "0xWrappedTokenAddress",
+            "amount": "1000000e18"
+          },
+          "description": "Attacker locks native assets on the source chain, causing the bridge manager to mint an equivalent amount of WrappedToken to the attacker (User A).",
+          "state_predicates": [
+            "WrappedToken.totalSupply() == totalSupply_before + 1000000e18",
+            "WrappedToken.balanceOf(attacker) == 1000000e18"
+          ],
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "WrappedToken",
+          "function": "transfer(address,uint256)",
+          "params": {
+            "to": "0xMaliciousRecipient",
+            "amount": "1e18"
+          },
+          "description": "Attacker initiates a normal ERC20 transfer of 1 token to a malicious contract (User B). The transfer implementation lacks a re‑entrancy guard and calls an external hook before updating balances.",
+          "state_predicates": [
+            "WrappedToken.balanceOf(attacker) == 999999e18",
+            "WrappedToken.balanceOf(0xMaliciousRecipient) == 1e18"
+          ],
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "WrappedToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "attacker",
+            "amount": "10000e18"
+          },
+          "description": "During the transfer, the malicious recipient’s fallback invokes WrappedToken.mint, crediting the attacker with additional tokens. No check prevents minting inside a transfer, so totalSupply inflates.",
+          "state_predicates": [
+            "WrappedToken.totalSupply() == totalSupply_before + 1000000e18 + 10000e18",
+            "WrappedToken.balanceOf(attacker) == 1009999e18"
+          ],
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "ronin_20220202",
+        "pnetwork_20210920"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker locks native assets on the source chain, causing the bridge manager to mint an equivalent amount of WrappedToken to the attacker (User A)."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker initiates a normal ERC20 transfer of 1 token to a malicious contract (User B). The transfer implementation lacks a re‑entrancy guard and calls an external hook before updating balances."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "During the transfer, the malicious recipient’s fallback invokes WrappedToken.mint, crediting the attacker with additional tokens. No check prevents minting inside a transfer, so totalSupply inflates."
+        }
+      ]
+    },
+    {
+      "scenario_id": "ronin_auth_lock_unregistered_token_001",
+      "target_invariant": "authorization_lock_token_must_be_registered",
+      "vulnerability_class": "calldata_manipulation_bug",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "User",
+          "function": "deployContract",
+          "params": {
+            "name": "UnregisteredToken",
+            "symbol": "UTK",
+            "initialSupply": "1000000"
+          },
+          "description": "Deploy a malicious ERC‑20 token that is *not* registered in RoninBridgeManager. Its address will be 0xUnreg.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "registerToken",
+          "params": {
+            "token": "0xRegToken"
+          },
+          "description": "Ensure a legitimate token (0xRegToken) is already whitelisted – this satisfies the registration check.",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "User",
+          "function": "lock",
+          "params": {
+            "token": "0xRegToken",
+            "amount": "5000",
+            "maliciousSuffix": "0xUnreg000000000000000000000000000000000000000000000000000000000000"
+          },
+          "description": "Craft a calldata payload where the first 32‑byte word (the token argument) is the *registered* address 0xRegToken, but the subsequent bytes are interpreted by RoninBridgeManager (due to a missing calldata length check) as the address of the token to transfer from. The manager therefore passes the registration check but later calls `transferFrom` on 0xUnreg.",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "internalTransferFrom",
+          "params": {
+            "from": "User",
+            "to": "RoninBridgeManager",
+            "token": "0xUnreg",
+            "amount": "5000"
+          },
+          "description": "During lock execution the buggy parsing makes the manager invoke `transferFrom` on the unregistered token, moving 5 000 UTK into the bridge’s custody.",
+          "step": 4
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "stateUpdate",
+          "params": {
+            "totalLocked[0xUnreg]": "5000"
+          },
+          "description": "Bridge updates its accounting, increasing `totalLocked` for the unregistered token. Predicate `registered[0xUnreg] == false` still holds, thus the invariant `registered[token] == true` is violated.",
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "socket_20240116",
+        "nomad_20220801"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Deploy a malicious ERC‑20 token that is *not* registered in RoninBridgeManager. Its address will be 0xUnreg."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Ensure a legitimate token (0xRegToken) is already whitelisted – this satisfies the registration check."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "sourceRouter.totalLocked() >= 5000",
+          "description": "Craft a calldata payload where the first 32‑byte word (the token argument) is the *registered* address 0xRegToken, but the subsequent bytes are interpreted by RoninBridgeManager (due to a missing calldata length check) as the address of the token to transfer from. The manager therefore passes the registration check but later calls `transferFrom` on 0xUnreg."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "During lock execution the buggy parsing makes the manager invoke `transferFrom` on the unregistered token, moving 5 000 UTK into the bridge’s custody."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Bridge updates its accounting, increasing `totalLocked` for the unregistered token. Predicate `registered[0xUnreg] == false` still holds, thus the invariant `registered[token] == true` is violated."
+        }
+      ]
+    },
+    {
+      "scenario_id": "ronin_auth_unlock_bypass_001",
+      "target_invariant": "authorization_unlock_only_by_bridge_manager",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "lock",
+          "params": {
+            "token": "WrappedToken",
+            "amount": "1000000000000000000000"
+          },
+          "description": "User (attacker) locks 1,000 WrappedToken on the source chain, satisfying the totalLocked condition required for unlock.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "MaliciousRelay",
+          "function": "tamperedUnlock",
+          "params": {
+            "manager": "RoninBridgeManager",
+            "token": "WrappedToken",
+            "to": "Attacker",
+            "amount": "1000000000000000000000"
+          },
+          "relay_mode": "tampered",
+          "description": "Attacker‑controlled relay contract calls RoninBridgeManager.unlock directly. Because the bridge’s unlock function only checks `msg.sender == address(this)` but the call is made via a plain external call, the check is bypassed and unlock executes with msg.sender == MaliciousRelay.",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "WrappedToken",
+          "function": "balanceOf",
+          "params": {
+            "account": "Attacker"
+          },
+          "description": "State predicate after tampered unlock: Attacker’s WrappedToken balance increased by 1,000 (minted by the unlock path).",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "totalLocked",
+          "params": {
+            "token": "WrappedToken"
+          },
+          "description": "State predicate after tampered unlock: totalLocked[WrappedToken] decreased to 0, confirming that unlock was processed despite msg.sender not being the bridge manager.",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810",
+        "socket_20240116"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000000000000000000000",
+          "description": "User (attacker) locks 1,000 WrappedToken on the source chain, satisfying the totalLocked condition required for unlock."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker‑controlled relay contract calls RoninBridgeManager.unlock directly. Because the bridge’s unlock function only checks `msg.sender == address(this)` but the call is made via a plain external call, the check is bypassed and unlock executes with msg.sender == MaliciousRelay."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "State predicate after tampered unlock: Attacker’s WrappedToken balance increased by 1,000 (minted by the unlock path)."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "State predicate after tampered unlock: totalLocked[WrappedToken] decreased to 0, confirming that unlock was processed despite msg.sender not being the bridge manager."
+        }
+      ]
+    },
+    {
+      "scenario_id": "ronin_reentrancy_unlock_insufficient_locked",
+      "target_invariant": "authorization_unlock_requires_sufficient_locked",
+      "vulnerability_class": "reentrancy_logic_bug",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "User",
+          "function": "lock(address,uint256)",
+          "params": {
+            "token": "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+            "amount": 1000
+          },
+          "description": "Honest user locks 1,000 units of a malicious token that is registered in RoninBridgeManager.",
+          "state_predicate": "RoninBridgeManager.totalLocked[0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF] == 1000",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "unlock(address,address,uint256)",
+          "params": {
+            "to": "0xUSERADDRESSUSERADDRESSUSERADDRESSUSERADDRESS",
+            "token": "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+            "amount": 1000
+          },
+          "relay_mode": "faithful",
+          "description": "Bridge manager processes the unlock request (first call).",
+          "state_predicate": "RoninBridgeManager.totalLocked[0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF] == 1000",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xUSERADDRESSUSERADDRESSUSERADDRESSUSERADDRESS",
+            "amount": 1000
+          },
+          "description": "Malicious token's mint implementation calls back into RoninBridgeManager.unlock (re‑entrancy).",
+          "state_predicate": "RoninBridgeManager.totalLocked[0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF] == 1000",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "unlock(address,address,uint256)",
+          "params": {
+            "to": "0xUSERADDRESSUSERADDRESSUSERADDRESSUSERADDRESS",
+            "token": "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+            "amount": 1000
+          },
+          "relay_mode": "tampered",
+          "description": "Re‑entrant second unlock call succeeds because totalLocked has not yet been decremented.",
+          "state_predicate": "RoninBridgeManager.totalLocked[0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF] == 1000",
+          "step": 4
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "postUnlockCleanup(uint256)",
+          "params": {
+            "amount": 1000
+          },
+          "description": "After both unlock calls return, the bridge manager finally subtracts the locked amount once, setting totalLocked to 0.",
+          "state_predicate": "RoninBridgeManager.totalLocked[0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF] == 0 && WrappedToken.totalMinted[0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF] == 2000",
+          "step": 5
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20220202",
+        "synapse_20211106"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Honest user locks 1,000 units of a malicious token that is registered in RoninBridgeManager."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Bridge manager processes the unlock request (first call)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Malicious token's mint implementation calls back into RoninBridgeManager.unlock (re‑entrancy)."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Re‑entrant second unlock call succeeds because totalLocked has not yet been decremented."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "After both unlock calls return, the bridge manager finally subtracts the locked amount once, setting totalLocked to 0."
+        }
+      ]
+    },
+    {
+      "scenario_id": "ronin_nonce_replay_mint",
+      "target_invariant": "uniqueness_nonce_used_once",
+      "vulnerability_class": "missing_nonce_check_in_mint",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "lock",
+          "params": {
+            "token": "WrappedToken",
+            "amount": 1000
+          },
+          "description": "Honest user locks 1,000 WrappedToken, causing the bridge to emit a Deposit event with a fresh nonce N.",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint",
+          "params": {
+            "to": "User",
+            "amount": 1000,
+            "nonce": "N"
+          },
+          "description": "Faithful off‑chain relayer consumes the Deposit event, calls mint on the destination token contract and (intended) marks nonce N as processed.",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint",
+          "params": {
+            "to": "Attacker",
+            "amount": 1000,
+            "nonce": "N"
+          },
+          "description": "Attacker directly invokes mint with the same nonce N. The mint function lacks a `require(!processedNonce[nonce])` guard, so the call succeeds and double‑mints tokens, violating the uniqueness invariant.",
+          "step": 3
+        }
+      ],
+      "state_predicates": [
+        "processedNonce[N] == false before step 1",
+        "processedNonce[N] == true after step 2",
+        "processedNonce[N] == true before step 3"
+      ],
+      "retrieved_exploits": [
+        "gempad_20240419",
+        "socket_20240116"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000",
+          "description": "Honest user locks 1,000 WrappedToken, causing the bridge to emit a Deposit event with a fresh nonce N."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "destRouter.totalMinted() >= 2000",
+          "description": "Faithful off‑chain relayer consumes the Deposit event, calls mint on the destination token contract and (intended) marks nonce N as processed."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "destRouter.totalMinted() >= 3000",
+          "description": "Attacker directly invokes mint with the same nonce N. The mint function lacks a `require(!processedNonce[nonce])` guard, so the call succeeds and double‑mints tokens, violating the uniqueness invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "ronin_uniqueness_lock_replay_001",
+      "target_invariant": "uniqueness_lock_id_processed_once",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "lock(address,uint256)",
+          "params": {
+            "token": "WrappedToken",
+            "amount": 1000
+          },
+          "state_predicates_before": [
+            "RoninBridgeManager.totalLocked[WrappedToken] == 0"
+          ],
+          "state_predicates_after": [
+            "RoninBridgeManager.totalLocked[WrappedToken] == 1000",
+            "RoninBridgeManager.lockId == keccak256(User, WrappedToken, 1000, block.timestamp)"
+          ],
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "destination",
+          "contract": "RoninBridgeManager",
+          "function": "unlock(address,address,uint256)",
+          "params": {
+            "to": "User",
+            "token": "WrappedToken",
+            "amount": 1000
+          },
+          "relay_mode": "tampered",
+          "description": "Malicious relayer alters the off‑chain payload and injects a forged lockId L' = keccak256(User, WrappedToken, 1000, block.timestamp+1).",
+          "state_predicates_before": [
+            "RoninBridgeManager.processedLockId[L'] == false"
+          ],
+          "state_predicates_after": [
+            "RoninBridgeManager.processedLockId[L'] == true",
+            "WrappedToken.balanceOf(User) == 1000",
+            "RoninBridgeManager.totalLocked[WrappedToken] == 0"
+          ],
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "RoninBridgeManager",
+          "function": "unlock(address,address,uint256)",
+          "params": {
+            "to": "User",
+            "token": "WrappedToken",
+            "amount": 1000
+          },
+          "relay_mode": "replay",
+          "description": "Attacker replays the original unlock message containing the genuine lockId L (still unprocessed).",
+          "state_predicates_before": [
+            "RoninBridgeManager.processedLockId[L] == false"
+          ],
+          "state_predicates_after": [
+            "RoninBridgeManager.processedLockId[L] == true",
+            "WrappedToken.balanceOf(User) == 2000",
+            "RoninBridgeManager.totalLocked[WrappedToken] == 0"
+          ],
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "polynetwork_20210810",
+        "socket_20240116"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Malicious relayer alters the off‑chain payload and injects a forged lockId L' = keccak256(User, WrappedToken, 1000, block.timestamp+1)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker replays the original unlock message containing the genuine lockId L (still unprocessed)."
+        }
+      ]
+    },
+    {
+      "scenario_id": "ronin_timeliness_timestamp_tamper_01",
+      "target_invariant": "timeliness_lock_timestamp_set_on_lock",
+      "vulnerability_class": "off_chain_key_compromise",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "lock",
+          "params": {
+            "token": "WrappedToken",
+            "amount": "1000"
+          },
+          "description": "Attacker (User) locks 1,000 WrappedToken. Bridge creates lockId L = keccak256(user, token, amount, block.timestamp) and stores lockTimestamp[L] = block.timestamp (T1).",
+          "state_predicates": [
+            "lockTimestamp[L] == block.timestamp"
+          ],
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "setLockTimestamp",
+          "params": {
+            "lockId": "L",
+            "timestamp": "0"
+          },
+          "description": "Using compromised validator keys, attacker submits a governance transaction that calls the admin‑only function setLockTimestamp(L,0). This is a tampered relay action (off‑chain manipulation) that overwrites the stored timestamp.",
+          "relay_mode": "tampered",
+          "state_predicates": [
+            "lockTimestamp[L] == 0",
+            "lockTimestamp[L] != block.timestamp"
+          ],
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "unlock",
+          "params": {
+            "token": "WrappedToken",
+            "to": "AttackerAddress",
+            "amount": "1000"
+          },
+          "description": "Attacker calls unlock to retrieve the minted tokens on the destination chain. The bridge checks only totalLocked and msg.sender, not the timestamp, so the unlock succeeds despite the invariant violation.",
+          "state_predicates": [
+            "totalLocked[WrappedToken] == totalLocked_before - 1000"
+          ],
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "ronin_20220323"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000",
+          "description": "Attacker (User) locks 1,000 WrappedToken. Bridge creates lockId L = keccak256(user, token, amount, block.timestamp) and stores lockTimestamp[L] = block.timestamp (T1)."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Using compromised validator keys, attacker submits a governance transaction that calls the admin‑only function setLockTimestamp(L,0). This is a tampered relay action (off‑chain manipulation) that overwrites the stored timestamp."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "destRouter.totalMinted() > 0 && sourceRouter.refunded > 0",
+          "description": "Attacker calls unlock to retrieve the minted tokens on the destination chain. The bridge checks only totalLocked and msg.sender, not the timestamp, so the unlock succeeds despite the invariant violation."
+        }
+      ]
+    },
+    {
+      "scenario_id": "ronin_timeliness_refund_bypass_001",
+      "target_invariant": "timeliness_refund_allowed_after_timeout",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "lock(address,uint256)",
+          "params": {
+            "token": "WrappedToken",
+            "amount": 1000
+          },
+          "description": "User locks 1,000 WrappedToken. Bridge records lockTimestamp[lockId] = block.timestamp and creates lockId = keccak(user, token, amount, block.timestamp).",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "updateLockTimestamp(uint256,uint256)",
+          "params": {
+            "lockId": "keccak(user, WrappedToken, 1000, block.timestamp)",
+            "newTimestamp": "block.timestamp - lockTimeout - 1"
+          },
+          "description": "Attacker exploits missing access control on updateLockTimestamp to back‑date the lock timestamp, making the refund condition true before the real timeout.",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "refund(uint256)",
+          "params": {
+            "lockId": "keccak(user, WrappedToken, 1000, block.timestamp)"
+          },
+          "description": "User (or attacker on behalf of user) calls refund. The contract checks block.timestamp >= lockTimestamp[lockId] + lockTimeout, which now holds because lockTimestamp was tampered.",
+          "step": 3
+        }
+      ],
+      "state_predicates": [
+        "lockTimestamp[keccak(user, WrappedToken, 1000, block.timestamp)] == block.timestamp",
+        "lockTimestamp[keccak(user, WrappedToken, 1000, block.timestamp)] == block.timestamp - lockTimeout - 1",
+        "totalLocked[WrappedToken] == totalLocked_before - 1000",
+        "balanceOf[user][WrappedToken] == balance_before + 1000"
+      ],
+      "retrieved_exploits": [
+        "ronin_20220323",
+        "thorchain_20210628",
+        "multichain_20230715"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User locks 1,000 WrappedToken. Bridge records lockTimestamp[lockId] = block.timestamp and creates lockId = keccak(user, token, amount, block.timestamp)."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker exploits missing access control on updateLockTimestamp to back‑date the lock timestamp, making the refund condition true before the real timeout."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "User (or attacker on behalf of user) calls refund. The contract checks block.timestamp >= lockTimestamp[lockId] + lockTimeout, which now holds because lockTimestamp was tampered."
+        }
+      ]
+    },
+    {
+      "scenario_id": "ronin_timeliness_bypass_001",
+      "target_invariant": "timeliness_cannot_unlock_before_timeout_if_no_relay",
+      "vulnerability_class": "authorization_bypass",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "lock(address,uint256)",
+          "params": {
+            "token": "WrappedToken",
+            "amount": 1000,
+            "user": "0xAttacker"
+          },
+          "state_predicates": [
+            "lockTimestamp[lockId] == block.timestamp",
+            "totalLocked[WrappedToken] == 1000",
+            "verifiedRelay[messageId] == false"
+          ],
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "forceUnlock(address,address,uint256,bytes32)",
+          "params": {
+            "token": "WrappedToken",
+            "to": "0xAttacker",
+            "amount": 1000,
+            "lockId": "lockId"
+          },
+          "relay_mode": "tampered",
+          "state_predicates": [
+            "block.timestamp < lockTimestamp[lockId] + lockTimeout",
+            "verifiedRelay[messageId] == false",
+            "msg.sender == address(this)"
+          ],
+          "step": 2,
+          "description": "Step 2"
+        }
+      ],
+      "retrieved_exploits": [
+        "ronin_20220202",
+        "pgala_20221103"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        }
+      ]
+    },
+    {
+      "scenario_id": "ronin_refund_state_not_cleared_001",
+      "target_invariant": "timeliness_refund_clears_lock_state",
+      "vulnerability_class": "logic_bug_state_cleanup",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "lock",
+          "params": {
+            "token": "WrappedToken",
+            "amount": 100
+          },
+          "description": "Honest user locks 100 WrappedToken, creating lockId L1",
+          "waypoint": "lockTimestamp[L1] > 0 && processedLockId[L1] == false",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "unlock",
+          "params": {
+            "token": "WrappedToken",
+            "to": "User",
+            "amount": 0
+          },
+          "description": "Malicious relayer (tampered mode) calls unlock with amount 0, triggering state update but no token transfer",
+          "relay_mode": "tampered",
+          "waypoint": "processedLockId[L1] == true && lockTimestamp[L1] > 0",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "refund",
+          "params": {
+            "lockId": "L1"
+          },
+          "description": "User invokes refund after lockTimeout has elapsed; refund logic clears timestamp but forgets to delete processedLockId",
+          "waypoint": "lockTimestamp[L1] == 0 && processedLockId[L1] == true",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "thorchain_20210628",
+        "meterio_20220205"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 100",
+          "description": "Honest user locks 100 WrappedToken, creating lockId L1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "destRouter.totalMinted() > 0 && sourceRouter.refunded > 0",
+          "description": "Malicious relayer (tampered mode) calls unlock with amount 0, triggering state update but no token transfer"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "destRouter.totalMinted() > 0 && sourceRouter.refunded > 0",
+          "description": "User invokes refund after lockTimeout has elapsed; refund logic clears timestamp but forgets to delete processedLockId"
+        }
+      ]
+    },
+    {
+      "scenario_id": "ronin_sig_bypass_storage_collision_01",
+      "target_invariant": "authorization_relay_signature_verified",
+      "vulnerability_class": "storage_collision_signature_bypass",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "WrappedToken",
+          "function": "transfer",
+          "params": {
+            "to": "RoninBridgeManager",
+            "amount": 1000
+          },
+          "state_predicate": "WrappedToken.balanceOf(RoninBridgeManager) == 1000",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "lock",
+          "params": {
+            "token": "WrappedToken",
+            "amount": 1000
+          },
+          "state_predicate": "RoninBridgeManager.totalLocked[WrappedToken] == 1000 && RoninBridgeManager.messageId == 42",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "destination",
+          "contract": "RoninBridgeManager",
+          "function": "setVerifierConfig",
+          "params": {
+            "key": "verifiedRelay[42]",
+            "value": true
+          },
+          "mode": "tampered",
+          "state_predicate": "verifiedRelay[42] == false && RoninBridgeManager.feeCollector == 0",
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "destination",
+          "contract": "RoninBridgeManager",
+          "function": "unlock",
+          "params": {
+            "to": "Attacker",
+            "token": "WrappedToken",
+            "amount": 1000
+          },
+          "state_predicate": "verifiedRelay[42] == true && RoninBridgeManager.totalLocked[WrappedToken] == 0",
+          "step": 4,
+          "description": "Step 4"
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint",
+          "params": {
+            "to": "Attacker",
+            "amount": 1000
+          },
+          "state_predicate": "WrappedToken.balanceOf(Attacker) == 1000 && totalMinted[WrappedToken] == 1000",
+          "step": 5,
+          "description": "Step 5"
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_20230715",
+        "pgala_20221103"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "sourceRouter.totalLocked() >= 2000",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "destRouter.totalMinted() >= 4000",
+          "description": "Step 5"
+        }
+      ]
+    },
+    {
+      "scenario_id": "ronin_replay_unlock_2024_06",
+      "target_invariant": "uniqueness_message_id_processed_once",
+      "vulnerability_class": "replay_attack_via_unchecked_message_id",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "ronin (source)",
+          "contract": "RoninBridgeManager",
+          "function": "lock(address token, uint256 amount)",
+          "params": {
+            "token": "0xAaBbCcDdEeFf0011223344556677889900aAbBcC",
+            "amount": "1000e18"
+          },
+          "description": "User deposits WrappedToken, contract emits `MessageSent(messageId, user, token, amount)`; `processedMessage[messageId]` is still false.",
+          "step": 1
+        },
+        {
+          "chain": "relay",
+          "contract": "BridgeRelay",
+          "function": "processMessage(bytes32 messageId, address user, address token, uint256 amount)",
+          "params": {
+            "messageId": "<msgId_from_step_1>",
+            "user": "0xUserAddress1111111111111111111111111111111111",
+            "token": "0xAaBbCcDdEeFf0011223344556677889900aAbBcC",
+            "amount": "1000e18"
+          },
+          "mode": "faithful",
+          "description": "Relay forwards the lock message to the destination chain and calls `unlock` on the destination bridge. After this call `processedMessage[messageId] == true`.",
+          "step": 2
+        },
+        {
+          "chain": "relay",
+          "contract": "BridgeRelay",
+          "function": "processMessage(bytes32 messageId, address user, address token, uint256 amount)",
+          "params": {
+            "messageId": "<msgId_from_step_1>",
+            "user": "0xUserAddress1111111111111111111111111111111111",
+            "token": "0xAaBbCcDdEeFf0011223344556677889900aAbBcC",
+            "amount": "1000e18"
+          },
+          "mode": "tampered",
+          "description": "Attacker re‑injects the same `messageId` (replay) before any state change resets the flag. The destination bridge sees `processedMessage[messageId] == true` before processing, violating the require check.",
+          "step": 3
+        },
+        {
+          "chain": "ethereum (destination)",
+          "contract": "RoninBridgeManager",
+          "function": "unlock(address user, address token, uint256 amount)",
+          "params": {
+            "user": "0xUserAddress1111111111111111111111111111111111",
+            "token": "0xAaBbCcDdEeFf0011223344556677889900aAbBcC",
+            "amount": "1000e18"
+          },
+          "description": "Second unlock executes; `require(!processedMessage[messageId])` fails, but because the contract lacks a proper guard (e.g., uses `if (!processedMessage[messageId]) { … }`), the call proceeds, double‑minting tokens.",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_20210802",
+        "poly_network_20210810"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User deposits WrappedToken, contract emits `MessageSent(messageId, user, token, amount)`; `processedMessage[messageId]` is still false."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Relay forwards the lock message to the destination chain and calls `unlock` on the destination bridge. After this call `processedMessage[messageId] == true`."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "relay.message_count > 0",
+          "description": "Attacker re‑injects the same `messageId` (replay) before any state change resets the flag. The destination bridge sees `processedMessage[messageId] == true` before processing, violating the require check."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Second unlock executes; `require(!processedMessage[messageId])` fails, but because the contract lacks a proper guard (e.g., uses `if (!processedMessage[messageId]) { … }`), the call proceeds, double‑minting tokens."
+        }
+      ]
+    },
+    {
+      "scenario_id": "ronin_fee_underflow_replay_unlock",
+      "target_invariant": "asset_conservation_fee_non_negative",
+      "vulnerability_class": "logic_bug_missing_replay_protection",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "lock",
+          "params": {
+            "token": "WrappedToken",
+            "amount": 1000
+          },
+          "description": "User locks 1,000 WrappedToken. Bridge records lockId L, adds fee F = 10 (1% of amount) to totalFees and increases totalLocked.",
+          "waypoint": "RoninBridgeManager.totalLocked[WrappedToken] == 1000 && RoninBridgeManager.totalFees[WrappedToken] == 10",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "unlock",
+          "params": {
+            "token": "WrappedToken",
+            "to": "User",
+            "amount": 1000,
+            "lockId": "L"
+          },
+          "description": "Bridge (msg.sender == address(this)) processes the lock L, decreases totalLocked by 1,000 and refunds the fee F, setting totalFees back to 0.",
+          "relay_mode": "faithful",
+          "waypoint": "RoninBridgeManager.totalLocked[WrappedToken] == 0 && RoninBridgeManager.totalFees[WrappedToken] == 0",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "unlock",
+          "params": {
+            "token": "WrappedToken",
+            "to": "Attacker",
+            "amount": 0,
+            "lockId": "L"
+          },
+          "description": "Attacker re‑plays the same unlock message (replay mode) with amount = 0. The generic `totalLocked >= amount` check passes, but the internal fee‑refund logic still subtracts F = 10 from totalFees because the lock record was not cleared (missing processedLockId enforcement).",
+          "relay_mode": "replay",
+          "waypoint": "RoninBridgeManager.totalLocked[WrappedToken] == 0 && RoninBridgeManager.totalFees[WrappedToken] == -10",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "chainswap_20210711",
+        "socket_20240116"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "sourceRouter.totalLocked() >= 1000",
+          "description": "User locks 1,000 WrappedToken. Bridge records lockId L, adds fee F = 10 (1% of amount) to totalFees and increases totalLocked."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "destRouter.totalMinted() > 0 && sourceRouter.refunded > 0",
+          "description": "Bridge (msg.sender == address(this)) processes the lock L, decreases totalLocked by 1,000 and refunds the fee F, setting totalFees back to 0."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "destRouter.totalMinted() > 0 && sourceRouter.refunded > 0",
+          "description": "Attacker re‑plays the same unlock message (replay mode) with amount = 0. The generic `totalLocked >= amount` check passes, but the internal fee‑refund logic still subtracts F = 10 from totalFees because the lock record was not cleared (missing processedLockId enforcement)."
+        }
+      ]
+    },
+    {
+      "scenario_id": "ronin_timeliness_timestamp_tamper_001",
+      "target_invariant": "timeliness_lock_timestamp_immutable",
+      "vulnerability_class": "access_control_missing",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "lock(address,uint256)",
+          "params": {
+            "token": "WrappedToken",
+            "amount": 1000
+          },
+          "description": "Attacker creates a lock; bridge records lockTimestamp[lockId] = block.timestamp (e.g., 1 650 000 000).",
+          "waypoint": "lockTimestamp[lockId] == block.timestamp",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "setLockTimestamp(uint256,uint256)",
+          "params": {
+            "lockId": "<<lockId from previous step>>",
+            "newTimestamp": 0
+          },
+          "relay_mode": "tampered",
+          "description": "Compromised off‑chain relay injects a call to a public (but intended internal) function that overwrites the stored timestamp.",
+          "waypoint": "lockTimestamp[lockId] == 0",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "unlock(address,address,uint256)",
+          "params": {
+            "to": "Attacker",
+            "token": "WrappedToken",
+            "amount": 1000
+          },
+          "description": "Attacker triggers unlock before timeout; unlock succeeds because msg.sender == address(this) via a malicious delegatecall path.",
+          "waypoint": "totalLocked[WrappedToken] == totalLocked_before - 1000",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "bnbbridge_20221007",
+        "socket_20240116"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker creates a lock; bridge records lockTimestamp[lockId] = block.timestamp (e.g., 1 650 000 000)."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Compromised off‑chain relay injects a call to a public (but intended internal) function that overwrites the stored timestamp."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker triggers unlock before timeout; unlock succeeds because msg.sender == address(this) via a malicious delegatecall path."
+        }
+      ]
+    },
+    {
+      "scenario_id": "ronin_bridge_transfer_balance_bypass_001",
+      "target_invariant": "authorization_transfer_requires_sufficient_balance",
+      "vulnerability_class": "logic_bug_missing_balance_check_on_lock",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "lock(address token,uint256 amount)",
+          "params": {
+            "token": "WrappedToken",
+            "amount": 1000000
+          },
+          "description": "Attacker (User) calls lock for a huge amount while the bridge manager does **not** verify that the caller actually holds the tokens. This inflates totalLocked[WrappedToken] without moving any real tokens.",
+          "waypoint": "RoninBridgeManager.totalLocked[WrappedToken] >= 1000000",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "unlock(address token,address to,uint256 amount)",
+          "params": {
+            "token": "WrappedToken",
+            "to": "User",
+            "amount": 1000000
+          },
+          "description": "Attacker submits a *tampered* relay message that tricks the bridge manager into believing the call originates from itself (msg.sender == address(this)). The contract therefore mints 1 000 000 WrappedToken to the attacker without any locked collateral being decreased (the totalLocked check is bypassed).",
+          "relay_mode": "tampered",
+          "waypoint": "WrappedToken.balanceOf[User] >= 1000000",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "WrappedToken",
+          "function": "transfer(address to,uint256 amount)",
+          "params": {
+            "to": "Victim",
+            "amount": 1000000
+          },
+          "description": "With the freshly minted balance, the attacker transfers the full amount to a victim address. The `require(balanceOf[msg.sender] >= amount)` passes because the balance was artificially created in the previous step, but the underlying asset does not exist on the bridge.",
+          "waypoint": "WrappedToken.balanceOf[Victim] == 1000000 && WrappedToken.balanceOf[User] == 0",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "nomad_20220801",
+        "polynetwork_20210810"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker (User) calls lock for a huge amount while the bridge manager does **not** verify that the caller actually holds the tokens. This inflates totalLocked[WrappedToken] without moving any real tokens."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker submits a *tampered* relay message that tricks the bridge manager into believing the call originates from itself (msg.sender == address(this)). The contract therefore mints 1 000 000 WrappedToken to the attacker without any locked collateral being decreased (the totalLocked check is bypassed)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "With the freshly minted balance, the attacker transfers the full amount to a victim address. The `require(balanceOf[msg.sender] >= amount)` passes because the balance was artificially created in the previous step, but the underlying asset does not exist on the bridge."
+        }
+      ]
+    },
+    {
+      "scenario_id": "ronin_transferFrom_allowance_bypass_001",
+      "target_invariant": "authorization_transfer_from_requires_allowance",
+      "vulnerability_class": "missing_allowance_check",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "WrappedToken",
+          "function": "transferFrom(address,address,uint256)",
+          "params": {
+            "from": "0xUserA",
+            "to": "0xAttacker",
+            "amount": "1000"
+          },
+          "description": "Attacker calls transferFrom on the source‑chain WrappedToken moving 1,000 tokens from victim UserA to himself. The token contract lacks the required allowance check, so the call succeeds even though allowance[UserA][Attacker] == 0.",
+          "state_predicates_before": [
+            "allowance[0xUserA][0xAttacker] == 0",
+            "balanceOf[0xUserA] >= 1000"
+          ],
+          "state_predicates_after": [
+            "balanceOf[0xAttacker] == balanceOf[0xAttacker]_before + 1000",
+            "balanceOf[0xUserA] == balanceOf[0xUserA]_before - 1000"
+          ],
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "RoninBridgeManager",
+          "function": "lock(address,uint256)",
+          "params": {
+            "token": "0xWrappedToken",
+            "amount": "1000"
+          },
+          "description": "Attacker locks the stolen tokens into the bridge. The bridge manager records the deposit (totalLocked[WrappedToken] increases) and emits the lock event that will be relayed to the destination chain.",
+          "state_predicates_before": [
+            "registered[0xWrappedToken] == true",
+            "balanceOf[0xAttacker] >= 1000"
+          ],
+          "state_predicates_after": [
+            "totalLocked[0xWrappedToken] == totalLocked[0xWrappedToken]_before + 1000",
+            "balanceOf[0xAttacker] == balanceOf[0xAttacker]_before - 1000"
+          ],
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "WrappedToken",
+          "function": "mint(address,uint256)",
+          "params": {
+            "to": "0xAttacker",
+            "amount": "1000"
+          },
+          "description": "The relayer (faithful mode) processes the lock event and calls mint on the destination‑chain WrappedToken, crediting the attacker with the same amount of wrapped tokens.",
+          "state_predicates_before": [
+            "totalLocked[0xWrappedToken] >= 1000"
+          ],
+          "state_predicates_after": [
+            "totalMinted[0xWrappedToken] == totalMinted[0xWrappedToken]_before + 1000",
+            "balanceOf[0xAttacker] == balanceOf[0xAttacker]_before + 1000"
+          ],
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "lifinance_20220320"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker calls transferFrom on the source‑chain WrappedToken moving 1,000 tokens from victim UserA to himself. The token contract lacks the required allowance check, so the call succeeds even though allowance[UserA][Attacker] == 0."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker locks the stolen tokens into the bridge. The bridge manager records the deposit (totalLocked[WrappedToken] increases) and emits the lock event that will be relayed to the destination chain."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "The relayer (faithful mode) processes the lock event and calls mint on the destination‑chain WrappedToken, crediting the attacker with the same amount of wrapped tokens."
+        }
+      ]
+    }
+  ]
+}

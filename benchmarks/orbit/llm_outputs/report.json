@@ -1,13 +1,13 @@
 {
   "benchmark": "orbit",
   "artifacts": {
-    "atg": "results/orbit_llm/atg.json",
-    "hypotheses": "results/orbit_llm/hypotheses.json"
+    "atg": "results\\orbit_regen\\atg.json",
+    "hypotheses": "results\\orbit_regen\\hypotheses.json"
   },
   "module1": {
     "contracts_processed": 2,
     "entities": 4,
-    "edges": 3,
+    "edges": 5,
     "invariants": 18
   },
   "module2": {

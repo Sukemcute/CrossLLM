@@ -1,12 +1,12 @@
 {
   "benchmark": "ronin",
   "artifacts": {
-    "atg": "results/ronin_llm/atg.json",
-    "hypotheses": "results/ronin_llm/hypotheses.json"
+    "atg": "results\\ronin_regen\\atg.json",
+    "hypotheses": "results\\ronin_regen\\hypotheses.json"
   },
   "module1": {
     "contracts_processed": 2,
-    "entities": 4,
+    "entities": 3,
     "edges": 5,
     "invariants": 20
   },

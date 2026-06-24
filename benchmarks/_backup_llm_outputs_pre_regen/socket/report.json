@@ -1,0 +1,21 @@
+{
+  "benchmark": "socket",
+  "artifacts": {
+    "atg": "results/socket_llm/atg.json",
+    "hypotheses": "results/socket_llm/hypotheses.json"
+  },
+  "module1": {
+    "contracts_processed": 3,
+    "entities": 4,
+    "edges": 4,
+    "invariants": 19
+  },
+  "module2": {
+    "scenarios": 19
+  },
+  "module3": {
+    "runs_attempted": 0,
+    "runs_completed": 0,
+    "violations_total": 0
+  }
+}

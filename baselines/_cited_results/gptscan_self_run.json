@@ -1,0 +1,122 @@
+{
+  "tool": "gptscan",
+  "tool_type": "llm_static_reimpl",
+  "source": "Self-run BridgeSentry GPTScan adapter against the 12 benchmark suite via NVIDIA NIM gpt-oss-120b.",
+  "doi_or_url": "Sun et al., GPTScan, ICSE 2024",
+  "extraction_date": "2026-06-06",
+  "methodology_note": "GPTScan 10 DeFi rules (Flashloan, Slippage, ApprovalNotClear, ...) applied per .sol file. Detected if any rule fires on any contract.",
+  "detection_summary": {
+    "detected_bridges": 0,
+    "total_bridges": 12
+  },
+  "results": {
+    "nomad": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": 0,
+      "violations_top": {},
+      "note": "GPTScan 10 DeFi rules on 20 runs; 0 runs flagged"
+    },
+    "qubit": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": 0,
+      "violations_top": {},
+      "note": "GPTScan 10 DeFi rules on 20 runs; 0 runs flagged"
+    },
+    "pgala": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": 0,
+      "violations_top": {},
+      "note": "GPTScan 10 DeFi rules on 20 runs; 0 runs flagged"
+    },
+    "polynetwork": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": 0,
+      "violations_top": {},
+      "note": "GPTScan 10 DeFi rules on 20 runs; 0 runs flagged"
+    },
+    "wormhole": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": 0,
+      "violations_top": {},
+      "note": "GPTScan 10 DeFi rules on 20 runs; 0 runs flagged"
+    },
+    "socket": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": 0,
+      "violations_top": {},
+      "note": "GPTScan 10 DeFi rules on 20 runs; 0 runs flagged"
+    },
+    "ronin": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": 0,
+      "violations_top": {},
+      "note": "GPTScan 10 DeFi rules on 20 runs; 0 runs flagged"
+    },
+    "harmony": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": 0,
+      "violations_top": {},
+      "note": "GPTScan 10 DeFi rules on 20 runs; 0 runs flagged"
+    },
+    "multichain": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": 0,
+      "violations_top": {},
+      "note": "GPTScan 10 DeFi rules on 20 runs; 0 runs flagged"
+    },
+    "orbit": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": 0,
+      "violations_top": {},
+      "note": "GPTScan 10 DeFi rules on 20 runs; 0 runs flagged"
+    },
+    "fegtoken": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": 0,
+      "violations_top": {},
+      "note": "GPTScan 10 DeFi rules on 20 runs; 0 runs flagged"
+    },
+    "gempad": {
+      "detected": false,
+      "runs": 20,
+      "detected_runs": 0,
+      "detection_rate": "0/20",
+      "tte_seconds": 0,
+      "violations_top": {},
+      "note": "GPTScan 10 DeFi rules on 20 runs; 0 runs flagged"
+    }
+  }
+}

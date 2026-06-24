@@ -1,0 +1,16 @@
+%% ATG harmony
+flowchart LR
+  n_EthBucket["EthBucket"]
+  n_WrappedToken["WrappedToken"]
+  n_Manager["Manager"]
+  n_User["User"]
+  n_HorizonEthManager["HorizonEthManager"]
+  n_MockMultisig["MockMultisig"]
+  n_Token["Token"]
+  n_User -- "lock" --> n_EthBucket
+  n_EthBucket -- "unlock" --> n_User
+  n_User -- "deposit" --> n_EthBucket
+  n_EthBucket -- "release" --> n_User
+  n_WrappedToken -- "mint" --> n_User
+  n_User -- "transfer" --> n_User
+  n_User -- "transfer" --> n_User

@@ -2,740 +2,314 @@
   "bridge_name": "socket",
   "scenarios": [
     {
-      "scenario_id": "socket_replay_mint_2024_04_25",
-      "target_invariant": "asset_balance_consistency",
-      "vulnerability_class": "relay_replay",
+      "scenario_id": "socket_replay_mint_overlock_001",
+      "target_invariant": "ac_total_supply_consistency",
+      "vulnerability_class": "replay_attack_missing_nonce",
       "confidence": 0.92,
       "actions": [
         {
+          "step": 1,
           "chain": "source",
-          "contract": "MockToken",
-          "function": "transferFrom(address,address,uint256)",
+          "contract": "SocketGateway",
+          "function": "performAction",
           "params": {
-            "from": "0xAttacker",
-            "to": "SocketGateway",
-            "amount": "1000000000000000000"
+            "dstChainId": 2,
+            "token": "MockToken",
+            "amount": "1000e18",
+            "recipient": "0xAttacker",
+            "impl": "0xMaliciousImpl",
+            "data": "0x"
           },
-          "description": "Attacker deposits 1 MockToken (1e18 wei) into the SocketGateway, increasing sourceGateway.totalLocked.",
-          "step": 1
+          "description": "User initiates a withdrawal (edge e3) locking 1,000 MockToken in the gateway and emitting relay message 0xmsg1.",
+          "waypoint": "lockedAmount() == previous_locked + 1000e18"
         },
         {
+          "step": 2,
           "chain": "relay",
-          "contract": "SocketRelay",
-          "function": "forwardMessage(uint256,bytes)",
+          "action": "relayMessage",
+          "mode": "replay",
           "params": {
-            "msgId": "1",
-            "payload": "0x... (encoded recipient=0xAttacker, amount=1e18)"
+            "msgId": "0xmsg1",
+            "originalSender": "SocketGateway",
+            "destinationChainId": 2
           },
-          "relay_mode": "faithful",
-          "description": "Honest relay forwards the lock proof to the destination chain.",
-          "step": 2
+          "description": "Attacker re‑broadcasts the same verified relay message to the destination chain.",
+          "waypoint": "processedMessage[0xmsg1] == true && replayCount[0xmsg1] == 2"
         },
         {
+          "step": 3,
           "chain": "destination",
-          "contract": "MockToken",
-          "function": "mint(address,uint256)",
+          "contract": "SocketGateway",
+          "function": "performAction",
           "params": {
-            "to": "0xAttacker",
-            "amount": "1000000000000000000"
+            "msgId": "0xmsg1",
+            "amount": "1000e18",
+            "recipient": "0xAttacker"
           },
-          "description": "SocketGateway on destination mints 1 MockToken to the attacker, totalMinted = 1e18.",
-          "step": 3
+          "description": "Gateway processes the replayed message (edge e4) and mints an additional 1,000 MockToken to the attacker without a new lock.",
+          "waypoint": "MockToken.totalSupply() == previous_totalSupply + 1000e18"
         },
         {
+          "step": 4,
           "chain": "relay",
-          "contract": "SocketRelay",
-          "function": "forwardMessage(uint256,bytes)",
+          "action": "relayMessage",
+          "mode": "replay",
           "params": {
-            "msgId": "1",
-            "payload": "0x... (same payload as before)"
+            "msgId": "0xmsg1",
+            "originalSender": "SocketGateway",
+            "destinationChainId": 2
           },
-          "relay_mode": "replay",
-          "description": "Attacker replays the same message ID, causing the relay to deliver a duplicate mint instruction.",
-          "step": 4
+          "description": "Second replay of the same relay message.",
+          "waypoint": "replayCount[0xmsg1] == 3"
         },
         {
+          "step": 5,
           "chain": "destination",
-          "contract": "MockToken",
-          "function": "mint(address,uint256)",
+          "contract": "SocketGateway",
+          "function": "performAction",
           "params": {
-            "to": "0xAttacker",
-            "amount": "1000000000000000000"
+            "msgId": "0xmsg1",
+            "amount": "1000e18",
+            "recipient": "0xAttacker"
           },
-          "description": "Gateway mints a second 1 MockToken without a corresponding new lock, breaking the invariant.",
-          "step": 5
+          "description": "Gateway mints another 1,000 MockToken, further inflating total supply while locked amount stays unchanged.",
+          "waypoint": "MockToken.totalSupply() == previous_totalSupply + 2000e18 && lockedAmount() == initial_locked + 1000e18"
         }
+      ],
+      "retrieved_exploits": [
+        "harmony_horizon_20220624",
+        "orbit_20240101"
       ],
       "waypoints": [
         {
           "waypoint_id": "w1",
           "after_step": 1,
           "predicate": "step_1_executed",
-          "description": "Attacker deposits 1 MockToken (1e18 wei) into the SocketGateway, increasing sourceGateway.totalLocked."
+          "description": "User initiates a withdrawal (edge e3) locking 1,000 MockToken in the gateway and emitting relay message 0xmsg1."
         },
         {
           "waypoint_id": "w2",
           "after_step": 2,
           "predicate": "relay.message_count > 0",
-          "description": "Honest relay forwards the lock proof to the destination chain."
+          "description": "Attacker re‑broadcasts the same verified relay message to the destination chain."
         },
         {
           "waypoint_id": "w3",
           "after_step": 3,
           "predicate": "step_3_executed",
-          "description": "SocketGateway on destination mints 1 MockToken to the attacker, totalMinted = 1e18."
+          "description": "Gateway processes the replayed message (edge e4) and mints an additional 1,000 MockToken to the attacker without a new lock."
         },
         {
           "waypoint_id": "w4",
           "after_step": 4,
           "predicate": "relay.message_count > 0",
-          "description": "Attacker replays the same message ID, causing the relay to deliver a duplicate mint instruction."
+          "description": "Second replay of the same relay message."
         },
         {
           "waypoint_id": "w5",
           "after_step": 5,
           "predicate": "step_5_executed",
-          "description": "Gateway mints a second 1 MockToken without a corresponding new lock, breaking the invariant."
-        }
-      ],
-      "retrieved_exploits": [
-        "gempad_20240419",
-        "meterio_20220205"
-      ]
-    },
-    {
-      "scenario_id": "socket_fee_overcollection_tampered_relay_001",
-      "target_invariant": "asset_fee_deduction_correctness",
-      "vulnerability_class": "relay_tampering_logic_bug",
-      "confidence": 0.86,
-      "actions": [
-        {
-          "chain": "ethereum",
-          "contract": "MockToken",
-          "function": "approve(address,uint256)",
-          "params": {
-            "spender": "0xSocketGatewayAddress",
-            "amount": "1000000000000000000000"
-          },
-          "description": "Attacker approves the SocketGateway to pull 1,000 MockToken.",
-          "step": 1
-        },
-        {
-          "chain": "ethereum",
-          "contract": "SocketGateway",
-          "function": "performAction(uint32,address,address,uint256,address,address,bytes)",
-          "params": {
-            "dstChainId": 137,
-            "fromToken": "0xMockTokenAddress",
-            "toToken": "0xMockTokenAddressOnPolygon",
-            "amount": "1000000000000000000000",
-            "recipient": "0xAttackerAddress",
-            "refundAddress": "0xAttackerAddress",
-            "extraData": "0x"
-          },
-          "description": "Gateway pulls 1,000 tokens, calculates a 30% fee (300 tokens), updates internal `feeCollected` += 300, and emits a relay message indicating 700 tokens should be minted.",
-          "step": 2
-        },
-        {
-          "chain": "relaynetwork",
-          "contract": "RelayOperator",
-          "function": "relayMessage(bytes)",
-          "params": {
-            "payload": {
-              "dstChainId": 137,
-              "toToken": "0xMockTokenAddressOnPolygon",
-              "mintAmount": "100000000000000000000",
-              "recipient": "0xAttackerAddress"
-            }
-          },
-          "mode": "tampered",
-          "description": "Malicious relay rewrites the payload, reducing the mint amount from the honest 700 tokens to only 100 tokens while leaving the fee accounting untouched.",
-          "step": 3
-        },
-        {
-          "chain": "polygon",
-          "contract": "MockToken",
-          "function": "mint(address,uint256)",
-          "params": {
-            "to": "0xAttackerAddress",
-            "amount": "100000000000000000000"
-          },
-          "description": "Destination gateway mints only 100 tokens to the attacker as instructed by the tampered relay.",
-          "step": 4
-        }
-      ],
-      "state_waypoints": [
-        {
-          "chain": "Ethereum",
-          "contract": "SocketGateway",
-          "predicate": "feeCollected == 300000000000000000000"
-        },
-        {
-          "chain": "Polygon",
-          "contract": "MockToken",
-          "predicate": "totalMinted == 100000000000000000000"
-        }
-      ],
-      "retrieved_exploits": [
-        "qubit_20220127",
-        "metpassport_20220206"
-      ],
-      "waypoints": [
-        {
-          "waypoint_id": "w1",
-          "after_step": 1,
-          "predicate": "step_1_executed",
-          "description": "Attacker approves the SocketGateway to pull 1,000 MockToken."
-        },
-        {
-          "waypoint_id": "w2",
-          "after_step": 2,
-          "predicate": "step_2_executed",
-          "description": "Gateway pulls 1,000 tokens, calculates a 30% fee (300 tokens), updates internal `feeCollected` += 300, and emits a relay message indicating 700 tokens should be minted."
-        },
-        {
-          "waypoint_id": "w3",
-          "after_step": 3,
-          "predicate": "step_3_executed",
-          "description": "Malicious relay rewrites the payload, reducing the mint amount from the honest 700 tokens to only 100 tokens while leaving the fee accounting untouched."
-        },
-        {
-          "waypoint_id": "w4",
-          "after_step": 4,
-          "predicate": "step_4_executed",
-          "description": "Destination gateway mints only 100 tokens to the attacker as instructed by the tampered relay."
+          "description": "Gateway mints another 1,000 MockToken, further inflating total supply while locked amount stays unchanged."
         }
       ]
     },
     {
-      "scenario_id": "socket_negative_balance_transfer",
-      "target_invariant": "asset_no_negative_balances",
-      "vulnerability_class": "missing_balance_check",
-      "confidence": 0.87,
+      "scenario_id": "socket_replay_mint_overlock_2024_09",
+      "target_invariant": "ac_locked_vs_minted_balance",
+      "vulnerability_class": "relay_replay",
+      "confidence": 0.92,
       "actions": [
         {
-          "chain": "source",
-          "contract": "MockToken",
-          "function": "approve(address,uint256)",
-          "params": {
-            "spender": "0xGatewayAddress",
-            "amount": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-          },
-          "description": "Attacker grants unlimited allowance to the SocketGateway.",
-          "step": 1
-        },
-        {
-          "chain": "source",
-          "contract": "MockToken",
-          "function": "transferFrom(address,address,uint256)",
-          "params": {
-            "from": "0xAttacker",
-            "to": "0xGatewayAddress",
-            "amount": "1000"
-          },
-          "description": "Attacker calls transferFrom with amount > attacker balance; MockToken lacks a balance >= amount check, causing the sender's balance to underflow into a negative value.",
-          "step": 2
-        },
-        {
-          "chain": "source",
-          "contract": "SocketGateway",
-          "function": "performAction(uint32,address,address,uint256,address,address,bytes)",
-          "params": {
-            "dstChainId": 1,
-            "srcToken": "0xMockToken",
-            "dstToken": "0xMockTokenDst",
-            "amount": "1000",
-            "receiver": "0xAttacker",
-            "relayer": "0xRelayer",
-            "data": "0x"
-          },
-          "description": "Gateway records the pull and emits the cross‑chain message.",
-          "step": 3
-        },
-        {
-          "chain": "destination",
-          "contract": "MockToken",
-          "function": "mint(address,uint256)",
-          "params": {
-            "to": "0xAttacker",
-            "amount": "1000"
-          },
-          "description": "Relay (faithful mode) delivers the mint call; attacker receives tokens on the destination chain while source balance is negative.",
-          "step": 4
-        }
-      ],
-      "waypoints": [
-        {
-          "waypoint_id": "w1",
-          "after_step": 1,
-          "predicate": "step_1_executed",
-          "description": "Attacker grants unlimited allowance to the SocketGateway."
-        },
-        {
-          "waypoint_id": "w2",
-          "after_step": 2,
-          "predicate": "step_2_executed",
-          "description": "Attacker calls transferFrom with amount > attacker balance; MockToken lacks a balance >= amount check, causing the sender's balance to underflow into a negative value."
-        },
-        {
-          "waypoint_id": "w3",
-          "after_step": 3,
-          "predicate": "step_3_executed",
-          "description": "Gateway records the pull and emits the cross‑chain message."
-        },
-        {
-          "waypoint_id": "w4",
-          "after_step": 4,
-          "predicate": "step_4_executed",
-          "description": "Relay (faithful mode) delivers the mint call; attacker receives tokens on the destination chain while source balance is negative."
-        }
-      ],
-      "relay_mode": "faithful",
-      "retrieved_exploits": [
-        "qubit_20220127",
-        "nomad_20220801"
-      ]
-    },
-    {
-      "scenario_id": "socket_replay_mint_2024_01",
-      "target_invariant": "asset_total_supply_unchanged_across_chains",
-      "vulnerability_class": "replay_without_nonce_check",
-      "confidence": 0.93,
-      "actions": [
-        {
-          "chain": "source",
-          "contract": "MockToken",
-          "function": "transferFrom",
-          "params": {
-            "from": "0xAttacker",
-            "to": "0xSocketGateway",
-            "amount": 1000
-          },
-          "description": "Pull tokens into SocketGateway, locking them on the source chain.",
-          "state_predicate": "MockToken.balanceOf(0xAttacker) == initialBalance - 1000 && MockToken.totalSupply() == initialSupply - 1000",
-          "step": 1
-        },
-        {
+          "step": 1,
           "chain": "source",
           "contract": "SocketGateway",
           "function": "performAction",
           "params": {
-            "nonce": 1,
-            "fromToken": "0xMockToken",
-            "toToken": "0xMockToken",
-            "amount": 1000,
-            "from": "0xAttacker",
+            "actionType": 3,
+            "token": "0xMockToken",
             "to": "0xAttacker",
-            "data": "0x"
+            "amount": "1000000000000000000",
+            "impl": "0xSwapImplementationStub",
+            "data": "0x",
+            "extra": "0x"
           },
-          "description": "Emit cross‑chain message to the relay.",
-          "state_predicate": "MessageQueue.pending[1].amount == 1000 && MessageQueue.pending[1].status == 'queued'",
-          "step": 2
+          "mode": "faithful",
+          "waypoint": "totalLocked() == 1000000000000000000",
+          "description": "Step 1"
         },
         {
+          "step": 2,
           "chain": "relay",
           "contract": "SocketRelay",
-          "function": "forwardMessage",
+          "function": "sendMessage",
           "params": {
-            "msgId": 1
+            "msgId": "0xdeadbeef01",
+            "payload": "withdraw:0xMockToken:0xAttacker:1000000000000000000"
           },
-          "relay_mode": "faithful",
-          "description": "Relay forwards the queued message to the destination chain.",
-          "state_predicate": "SocketRelay.forwarded[1] == true",
-          "step": 3
+          "mode": "faithful",
+          "waypoint": "verifiedRelay[0xdeadbeef01] == false",
+          "description": "Step 2"
         },
         {
-          "chain": "destination",
+          "step": 3,
+          "chain": "source",
           "contract": "SocketGateway",
           "function": "performAction",
           "params": {
-            "nonce": 1,
-            "fromToken": "0xMockToken",
-            "toToken": "0xMockToken",
-            "amount": 1000,
-            "from": "0xAttacker",
+            "actionType": 4,
+            "token": "0xMockToken",
             "to": "0xAttacker",
-            "data": "0x"
+            "amount": "1000000000000000000",
+            "impl": "0xSwapImplementationStub",
+            "data": "0x",
+            "extra": "0x"
           },
-          "relay_mode": "faithful",
-          "description": "Destination gateway mints the locked amount to the attacker.",
-          "state_predicate": "MockToken.balanceOf(0xAttacker) == destInitialBalance + 1000 && MockToken.totalSupply() == destInitialSupply + 1000",
-          "step": 4
+          "mode": "faithful",
+          "waypoint": "totalMinted() == 1000000000000000000 && verifiedRelay[0xdeadbeef01] == true",
+          "description": "Step 3"
         },
         {
+          "step": 4,
           "chain": "relay",
           "contract": "SocketRelay",
-          "function": "forwardMessage",
+          "function": "replayMessage",
           "params": {
-            "msgId": 1
+            "msgId": "0xdeadbeef01"
           },
-          "relay_mode": "replay",
-          "description": "Attacker re‑submits the same message after it has already been processed.",
-          "state_predicate": "SocketRelay.replayed[1] == true",
-          "step": 5
+          "mode": "replay",
+          "waypoint": "processedMessage[0xdeadbeef01] == true",
+          "description": "Step 4"
         },
         {
-          "chain": "destination",
+          "step": 5,
+          "chain": "source",
           "contract": "SocketGateway",
           "function": "performAction",
           "params": {
-            "nonce": 1,
-            "fromToken": "0xMockToken",
-            "toToken": "0xMockToken",
-            "amount": 1000,
-            "from": "0xAttacker",
+            "actionType": 4,
+            "token": "0xMockToken",
             "to": "0xAttacker",
-            "data": "0x"
+            "amount": "1000000000000000000",
+            "impl": "0xSwapImplementationStub",
+            "data": "0x",
+            "extra": "0x"
           },
-          "relay_mode": "tampered",
-          "description": "Second mint creates extra supply on the destination chain, breaking the asset‑conservation invariant.",
-          "state_predicate": "MockToken.totalSupply() == destInitialSupply + 2000 && (sourceTotalSupply + destinationTotalSupply) != initialSupply - feeCollected",
-          "step": 6
+          "mode": "replay",
+          "waypoint": "totalMinted() == 2000000000000000000 && totalLocked() == 1000000000000000000",
+          "description": "Step 5"
         }
       ],
       "retrieved_exploits": [
         "wormhole_20220202",
-        "polynetwork_20210810"
+        "polynetwork_20210323"
       ],
       "waypoints": [
         {
           "waypoint_id": "w1",
           "after_step": 1,
           "predicate": "step_1_executed",
-          "description": "Pull tokens into SocketGateway, locking them on the source chain."
+          "description": "Step 1"
         },
         {
           "waypoint_id": "w2",
           "after_step": 2,
-          "predicate": "step_2_executed",
-          "description": "Emit cross‑chain message to the relay."
+          "predicate": "relay.message_count > 0",
+          "description": "Step 2"
         },
         {
           "waypoint_id": "w3",
           "after_step": 3,
-          "predicate": "relay.message_count > 0",
-          "description": "Relay forwards the queued message to the destination chain."
+          "predicate": "step_3_executed",
+          "description": "Step 3"
         },
         {
           "waypoint_id": "w4",
           "after_step": 4,
-          "predicate": "step_4_executed",
-          "description": "Destination gateway mints the locked amount to the attacker."
+          "predicate": "relay.message_count > 0",
+          "description": "Step 4"
         },
         {
           "waypoint_id": "w5",
           "after_step": 5,
-          "predicate": "relay.message_count > 0",
-          "description": "Attacker re‑submits the same message after it has already been processed."
-        },
-        {
-          "waypoint_id": "w6",
-          "after_step": 6,
-          "predicate": "step_6_executed",
-          "description": "Second mint creates extra supply on the destination chain, breaking the asset‑conservation invariant."
+          "predicate": "step_5_executed",
+          "description": "Step 5"
         }
       ]
     },
     {
-      "scenario_id": "socket_fake_deposit_2024_04_25",
-      "target_invariant": "asset_locked_equals_mint_requests",
-      "vulnerability_class": "fake_deposit",
-      "confidence": 0.86,
-      "actions": [
-        {
-          "chain": "source",
-          "contract": "SocketGateway",
-          "function": "performAction(uint32 actionId,address from,address to,uint256 amount,address token,address feeToken,bytes data)",
-          "params": {
-            "actionId": 3,
-            "from": "0xAttacker",
-            "to": "0xSocketGateway",
-            "amount": "1000e18",
-            "token": "MockToken",
-            "feeToken": "0x0000000000000000000000000000000000000000",
-            "data": "0x"
-          },
-          "description": "Attacker initiates a legitimate pull (e3) locking 1000 MockToken on the source chain. State predicate: sourceGateway.lockedAmountByNonce[nonce] == 1000e18.",
-          "step": 1
-        },
-        {
-          "chain": "relay",
-          "contract": "SocketRelay",
-          "function": "tamperMessage(uint256 nonce,uint256 originalAmount,uint256 newAmount)",
-          "params": {
-            "nonce": "nonceFromStep1",
-            "originalAmount": "1000e18",
-            "newAmount": "1500e18"
-          },
-          "mode": "tampered",
-          "description": "Relay intercepts the cross‑chain message and inflates the amount field from 1000 to 1500 MockToken. State predicate: relayMessage.amount == 1500e18.",
-          "step": 2
-        },
-        {
-          "chain": "destination",
-          "contract": "SocketGateway",
-          "function": "mint(address to,uint256 amount)",
-          "params": {
-            "to": "0xAttacker",
-            "amount": "1500e18"
-          },
-          "description": "Destination gateway processes the tampered message and mints 1500 MockToken to the attacker (e4). State predicate: destGateway.mintRequestedAmount[nonce] == 1500e18.",
-          "step": 3
-        }
-      ],
-      "retrieved_exploits": [
-        "gempad_20240419",
-        "qubit_20220127"
-      ],
-      "waypoints": [
-        {
-          "waypoint_id": "w1",
-          "after_step": 1,
-          "predicate": "step_1_executed",
-          "description": "Attacker initiates a legitimate pull (e3) locking 1000 MockToken on the source chain. State predicate: sourceGateway.lockedAmountByNonce[nonce] == 1000e18."
-        },
-        {
-          "waypoint_id": "w2",
-          "after_step": 2,
-          "predicate": "relay.message_count > 0",
-          "description": "Relay intercepts the cross‑chain message and inflates the amount field from 1000 to 1500 MockToken. State predicate: relayMessage.amount == 1500e18."
-        },
-        {
-          "waypoint_id": "w3",
-          "after_step": 3,
-          "predicate": "step_3_executed",
-          "description": "Destination gateway processes the tampered message and mints 1500 MockToken to the attacker (e4). State predicate: destGateway.mintRequestedAmount[nonce] == 1500e18."
-        }
-      ]
-    },
-    {
-      "scenario_id": "socket_upgrade_mint_without_verified_relay_001",
-      "target_invariant": "authorization_mint_requires_verified_relay",
-      "vulnerability_class": "upgradeable_proxy_misconfiguration",
+      "scenario_id": "socket_fee_underflow_2024_01",
+      "target_invariant": "ac_fee_non_negative",
+      "vulnerability_class": "fee_manipulation_via_tampered_relay",
       "confidence": 0.87,
       "actions": [
         {
-          "chain": "ethereum",
-          "contract": "ProxyAdmin",
-          "function": "upgrade(address,address)",
-          "params": {
-            "proxy": "0xSocketGatewayProxy",
-            "newImplementation": "0xMaliciousImpl"
-          },
-          "description": "Attacker, who has compromised the ProxyAdmin (e.g., via a compromised relayer key), upgrades the SocketGateway proxy to a malicious implementation that skips relay verification before mint.",
-          "mode": "faithful",
-          "state_predicate": "SocketGatewayProxy.implementation() == 0xMaliciousImpl",
-          "step": 1
-        },
-        {
-          "chain": "ethereum",
-          "contract": "SocketGateway",
-          "function": "performAction(uint32,address,address,uint256,address,address,bytes)",
-          "params": {
-            "dstChainId": 137,
-            "srcToken": "0xMockTokenSrc",
-            "dstToken": "0xMockTokenDst",
-            "amount": 1000,
-            "receiver": "0xAttacker",
-            "relayer": "0xAttacker",
-            "payload": "0x"
-          },
-          "description": "Attacker initiates a cross‑chain transfer. The payload is empty because the malicious implementation will ignore the relay verification step.",
-          "mode": "tampered",
-          "state_predicate": "SocketGateway.pendingActions(0) == true",
-          "step": 2
-        },
-        {
-          "chain": "polygon",
-          "contract": "MockToken",
-          "function": "mint(address,uint256)",
-          "params": {
-            "to": "0xAttacker",
-            "amount": 1000
-          },
-          "description": "The malicious implementation of SocketGateway on Polygon executes the mint without checking `relayVerified[messageHash]`. This directly violates the invariant.",
-          "mode": "tampered",
-          "state_predicate": "relayVerified[keccak256(abi.encodePacked(0xAttacker,1000))] == false && MockToken.balanceOf(0xAttacker) == 1000",
-          "step": 3
-        },
-        {
-          "chain": "polygon",
-          "contract": "MockToken",
-          "function": "transfer(address,uint256)",
-          "params": {
-            "to": "0xAttackerWallet",
-            "amount": 1000
-          },
-          "description": "Attacker moves the freshly minted tokens to a wallet they control, realizing the economic gain.",
-          "mode": "faithful",
-          "state_predicate": "MockToken.balanceOf(0xAttackerWallet) == 1000",
-          "step": 4
-        }
-      ],
-      "retrieved_exploits": [
-        "evodefi_20220607",
-        "nomad_20220801",
-        "chainswap_20210711"
-      ],
-      "waypoints": [
-        {
-          "waypoint_id": "w1",
-          "after_step": 1,
-          "predicate": "step_1_executed",
-          "description": "Attacker, who has compromised the ProxyAdmin (e.g., via a compromised relayer key), upgrades the SocketGateway proxy to a malicious implementation that skips relay verification before mint."
-        },
-        {
-          "waypoint_id": "w2",
-          "after_step": 2,
-          "predicate": "step_2_executed",
-          "description": "Attacker initiates a cross‑chain transfer. The payload is empty because the malicious implementation will ignore the relay verification step."
-        },
-        {
-          "waypoint_id": "w3",
-          "after_step": 3,
-          "predicate": "step_3_executed",
-          "description": "The malicious implementation of SocketGateway on Polygon executes the mint without checking `relayVerified[messageHash]`. This directly violates the invariant."
-        },
-        {
-          "waypoint_id": "w4",
-          "after_step": 4,
-          "predicate": "step_4_executed",
-          "description": "Attacker moves the freshly minted tokens to a wallet they control, realizing the economic gain."
-        }
-      ]
-    },
-    {
-      "scenario_id": "socket_pull_allowance_bypass_001",
-      "target_invariant": "authorization_pull_requires_allowance",
-      "vulnerability_class": "logic_bug",
-      "confidence": 0.92,
-      "actions": [
-        {
           "chain": "source",
           "contract": "SocketGateway",
-          "function": "performAction(uint32,address,address,uint256,address,address,bytes)",
+          "function": "performAction",
           "params": {
-            "operationId": 1,
-            "fromToken": "0xMockTokenSource",
-            "toToken": "0xMockTokenDest",
-            "amount": "1000000000000000000000",
-            "fromUser": "0xVictimAddress",
-            "toUser": "0xAttackerAddress",
-            "data": "0x"
+            "actionId": 1,
+            "token": "0xMockTokenAddress",
+            "recipient": "0xUserAddress",
+            "amount": "1000000000000000000",
+            "feeRecipient": "0xFeeCollectorAddress",
+            "feeAmount": "0",
+            "extraData": "0x"
           },
-          "description": "Attacker calls the gateway's entry point, supplying victim as the source user. The gateway internally invokes the `pull` edge (e3) without performing a proper ERC‑20 allowance check because the condition list is corrupted.",
-          "waypoint": "allowances[0xVictimAddress][0xAttackerAddress] == 0 && balances[0xVictimAddress] >= 1000000000000000000000",
+          "description": "User initiates a withdrawal (edge e3). Tokens are locked in the gateway; totalFeesCollected remains unchanged.",
           "step": 1
         },
         {
           "chain": "relay",
           "contract": "SocketRelay",
-          "function": "forwardMessage(bytes)",
+          "function": "processMessage",
           "params": {
-            "payload": "0x<encoded performAction call>"
+            "msgId": "0x1234abcd",
+            "originalPayload": {
+              "actionId": 2,
+              "token": "0xMockTokenAddress",
+              "recipient": "0xUserAddress",
+              "amount": "1000000000000000000",
+              "feeRecipient": "0xFeeCollectorAddress",
+              "feeAmount": "0",
+              "extraData": "0x"
+            },
+            "tamperedPayload": {
+              "actionId": 2,
+              "token": "0xMockTokenAddress",
+              "recipient": "0xUserAddress",
+              "amount": "1000000000000000000",
+              "feeRecipient": "0xFeeCollectorAddress",
+              "feeAmount": "-5000000000000000000",
+              "extraData": "0x"
+            }
           },
-          "description": "The Socket relay forwards the cross‑chain payload to the destination chain in a faithful mode (no tampering).",
-          "relay_mode": "faithful",
-          "waypoint": "relayMessageCount == 1",
+          "mode": "tampered",
+          "description": "Attacker intercepts the off‑chain relay message and injects a negative fee (‑5 tokens, represented as int256).",
           "step": 2
         },
         {
           "chain": "destination",
           "contract": "SocketGateway",
-          "function": "mint(address,uint256)",
+          "function": "performAction",
           "params": {
-            "to": "0xAttackerAddress",
-            "amount": "1000000000000000000000"
+            "actionId": 2,
+            "token": "0xMockTokenAddress",
+            "recipient": "0xUserAddress",
+            "amount": "1000000000000000000",
+            "feeRecipient": "0xFeeCollectorAddress",
+            "feeAmount": "-5000000000000000000",
+            "extraData": "0x"
           },
-          "description": "Upon receipt, the destination gateway mints the wrapped token to the attacker, completing the bridge transfer.",
-          "waypoint": "balanceOf[0xAttackerAddress] >= 1000000000000000000000",
+          "description": "Gateway processes the tampered relay (edge e4). It mints amount‑fee = 6 tokens to the user and adds the negative fee to totalFeesCollected, driving the fee counter below zero.",
           "step": 3
         }
       ],
-      "retrieved_exploits": [
-        "metpassport_20220206",
-        "chainswap_20210711"
-      ],
-      "waypoints": [
-        {
-          "waypoint_id": "w1",
-          "after_step": 1,
-          "predicate": "step_1_executed",
-          "description": "Attacker calls the gateway's entry point, supplying victim as the source user. The gateway internally invokes the `pull` edge (e3) without performing a proper ERC‑20 allowance check because the condition list is corrupted."
-        },
-        {
-          "waypoint_id": "w2",
-          "after_step": 2,
-          "predicate": "relay.message_count > 0",
-          "description": "The Socket relay forwards the cross‑chain payload to the destination chain in a faithful mode (no tampering)."
-        },
-        {
-          "waypoint_id": "w3",
-          "after_step": 3,
-          "predicate": "step_3_executed",
-          "description": "Upon receipt, the destination gateway mints the wrapped token to the attacker, completing the bridge transfer."
-        }
-      ]
-    },
-    {
-      "scenario_id": "socket_transferFrom_allowance_without_balance_check",
-      "target_invariant": "authorization_transfer_from_requires_balance",
-      "vulnerability_class": "logic_bug",
-      "confidence": 0.92,
-      "actions": [
-        {
-          "chain": "source",
-          "contract": "MockToken",
-          "function": "approve",
-          "params": {
-            "spender": "0xAttackerContract",
-            "amount": "1000000"
-          },
-          "description": "Victim (0xVictim) grants a large allowance to the attacker‑controlled contract.",
-          "state_predicate": "MockToken.allowance(0xVictim,0xAttackerContract) == 1000000",
-          "step": 1
-        },
-        {
-          "chain": "source",
-          "contract": "MockToken",
-          "function": "balanceOf",
-          "params": {
-            "account": "0xVictim"
-          },
-          "description": "Confirm victim holds a small balance that is insufficient for the upcoming transfer.",
-          "state_predicate": "MockToken.balanceOf(0xVictim) == 100",
-          "step": 2
-        },
-        {
-          "chain": "source",
-          "contract": "AttackerContract",
-          "function": "exploitTransferFrom",
-          "params": {
-            "from": "0xVictim",
-            "to": "0xAttacker",
-            "amount": "1000000"
-          },
-          "description": "Attacker contract invokes MockToken.transferFrom using the previously approved allowance, requesting an amount far larger than the victim's balance.",
-          "relay_mode": "faithful",
-          "state_predicate": "true",
-          "step": 3
-        },
-        {
-          "chain": "source",
-          "contract": "MockToken",
-          "function": "transferFrom",
-          "params": {
-            "from": "0xVictim",
-            "to": "0xAttacker",
-            "amount": "1000000"
-          },
-          "description": "Underlying ERC‑20 call; the buggy MockToken implementation only checks allowance, not balance, so the call succeeds.",
-          "state_predicate": "MockToken.balanceOf(0xAttacker) >= 1000000 && MockToken.balanceOf(0xVictim) == 0",
-          "step": 4
-        }
+      "state_predicates": [
+        "sourceGateway.totalLocked() >= 1000000000000000000",
+        "destinationGateway.totalFeesCollected() < 0"
       ],
       "retrieved_exploits": [
-        "metpassport_20220206",
+        "qubit_20220127",
         "meterio_20220205"
       ],
       "waypoints": [
@@ -743,79 +317,75 @@
           "waypoint_id": "w1",
           "after_step": 1,
           "predicate": "step_1_executed",
-          "description": "Victim (0xVictim) grants a large allowance to the attacker‑controlled contract."
+          "description": "User initiates a withdrawal (edge e3). Tokens are locked in the gateway; totalFeesCollected remains unchanged."
         },
         {
           "waypoint_id": "w2",
           "after_step": 2,
-          "predicate": "step_2_executed",
-          "description": "Confirm victim holds a small balance that is insufficient for the upcoming transfer."
+          "predicate": "relay.message_count > 0",
+          "description": "Attacker intercepts the off‑chain relay message and injects a negative fee (‑5 tokens, represented as int256)."
         },
         {
           "waypoint_id": "w3",
           "after_step": 3,
           "predicate": "step_3_executed",
-          "description": "Attacker contract invokes MockToken.transferFrom using the previously approved allowance, requesting an amount far larger than the victim's balance."
-        },
-        {
-          "waypoint_id": "w4",
-          "after_step": 4,
-          "predicate": "step_4_executed",
-          "description": "Underlying ERC‑20 call; the buggy MockToken implementation only checks allowance, not balance, so the call succeeds."
+          "description": "Gateway processes the tampered relay (edge e4). It mints amount‑fee = 6 tokens to the user and adds the negative fee to totalFeesCollected, driving the fee counter below zero."
         }
       ]
     },
     {
-      "scenario_id": "socket_auth_bypass_mint_2024_04",
-      "target_invariant": "authorization_gateway_only_caller",
-      "vulnerability_class": "authorization_bypass",
-      "confidence": 0.88,
+      "scenario_id": "socket_negative_balance_001",
+      "target_invariant": "ac_no_negative_balance",
+      "vulnerability_class": "logic_bug_missing_balance_check",
+      "confidence": 0.92,
       "actions": [
         {
+          "step": 1,
           "chain": "source",
-          "contract": "AttackerRelay",
-          "function": "initialize(address socketGateway)",
-          "params": {
-            "socketGateway": "0xAAA...Gateway"
-          },
-          "description": "Deploy a malicious relay contract and register it as a trusted relayer for the Socket bridge. The contract stores the gateway address but will later forward messages with a tampered `msg.sender`.",
-          "step": 1
-        },
-        {
-          "chain": "source",
-          "contract": "AttackerEOA",
-          "function": "initiateBridge(uint256 amount, address dstToken, address dstRecipient)",
-          "params": {
-            "amount": "1000e18",
-            "dstToken": "0xBBB...MockToken",
-            "dstRecipient": "0xCCC...Attacker"
-          },
-          "description": "User calls `SocketGateway.performAction` (via the public entry point) specifying the malicious relay as the executor. The gateway emits a cross‑chain message that the AttackerRelay will consume.",
-          "step": 2
-        },
-        {
-          "chain": "destination",
-          "contract": "AttackerRelay",
-          "function": "executeMint(address token, address to, uint256 amount)",
-          "params": {
-            "token": "0xBBB...MockToken",
-            "to": "0xCCC...Attacker",
-            "amount": "1000e18"
-          },
-          "relay_mode": "tampered",
-          "description": "The registered relay receives the message and, instead of calling the gateway, directly invokes `MockToken.mint(to, amount)`. Because the call originates from the relay, `msg.sender` is the relay address, not `SocketGateway`, violating the invariant.",
-          "step": 3
-        },
-        {
-          "chain": "destination",
           "contract": "MockToken",
-          "function": "balanceOf(address)",
+          "function": "mint(address,uint256)",
           "params": {
-            "account": "0xCCC...Attacker"
+            "to": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": 10
           },
-          "state_predicate": "MockToken.balanceOf(0xCCC...Attacker) >= 1000e18",
-          "description": "Verify that the attacker’s balance increased, confirming that mint succeeded without the gateway check.",
-          "step": 4
+          "description": "Attacker obtains a small legitimate balance.",
+          "waypoint": "MockToken.balanceOf(0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa) == 10"
+        },
+        {
+          "step": 2,
+          "chain": "source",
+          "contract": "SocketGateway",
+          "function": "performAction(uint32,address,address,uint256,address,address,bytes)",
+          "params": {
+            "actionId": 3,
+            "token": "MockToken",
+            "to": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": 1000,
+            "impl": "0x1111111111111111111111111111111111111111",
+            "feeRecipient": "0x0000000000000000000000000000000000000000",
+            "data": "0x"
+          },
+          "relay_mode": "faithful",
+          "description": "Attacker calls withdraw (e3) with amount far exceeding their balance; e3 lacks a balance check.",
+          "waypoint": "MockToken.balanceOf(0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa) < 0 && SocketGateway.lockedAmount() >= 1000"
+        },
+        {
+          "step": 3,
+          "chain": "destination",
+          "contract": "SocketGateway",
+          "function": "performAction(uint32,address,address,uint256,address,address,bytes)",
+          "params": {
+            "actionId": 4,
+            "token": "MockToken",
+            "to": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
+            "amount": 0,
+            "impl": "0x1111111111111111111111111111111111111111",
+            "feeRecipient": "0x0000000000000000000000000000000000000000",
+            "data": "0x"
+          },
+          "relay_mode": "delayed",
+          "description": "Relay is tampered/delayed so the corresponding mint (e4) does not credit any tokens.",
+          "waypoint": "MockToken.balanceOf(0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa) < 0"
         }
       ],
       "retrieved_exploits": [
@@ -826,148 +396,131 @@
           "waypoint_id": "w1",
           "after_step": 1,
           "predicate": "step_1_executed",
-          "description": "Deploy a malicious relay contract and register it as a trusted relayer for the Socket bridge. The contract stores the gateway address but will later forward messages with a tampered `msg.sender`."
+          "description": "Attacker obtains a small legitimate balance."
         },
         {
           "waypoint_id": "w2",
           "after_step": 2,
           "predicate": "step_2_executed",
-          "description": "User calls `SocketGateway.performAction` (via the public entry point) specifying the malicious relay as the executor. The gateway emits a cross‑chain message that the AttackerRelay will consume."
+          "description": "Attacker calls withdraw (e3) with amount far exceeding their balance; e3 lacks a balance check."
         },
         {
           "waypoint_id": "w3",
           "after_step": 3,
           "predicate": "step_3_executed",
-          "description": "The registered relay receives the message and, instead of calling the gateway, directly invokes `MockToken.mint(to, amount)`. Because the call originates from the relay, `msg.sender` is the relay address, not `SocketGateway`, violating the invariant."
-        },
-        {
-          "waypoint_id": "w4",
-          "after_step": 4,
-          "predicate": "step_4_executed",
-          "description": "Verify that the attacker’s balance increased, confirming that mint succeeded without the gateway check."
+          "description": "Relay is tampered/delayed so the corresponding mint (e4) does not credit any tokens."
         }
       ]
     },
     {
-      "scenario_id": "s10_signature_forgery_socket",
-      "target_invariant": "authorization_signature_matches_nonce",
-      "vulnerability_class": "signature_forgery",
-      "confidence": 0.75,
+      "scenario_id": "socket_total_locked_over_supply_logic_bug_001",
+      "target_invariant": "ac_total_locked_not_exceed_total_supply",
+      "vulnerability_class": "logic_bug",
+      "confidence": 0.86,
       "actions": [
         {
-          "step": 1,
-          "chain": "relay",
-          "action": "tamper",
+          "chain": "source",
+          "contract": "SwapImplementationStub",
+          "function": "init(address)",
           "params": {
-            "field": "signatures",
-            "value": "0xforged"
+            "gateway": "0xGatewayAddress"
           },
-          "description": "Inject forged guardian/validator signatures (Wormhole-style)"
+          "description": "Deploy a malicious implementation contract that implements performAction but skips the token transfer, only calling internal gateway accounting to increase totalLocked.",
+          "step": 1
         },
         {
-          "step": 2,
-          "chain": "destination",
-          "contract": "SwapImplementationStub",
-          "function": "verifyAndExecute",
+          "chain": "source",
+          "contract": "SocketGateway",
+          "function": "performAction",
           "params": {
-            "amount": "2666000000000000000000"
+            "actionId": 0,
+            "impl": "0xMaliciousImplAddress",
+            "to": "0xUserAddress",
+            "amount": "500000000000000000000",
+            " // 500 tokens (assuming 18 decimals, larger than totalSupply of 1000 tokens after minting 1000)  \n        ": "bytesData",
+            "msgSender": "0xUserAddress",
+            "extra": "0x"
           },
-          "description": "Submit forged signature bundle to destination"
+          "description": "User initiates a withdrawal (edge e3) specifying the malicious implementation. The gateway records `amount` in its internal `totalLocked` counter before delegating to the impl. The malicious impl does nothing, so no tokens are actually transferred to the gateway.",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "SocketGateway",
+          "function": "totalLocked",
+          "params": {},
+          "description": "Read the locked amount after the malicious withdrawal. Predicate: `SocketGateway.totalLocked() > MockToken.totalSupply()` must hold, violating the invariant.",
+          "step": 3
         }
-      ],
-      "retrieved_exploits": [
-        "chainswap_20210711",
-        "multichain_20220118",
-        "nomad_20220801"
       ],
       "waypoints": [
         {
           "waypoint_id": "w1",
           "after_step": 1,
-          "predicate": "relay.pendingMessage.amount != sourceRouter.deposits(nonce).amount",
-          "description": "Inject forged guardian/validator signatures (Wormhole-style)"
+          "predicate": "step_1_executed",
+          "description": "Deploy a malicious implementation contract that implements performAction but skips the token transfer, only calling internal gateway accounting to increase totalLocked."
         },
         {
           "waypoint_id": "w2",
           "after_step": 2,
-          "predicate": "destRouter.totalMinted() >= 2666000000000000000000",
-          "description": "Submit forged signature bundle to destination"
+          "predicate": "step_2_executed",
+          "description": "User initiates a withdrawal (edge e3) specifying the malicious implementation. The gateway records `amount` in its internal `totalLocked` counter before delegating to the impl. The malicious impl does nothing, so no tokens are actually transferred to the gateway."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Read the locked amount after the malicious withdrawal. Predicate: `SocketGateway.totalLocked() > MockToken.totalSupply()` must hold, violating the invariant."
         }
+      ],
+      "retrieved_exploits": [
+        "metpassport_20220206",
+        "harmony_horizon_20220624"
       ]
     },
     {
-      "scenario_id": "socket_nonce_replay_2024_04_25",
-      "target_invariant": "uniqueness_nonce_used_once",
-      "vulnerability_class": "replay_without_nonce_check",
-      "confidence": 0.86,
+      "scenario_id": "socket_impl_zero_withdraw_001",
+      "target_invariant": "auth_withdraw_impl_nonzero",
+      "vulnerability_class": "missing_access_control_on_impl_update",
+      "confidence": 0.92,
       "actions": [
         {
           "chain": "source",
           "contract": "SocketGateway",
-          "function": "performAction(uint32 nonce,address from,address to,uint256 amount,address fromToken,address toToken,bytes data)",
+          "function": "setImplementation(address)",
           "params": {
-            "nonce": 42,
-            "from": "0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa",
-            "to": "0xBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBb",
-            "amount": "1000000000000000000",
-            "fromToken": "0xCcCcCcCcCcCcCcCcCcCcCcCcCcCcCcCcCcCcCcCc",
-            "toToken": "0xDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDd",
-            "data": "0x"
+            "newImpl": "0x0000000000000000000000000000000000000000"
           },
-          "description": "User initiates cross‑chain transfer; gateway records nonce 42 as used on source chain.",
-          "waypoint": "sourceGateway.nonceUsed[42] == true",
+          "description": "Attacker (User) calls the unprotected setter to overwrite the implementation address with address(0).",
+          "state_predicates": [
+            "SocketGateway.impl == address(0)"
+          ],
           "step": 1
         },
         {
-          "chain": "relay",
-          "contract": "SocketRelay",
-          "function": "forwardProof(bytes proof)",
+          "chain": "source",
+          "contract": "SocketGateway",
+          "function": "performAction(uint32,address,address,uint256,address,address,bytes)",
           "params": {
-            "proof": "<abi‑encoded proof of performAction with nonce 42>"
+            "actionId": 1,
+            "token": "MockToken",
+            "to": "User",
+            "amount": 1000000000000000000,
+            "impl": "0x0000000000000000000000000000000000000000",
+            "extra": "0x",
+            "data": "0x"
           },
-          "description": "Relay forwards the proof to the destination chain in faithful mode (first delivery).",
-          "relay_mode": "faithful",
-          "waypoint": "destinationGateway.pendingProofs.contains(proof) == true",
+          "description": "User initiates a withdrawal (edge e3) while the implementation address is zero. The gateway delegates to address(0), which contains no code, so the require check inside the implementation is never executed.",
+          "state_predicates": [
+            "SocketGateway.impl == address(0)",
+            "MockToken.balanceOf(User) >= previous_balance + 1000000000000000000",
+            "SocketGateway.totalLocked() <= previous_locked - 1000000000000000000"
+          ],
           "step": 2
-        },
-        {
-          "chain": "relay",
-          "contract": "SocketRelay",
-          "function": "forwardProof(bytes proof)",
-          "params": {
-            "proof": "<same abi‑encoded proof as above>"
-          },
-          "description": "Attacker replays the identical proof before the destination gateway has cleared the pending state.",
-          "relay_mode": "replay",
-          "waypoint": "destinationGateway.pendingProofs.contains(proof) == true",
-          "step": 3
-        },
-        {
-          "chain": "destination",
-          "contract": "SocketGateway",
-          "function": "processProof(bytes proof)",
-          "params": {
-            "proof": "<abi‑encoded proof of performAction with nonce 42>"
-          },
-          "description": "Gateway processes the first proof, mints tokens to recipient and (incorrectly) does NOT mark nonce 42 as used on destination chain.",
-          "waypoint": "destinationGateway.nonceUsed[42] == false && recipient.balance == 1e18",
-          "step": 4
-        },
-        {
-          "chain": "destination",
-          "contract": "SocketGateway",
-          "function": "processProof(bytes proof)",
-          "params": {
-            "proof": "<same abi‑encoded proof of performAction with nonce 42>"
-          },
-          "description": "Gateway processes the replayed proof, minting a second batch of tokens because nonce check is missing, violating uniqueness invariant.",
-          "waypoint": "recipient.balance == 2e18 && destinationGateway.nonceUsed[42] == false",
-          "step": 5
         }
       ],
       "retrieved_exploits": [
-        "gempad_20240419",
-        "anyswap_20210710",
+        "harmony_horizon_20220624",
         "meterio_20220205"
       ],
       "waypoints": [
@@ -975,145 +528,703 @@
           "waypoint_id": "w1",
           "after_step": 1,
           "predicate": "step_1_executed",
-          "description": "User initiates cross‑chain transfer; gateway records nonce 42 as used on source chain."
+          "description": "Attacker (User) calls the unprotected setter to overwrite the implementation address with address(0)."
         },
         {
           "waypoint_id": "w2",
           "after_step": 2,
-          "predicate": "relay.message_count > 0",
-          "description": "Relay forwards the proof to the destination chain in faithful mode (first delivery)."
-        },
-        {
-          "waypoint_id": "w3",
-          "after_step": 3,
-          "predicate": "relay.message_count > 0",
-          "description": "Attacker replays the identical proof before the destination gateway has cleared the pending state."
-        },
-        {
-          "waypoint_id": "w4",
-          "after_step": 4,
-          "predicate": "step_4_executed",
-          "description": "Gateway processes the first proof, mints tokens to recipient and (incorrectly) does NOT mark nonce 42 as used on destination chain."
-        },
-        {
-          "waypoint_id": "w5",
-          "after_step": 5,
-          "predicate": "step_5_executed",
-          "description": "Gateway processes the replayed proof, minting a second batch of tokens because nonce check is missing, violating uniqueness invariant."
+          "predicate": "step_2_executed",
+          "description": "User initiates a withdrawal (edge e3) while the implementation address is zero. The gateway delegates to address(0), which contains no code, so the require check inside the implementation is never executed."
         }
       ]
     },
     {
-      "scenario_id": "socket_replay_001",
-      "target_invariant": "uniqueness_message_id_processed_once",
-      "vulnerability_class": "message_replay",
-      "confidence": 0.78,
+      "scenario_id": "socket_auth_mint_unverified_relay_001",
+      "target_invariant": "auth_mint_requires_verified_relay",
+      "vulnerability_class": "relay_verification_bypass",
+      "confidence": 0.87,
       "actions": [
         {
-          "chain": "ethereum",
+          "chain": "source",
           "contract": "SocketGateway",
           "function": "performAction(uint32,address,address,uint256,address,address,bytes)",
           "params": {
-            "srcChainId": 1,
-            "fromToken": "0xMockTokenEthereum",
-            "toToken": "0xMockTokenPolygon",
-            "amount": 1000000000000000000,
-            "sender": "0xAttackerEOA",
-            "recipient": "0xAttackerEOA",
-            "extraData": "0x"
+            "_dstChainId": 100,
+            "_token": "0xMockTokenAddress",
+            "_to": "0xAttackerAddress",
+            "_amount": "1000000000000000000",
+            "_impl": "0xImplementationStub",
+            "_relayer": "0xAttackerAddress",
+            "_data": "0xdeadbeef"
           },
-          "description": "User (attacker) initiates a cross‑chain transfer. The gateway emits a signed relay message whose hash H is stored in `processedMessage[H] == false`.",
-          "waypoint": "sourceGateway.messageNonce == 42 && sourceGateway.processedMessage[H] == false",
+          "relay_mode": "tampered",
+          "state_predicates_before": [
+            "verifiedRelay[0xdeadbeef] == false"
+          ],
+          "description": "Front‑run the pending verification transaction. Call performAction with a crafted msgId (0xdeadbeef) that has not been marked verified. The relayer field is set to the attacker, and the payload mints 1 token to the attacker.",
           "step": 1
         },
         {
-          "chain": "relay",
-          "contract": "SocketRelay",
-          "function": "relayMessage(bytes32)",
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "mint(address,uint256)",
           "params": {
-            "messageHash": "H"
+            "to": "0xAttackerAddress",
+            "amount": "1000000000000000000"
           },
-          "mode": "faithful",
-          "description": "Honest relayer forwards the signed message to the destination chain.",
-          "waypoint": "relay.lastDeliveredHash == H",
+          "relay_mode": "faithful",
+          "state_predicates_after": [
+            "balanceOf(0xAttackerAddress) >= 1000000000000000000",
+            "verifiedRelay[0xdeadbeef] == false"
+          ],
+          "description": "Edge e4 is triggered inside performAction, minting tokens to the attacker despite verifiedRelay[msgId] being false, violating the invariant.",
           "step": 2
         },
         {
-          "chain": "polygon",
+          "chain": "source",
           "contract": "SocketGateway",
-          "function": "processMessage(bytes)",
+          "function": "verifyRelay(uint256,bytes,bytes)",
           "params": {
-            "message": "abi.encodePacked(H, … )"
+            "msgId": "0xdeadbeef",
+            "data": "0x...",
+            "signature": "0xValidSignatureFromRelayer"
           },
-          "description": "Destination gateway validates the message, sees `processedMessage[H] == false`, mints `amount` of MockToken to the attacker and sets `processedMessage[H] = true`.",
-          "waypoint": "destGateway.processedMessage[H] == true && MockToken.balanceOf(0xAttackerEOA) == 1000000000000000000",
+          "relay_mode": "delayed",
+          "state_predicates_after": [
+            "verifiedRelay[0xdeadbeef] == true"
+          ],
+          "description": "The legitimate verification transaction finally executes, setting verifiedRelay to true, but the unauthorized mint has already occurred.",
           "step": 3
-        },
-        {
-          "chain": "relay",
-          "contract": "SocketRelay",
-          "function": "relayMessage(bytes32)",
-          "params": {
-            "messageHash": "H"
-          },
-          "mode": "replay",
-          "description": "Attacker re‑broadcasts the same message hash H after a short delay. The relay does not modify the payload, but the destination gateway contains a bug: the `processedMessage` mapping is cleared on each epoch rollover via `epochCleanup()` which the attacker triggers by calling `setCurrentEpoch(uint256)` on the gateway (owner‑only, but the owner key was compromised in a prior key‑compromise incident). The attacker first calls the compromised owner function to reset the epoch, which implicitly deletes the old `processedMessage[H]` entry, then replays the message.",
-          "waypoint": "destGateway.currentEpoch == 2 && destGateway.processedMessage[H] == false",
-          "step": 4
-        },
-        {
-          "chain": "polygon",
-          "contract": "SocketGateway",
-          "function": "processMessage(bytes)",
-          "params": {
-            "message": "abi.encodePacked(H, … )"
-          },
-          "description": "Gateway processes the replayed message again, sees `processedMessage[H] == false` (because it was cleared), mints a second tranche of tokens to the attacker, violating the uniqueness invariant.",
-          "waypoint": "MockToken.balanceOf(0xAttackerEOA) == 2000000000000000000 && destGateway.processedMessage[H] == true",
-          "step": 5
         }
       ],
       "retrieved_exploits": [
-        "nomad_20220801",
-        "gempad_20240419"
+        "wormhole_vaa_forge_20220202",
+        "polynetwork_cross_chain_hack_20210323"
       ],
       "waypoints": [
         {
           "waypoint_id": "w1",
           "after_step": 1,
           "predicate": "step_1_executed",
-          "description": "User (attacker) initiates a cross‑chain transfer. The gateway emits a signed relay message whose hash H is stored in `processedMessage[H] == false`."
+          "description": "Front‑run the pending verification transaction. Call performAction with a crafted msgId (0xdeadbeef) that has not been marked verified. The relayer field is set to the attacker, and the payload mints 1 token to the attacker."
         },
         {
           "waypoint_id": "w2",
           "after_step": 2,
-          "predicate": "relay.message_count > 0",
-          "description": "Honest relayer forwards the signed message to the destination chain."
+          "predicate": "step_2_executed",
+          "description": "Edge e4 is triggered inside performAction, minting tokens to the attacker despite verifiedRelay[msgId] being false, violating the invariant."
         },
         {
           "waypoint_id": "w3",
           "after_step": 3,
           "predicate": "step_3_executed",
-          "description": "Destination gateway validates the message, sees `processedMessage[H] == false`, mints `amount` of MockToken to the attacker and sets `processedMessage[H] = true`."
-        },
-        {
-          "waypoint_id": "w4",
-          "after_step": 4,
-          "predicate": "relay.message_count > 0",
-          "description": "Attacker re‑broadcasts the same message hash H after a short delay. The relay does not modify the payload, but the destination gateway contains a bug: the `processedMessage` mapping is cleared on each epoch rollover via `epochCleanup()` which the attacker triggers by calling `setCurrentEpoch(uint256)` on the gateway (owner‑only, but the owner key was compromised in a prior key‑compromise incident). The attacker first calls the compromised owner function to reset the epoch, which implicitly deletes the old `processedMessage[H]` entry, then replays the message."
-        },
-        {
-          "waypoint_id": "w5",
-          "after_step": 5,
-          "predicate": "step_5_executed",
-          "description": "Gateway processes the replayed message again, sees `processedMessage[H] == false` (because it was cleared), mints a second tranche of tokens to the attacker, violating the uniqueness invariant."
+          "description": "The legitimate verification transaction finally executes, setting verifiedRelay to true, but the unauthorized mint has already occurred."
         }
       ]
     },
     {
-      "scenario_id": "socket_replay_double_mint_2024_01",
-      "target_invariant": "uniqueness_mint_idempotent",
-      "vulnerability_class": "replay_without_idempotency_guard",
+      "scenario_id": "socket_reentrancy_allowance_bypass_001",
+      "target_invariant": "auth_transfer_requires_allowance",
+      "vulnerability_class": "reentrancy_via_malicious_implementation",
+      "confidence": 0.87,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "SocketGateway",
+          "function": "setImplementation(address)",
+          "params": {
+            "newImpl": "0xDEaDBeefDeaDBeefDeaDBeefDeaDBeefDeaDBeef"
+          },
+          "description": "Attacker replaces the gateway implementation with a malicious contract that will re‑enter the token's transferFrom.",
+          "relay_mode": "tampered",
+          "state_predicate": "SocketGateway.impl == 0xDEaDBeefDeaDBeefDeaDBeefDeaDBeefDeaDBeef",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "approve(address,uint256)",
+          "params": {
+            "spender": "SocketGateway",
+            "amount": "1000"
+          },
+          "description": "Attacker grants the gateway a modest allowance (1000 tokens).",
+          "relay_mode": "faithful",
+          "state_predicate": "allowance[Attacker][SocketGateway] == 1000",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "SocketGateway",
+          "function": "performAction(uint32,address,address,uint256,address,address,bytes)",
+          "params": {
+            "actionId": 1,
+            "srcToken": "MockToken",
+            "dstToken": "MockToken",
+            "amount": 1000,
+            "receiver": "Attacker",
+            "relayer": "0x0000000000000000000000000000000000000000",
+            "data": "0x"
+          },
+          "description": "Attacker initiates a withdrawal. The gateway delegatecalls the malicious implementation, which calls MockToken.transferFrom(attacker, gateway, 1000) twice before the allowance is decreased.",
+          "relay_mode": "faithful",
+          "state_predicate": [
+            "MockToken.balanceOf(Attacker) == initialBalance - 2000",
+            "allowance[Attacker][SocketGateway] == 1000"
+          ],
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_20220118",
+        "harmony_horizon_20220624"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker replaces the gateway implementation with a malicious contract that will re‑enter the token's transferFrom."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker grants the gateway a modest allowance (1000 tokens)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker initiates a withdrawal. The gateway delegatecalls the malicious implementation, which calls MockToken.transferFrom(attacker, gateway, 1000) twice before the allowance is decreased."
+        }
+      ]
+    },
+    {
+      "scenario_id": "socket_auth_mint_bypass_via_proxy_001",
+      "target_invariant": "auth_mint_only_by_gateway",
+      "vulnerability_class": "authorization_bypass_via_proxy_call",
+      "confidence": 0.86,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "AttackerProxy",
+          "function": "constructor()",
+          "params": {},
+          "description": "Deploy a minimal proxy contract that will forward calls to SocketGateway.performAction. The proxy becomes the immediate caller of the gateway, causing msg.sender != address(SocketGateway) inside the gateway.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "AttackerProxy",
+          "function": "callGatewayMint(address,uint256)",
+          "params": {
+            "receiver": "0xDEADbeefDEADbeefDEADbeefDEADbeefDEADbeef",
+            "amount": "1000000"
+          },
+          "relay_mode": "tampered",
+          "description": "AttackerProxy calls SocketGateway.performAction with a forged relay payload that instructs the gateway to mint 1,000,000 MockToken to the attacker address. The call is a plain external call, so inside SocketGateway msg.sender == AttackerProxy, violating the invariant that requires msg.sender == address(SocketGateway).",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "SocketGateway",
+          "function": "performAction(uint32,address,address,uint256,address,address,bytes)",
+          "params": {
+            "dstChainId": 0,
+            "srcToken": "0x0000000000000000000000000000000000000000",
+            " // MockToken address (placeholder)   \n        ": ": null,  // placeholder for readability\n        "
+          },
+          "step": 3,
+          "description": "Step 3"
+        }
+      ],
+      "retrieved_exploits": [
+        "pnetwork_xscope",
+        "harmony_horizon_20220624",
+        "evodefi_20220607"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Deploy a minimal proxy contract that will forward calls to SocketGateway.performAction. The proxy becomes the immediate caller of the gateway, causing msg.sender != address(SocketGateway) inside the gateway."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "AttackerProxy calls SocketGateway.performAction with a forged relay payload that instructs the gateway to mint 1,000,000 MockToken to the attacker address. The call is a plain external call, so inside SocketGateway msg.sender == AttackerProxy, violating the invariant that requires msg.sender == address(SocketGateway)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        }
+      ]
+    },
+    {
+      "scenario_id": "socket_auth_withdraw_bypass_via_permit_2024_06_06",
+      "target_invariant": "auth_withdraw_only_by_user",
+      "vulnerability_class": "authorization_bypass_via_permit",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "MockToken",
+          "function": "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)",
+          "params": {
+            "owner": "0xVictimAddress",
+            "spender": "0xAttackerAddress",
+            "value": "1000e18",
+            "deadline": "0xffffffff",
+            "v": "27",
+            "r": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "s": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          "description": "Attacker uses victim's signed ERC‑20 permit to set allowance for themselves without on‑chain interaction from the victim. Predicate: allowance[0xVictimAddress][0xAttackerAddress] == 1000e18",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "SocketGateway",
+          "function": "performAction(uint32,address,address,uint256,address,address,bytes)",
+          "params": {
+            "dstChainId": 100,
+            "token": "0xMockTokenAddress",
+            "to": "0xAttackerAddress",
+            "amount": "1000e18",
+            "impl": "0xImplementationStubAddress",
+            "feeToken": "0x0",
+            "data": "0x"
+          },
+          "description": "Attacker calls withdraw (edge e3) using the allowance granted by the permit. msg.sender == 0xAttackerAddress, tokenOwner == 0xVictimAddress, violating invariant msg.sender == tokenOwner. Predicate before call: allowance[0xVictimAddress][0xAttackerAddress] >= amount && balanceOf(0xVictimAddress) >= amount && impl != address(0).",
+          "step": 2
+        },
+        {
+          "chain": "relay",
+          "contract": "SocketRelay",
+          "function": "relayMessage(uint256,bytes)",
+          "params": {
+            "msgId": 42,
+            "payload": "0x<encoded performAction args>"
+          },
+          "relay_mode": "faithful",
+          "description": "Relay forwards the withdrawal message to the destination chain unchanged, allowing the mint side to credit the attacker.",
+          "step": 3
+        },
+        {
+          "chain": "destination",
+          "contract": "SocketGateway",
+          "function": "performAction(uint32,address,address,uint256,address,address,bytes)",
+          "params": {
+            "dstChainId": 0,
+            "token": "0xMockTokenAddress",
+            "to": "0xAttackerAddress",
+            "amount": "1000e18",
+            "impl": "0xImplementationStubAddress",
+            "feeToken": "0x0",
+            "data": "0x"
+          },
+          "description": "Gateway on destination chain mints the wrapped tokens to the attacker (edge e4). Predicate after call: balanceOf(0xAttackerAddress) increased by 1000e18, totalMinted increased, usedNonce[nonce] set.",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "meterio_20220205",
+        "harmony_horizon_20220624"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Attacker uses victim's signed ERC‑20 permit to set allowance for themselves without on‑chain interaction from the victim. Predicate: allowance[0xVictimAddress][0xAttackerAddress] == 1000e18"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Attacker calls withdraw (edge e3) using the allowance granted by the permit. msg.sender == 0xAttackerAddress, tokenOwner == 0xVictimAddress, violating invariant msg.sender == tokenOwner. Predicate before call: allowance[0xVictimAddress][0xAttackerAddress] >= amount && balanceOf(0xVictimAddress) >= amount && impl != address(0)."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "relay.message_count > 0",
+          "description": "Relay forwards the withdrawal message to the destination chain unchanged, allowing the mint side to credit the attacker."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Gateway on destination chain mints the wrapped tokens to the attacker (edge e4). Predicate after call: balanceOf(0xAttackerAddress) increased by 1000e18, totalMinted increased, usedNonce[nonce] set."
+        }
+      ]
+    },
+    {
+      "scenario_id": "socket_nonce_reentrancy_double_withdraw",
+      "target_invariant": "uniq_nonce_used_once_withdraw",
+      "vulnerability_class": "reentrancy_missing_nonce_update",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "AttackerContract",
+          "function": "deployMaliciousImpl()",
+          "params": {},
+          "description": "Deploy a malicious implementation contract (MaliciousImpl) that, when called by SocketGateway, re‑enters SocketGateway.performAction with the same withdrawal nonce.",
+          "step": 1
+        },
+        {
+          "chain": "source",
+          "contract": "SocketGateway",
+          "function": "performAction(uint32 actionId,address token,address to,uint256 amount,address impl,address relayer,bytes data)",
+          "params": {
+            "actionId": 0,
+            "token": "MockToken",
+            "to": "User",
+            "amount": 100,
+            "impl": "MaliciousImpl",
+            "relayer": "0x0000000000000000000000000000000000000000",
+            "data": "0x"
+          },
+          "description": "User initiates a withdrawal of 100 MockToken with nonce N (embedded in `data`). The gateway checks `impl != address(0)` and calls `MaliciousImpl.performAction`.",
+          "waypoint": "sourceGateway.usedNonce[N] == false && sourceGateway.totalLocked() == 100",
+          "step": 2
+        },
+        {
+          "chain": "source",
+          "contract": "MaliciousImpl",
+          "function": "performAction(uint32,address,address,uint256,address,address,bytes)",
+          "params": {
+            "actionId": 0,
+            "token": "MockToken",
+            "to": "User",
+            "amount": 100,
+            "impl": "0x0000000000000000000000000000000000000000",
+            "relayer": "0x0000000000000000000000000000000000000000",
+            "data": "0x",
+            "nonce": "N"
+          },
+          "description": "During the external call, MaliciousImpl re‑enters SocketGateway.performAction with the identical nonce N before the original call finishes. Because `usedNonce[N]` is still false, the second call succeeds and locks another 100 tokens.",
+          "mode": "reentrancy",
+          "waypoint": "sourceGateway.usedNonce[N] == false && sourceGateway.totalLocked() == 200",
+          "step": 3
+        },
+        {
+          "chain": "source",
+          "contract": "SocketGateway",
+          "function": "finalizeAction()",
+          "params": {},
+          "description": "After the external call returns, the original performAction finally sets `usedNonce[N] = true`. The bridge now believes the nonce has been used once, but 200 tokens are locked, violating the uniqueness invariant.",
+          "waypoint": "sourceGateway.usedNonce[N] == true && sourceGateway.totalLocked() == 200",
+          "step": 4
+        }
+      ],
+      "retrieved_exploits": [
+        "qubit_20220127",
+        "meterio_20220205",
+        "poly_network_20210304"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Deploy a malicious implementation contract (MaliciousImpl) that, when called by SocketGateway, re‑enters SocketGateway.performAction with the same withdrawal nonce."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "User initiates a withdrawal of 100 MockToken with nonce N (embedded in `data`). The gateway checks `impl != address(0)` and calls `MaliciousImpl.performAction`."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "During the external call, MaliciousImpl re‑enters SocketGateway.performAction with the identical nonce N before the original call finishes. Because `usedNonce[N]` is still false, the second call succeeds and locks another 100 tokens."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "After the external call returns, the original performAction finally sets `usedNonce[N] = true`. The bridge now believes the nonce has been used once, but 200 tokens are locked, violating the uniqueness invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "socket_nonce_replay_2024_01",
+      "target_invariant": "uniq_nonce_used_once_mint",
+      "vulnerability_class": "nonce_reuse_via_upgrade_and_replay",
+      "confidence": 0.78,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "SocketGateway",
+          "function": "upgradeImplementation(address)",
+          "params": {
+            "newImpl": "0x1111111111111111111111111111111111111111",
+            "newImpl_name": "SwapImplementationStub"
+          },
+          "mode": "faithful",
+          "waypoint": "usedNonce[0xdeadbeef] == false",
+          "step": 1,
+          "description": "Step 1"
+        },
+        {
+          "chain": "source",
+          "contract": "SocketGateway",
+          "function": "performAction(uint32,address,address,uint256,address,address,bytes)",
+          "params": {
+            "msgId": 1001,
+            "token": "MockToken",
+            "to": "User",
+            "amount": 1000,
+            "relayer": "User",
+            "impl": "0x0000000000000000000000000000000000000000",
+            "data": "0xdeadbeef",
+            "nonce": "0xdeadbeef"
+          },
+          "mode": "faithful",
+          "waypoint": "usedNonce[0xdeadbeef] == true && verifiedRelay[1001] == true",
+          "step": 2,
+          "description": "Step 2"
+        },
+        {
+          "chain": "source",
+          "contract": "RelayVerifier",
+          "function": "processRelay(uint32,bytes)",
+          "params": {
+            "msgId": 2002,
+            "payload": "0xdeadbeef"
+          },
+          "mode": "replay",
+          "waypoint": "verifiedRelay[2002] == true && usedNonce[0xdeadbeef] == false",
+          "step": 3,
+          "description": "Step 3"
+        },
+        {
+          "chain": "source",
+          "contract": "SocketGateway",
+          "function": "performAction(uint32,address,address,uint256,address,address,bytes)",
+          "params": {
+            "msgId": 2002,
+            "token": "MockToken",
+            "to": "User",
+            "amount": 1000,
+            "relayer": "User",
+            "impl": "0x0000000000000000000000000000000000000000",
+            "data": "0xdeadbeef",
+            "nonce": "0xdeadbeef"
+          },
+          "mode": "replay",
+          "waypoint": "usedNonce[0xdeadbeef] == true && totalMinted() > totalLocked() + totalFeesCollected()",
+          "step": 4,
+          "description": "Step 4"
+        }
+      ],
+      "retrieved_exploits": [
+        "qubit_20220127",
+        "meterio_20220205"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "Step 1"
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Step 2"
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Step 3"
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "step_4_executed",
+          "description": "Step 4"
+        }
+      ]
+    },
+    {
+      "scenario_id": "socket_replay_msg_double_mint",
+      "target_invariant": "uniq_message_processed_once",
+      "vulnerability_class": "relay_message_replay",
+      "confidence": 0.88,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "SocketGateway",
+          "function": "performAction",
+          "params": {
+            "actionId": 3,
+            "token": "0xMockToken",
+            "to": "0xUser",
+            "amount": "1000",
+            "impl": "0xSwapImplementationStub",
+            "feeRecipient": "0x0000000000000000000000000000000000000000",
+            "data": "0x"
+          },
+          "description": "User initiates a withdrawal (edge e3). 1000 MockToken are locked in the gateway and a signed relay message is emitted with identifier msgId = 0xabc123.",
+          "pre_state": "sourceGateway.lockedAmount() == L0 && sourceGateway.processedMessage[0xabc123] == false",
+          "post_state": "sourceGateway.lockedAmount() == L0 + 1000 && sourceGateway.processedMessage[0xabc123] == true",
+          "step": 1
+        },
+        {
+          "chain": "relay",
+          "contract": "SocketRelay",
+          "function": "relayMessage",
+          "params": {
+            "msgId": "0xabc123",
+            "payload": "0x..."
+          },
+          "relay_mode": "faithful",
+          "description": "Honest relay forwards the signed payload to the destination chain.",
+          "pre_state": "destinationGateway.processedMessage[0xabc123] == false",
+          "post_state": "destinationGateway.processedMessage[0xabc123] == false",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "SocketGateway",
+          "function": "receiveMessage",
+          "params": {
+            "msgId": "0xabc123",
+            "payload": "0x..."
+          },
+          "relay_mode": "replay",
+          "description": "Attacker re‑sends the same msgId after it has already been processed, triggering edge e4 a second time and minting another 1000 MockToken to the user.",
+          "pre_state": "destinationGateway.processedMessage[0xabc123] == false && balanceOf(0xUser) == B0",
+          "post_state": "destinationGateway.processedMessage[0xabc123] == true && balanceOf(0xUser) == B0 + 2000",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_double_spend",
+        "poly_network_replay"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User initiates a withdrawal (edge e3). 1000 MockToken are locked in the gateway and a signed relay message is emitted with identifier msgId = 0xabc123."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Honest relay forwards the signed payload to the destination chain."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker re‑sends the same msgId after it has already been processed, triggering edge e4 a second time and minting another 1000 MockToken to the user."
+        }
+      ]
+    },
+    {
+      "scenario_id": "socket_relay_id_replay_001",
+      "target_invariant": "uniq_relay_id_unique",
+      "vulnerability_class": "replay_attack",
+      "confidence": 0.92,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "SocketGateway",
+          "function": "performAction",
+          "params": {
+            "_dstChainId": 2,
+            "_token": "MockToken",
+            "_to": "User",
+            "_amount": 100,
+            "_impl": "SwapImplementationStub",
+            "_relayer": "AttackerRelayer",
+            "_data": "0x"
+          },
+          "description": "User initiates a withdrawal, locking 100 MockToken on the source chain. The gateway emits a relay message with identifier 0xdeadbeef.",
+          "waypoint": "sourceGateway.lockedAmount() == 100 && emittedRelayId == 0xdeadbeef",
+          "step": 1
+        },
+        {
+          "chain": "destination",
+          "contract": "SocketGateway",
+          "function": "performAction",
+          "params": {
+            "_dstChainId": 0,
+            "_token": "MockToken",
+            "_to": "User",
+            "_amount": 100,
+            "_impl": "SwapImplementationStub",
+            "_relayer": "LegitRelayer",
+            "_data": "0x",
+            "_msgId": "0xdeadbeef"
+          },
+          "description": "Legitimate relayer processes the relay, minting 100 MockToken to User on the destination chain.",
+          "waypoint": "destinationGateway.processedMessage[0xdeadbeef] == true && MockToken.balanceOf(User) == 100",
+          "step": 2
+        },
+        {
+          "chain": "destination",
+          "contract": "SocketGateway",
+          "function": "performAction",
+          "params": {
+            "_dstChainId": 0,
+            "_token": "MockToken",
+            "_to": "User",
+            "_amount": 200,
+            "_impl": "SwapImplementationStub",
+            "_relayer": "AttackerRelayer",
+            "_data": "0x",
+            "_msgId": "0xdeadbeef",
+            "relayMode": "tampered"
+          },
+          "description": "Attacker replays the same relay identifier (0xdeadbeef) with a higher amount (200) using a tampered relayer contract that bypasses the duplicate‑message check.",
+          "waypoint": "MockToken.balanceOf(User) == 300 && destinationGateway.processedMessage[0xdeadbeef] == true",
+          "step": 3
+        }
+      ],
+      "retrieved_exploits": [
+        "multichain_xscope",
+        "harmony_horizon_20220624"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User initiates a withdrawal, locking 100 MockToken on the source chain. The gateway emits a relay message with identifier 0xdeadbeef."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "step_2_executed",
+          "description": "Legitimate relayer processes the relay, minting 100 MockToken to User on the destination chain."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Attacker replays the same relay identifier (0xdeadbeef) with a higher amount (200) using a tampered relayer contract that bypasses the duplicate‑message check."
+        }
+      ]
+    },
+    {
+      "scenario_id": "socket_timelock_refund_bypass_001",
+      "target_invariant": "timelock_refund_after_timeout",
+      "vulnerability_class": "logic_error_missing_timeout_check",
       "confidence": 0.92,
       "actions": [
         {
@@ -1122,694 +1233,362 @@
           "contract": "SocketGateway",
           "function": "performAction",
           "params": {
-            "nonce": "0xdeadbeef01",
-            "fromToken": "0xMockTokenSource",
-            "toToken": "0xMockTokenDest",
+            "actionType": 1,
+            "token": "MockToken",
+            "to": "User",
             "amount": "1000000000000000000",
-            "receiver": "0xAttacker",
-            "relayer": "0xMaliciousRelayer",
-            "extraData": "0x"
+            "impl": "SwapImplementationStub",
+            "relayer": "Relay",
+            "data": "0x0000000000000000000000000000000000000000000000000000000000000001"
           },
-          "relay_mode": "faithful",
-          "waypoint": "sourceGateway.totalLocked() >= 1e18",
-          "description": "Step 1"
+          "description": "User initiates a withdrawal, causing the bridge to lock the amount and record lockTimestamp[nonce].",
+          "waypoint": "SocketGateway.lockedAmount(User,1) == 1000000000000000000 && SocketGateway.lockTimestamp(1) == block.timestamp"
         },
         {
           "step": 2,
-          "chain": "destination",
+          "chain": "source",
           "contract": "SocketGateway",
-          "function": "mint",
+          "function": "refund",
           "params": {
-            "to": "0xAttacker",
-            "amount": "1000000000000000000",
-            "nonce": "0xdeadbeef01"
+            "nonce": 1
           },
-          "relay_mode": "faithful",
-          "waypoint": "destinationToken.balanceOf(0xAttacker) == 1e18 && destinationGateway.minted[0xdeadbeef01] == true",
-          "description": "Step 2"
-        },
-        {
-          "step": 3,
-          "chain": "destination",
-          "contract": "SocketGateway",
-          "function": "mint",
-          "params": {
-            "to": "0xAttacker",
-            "amount": "1000000000000000000",
-            "nonce": "0xdeadbeef01"
-          },
-          "relay_mode": "replay",
-          "waypoint": "destinationToken.balanceOf(0xAttacker) == 2e18 && destinationGateway.minted[0xdeadbeef01] == true",
-          "description": "Step 3"
-        },
-        {
-          "step": 4,
-          "chain": "destination",
-          "contract": "MockToken",
-          "function": "transfer",
-          "params": {
-            "to": "0xAttackerWallet",
-            "amount": "2000000000000000000"
-          },
-          "relay_mode": "faithful",
-          "waypoint": "0xAttackerWallet.balance == previous + 2e18",
-          "description": "Step 4"
+          "mode": "faithful",
+          "description": "Attacker calls refund immediately after the lock, exploiting the missing '+ timeoutPeriod' in the timelock check.",
+          "waypoint": "MockToken.balanceOf(User) == initial_balance + 1000000000000000000 && SocketGateway.lockedAmount(User,1) == 0"
         }
       ],
       "retrieved_exploits": [
-        "qubit_20220127",
-        "meterio_20220205"
+        "wormhole_2022_timelock_bug"
       ],
       "waypoints": [
         {
           "waypoint_id": "w1",
           "after_step": 1,
           "predicate": "step_1_executed",
-          "description": "Step 1"
+          "description": "User initiates a withdrawal, causing the bridge to lock the amount and record lockTimestamp[nonce]."
         },
         {
           "waypoint_id": "w2",
           "after_step": 2,
-          "predicate": "destRouter.totalMinted() >= 2000000000000000000",
-          "description": "Step 2"
-        },
-        {
-          "waypoint_id": "w3",
-          "after_step": 3,
-          "predicate": "destRouter.totalMinted() >= 3000000000000000000",
-          "description": "Step 3"
-        },
-        {
-          "waypoint_id": "w4",
-          "after_step": 4,
-          "predicate": "step_4_executed",
-          "description": "Step 4"
+          "predicate": "destRouter.totalMinted() > 0 && sourceRouter.refunded > 0",
+          "description": "Attacker calls refund immediately after the lock, exploiting the missing '+ timeoutPeriod' in the timelock check."
         }
       ]
     },
     {
-      "scenario_id": "socket_replay_nonce_bypass_2024_01",
-      "target_invariant": "uniqueness_transfer_idempotent",
-      "vulnerability_class": "nonce‑reuse replay via relay manipulation",
-      "confidence": 0.87,
+      "scenario_id": "socket_timelock_early_refund_01",
+      "target_invariant": "timelock_no_early_refund",
+      "vulnerability_class": "delegatecall_storage_manipulation",
+      "confidence": 0.78,
       "actions": [
         {
           "step": 1,
-          "chain": "ethereum",
-          "contract": "MockToken",
-          "function": "transferFrom",
-          "params": {
-            "from": "0xAttacker",
-            "to": "SocketGateway",
-            "amount": "1000e18",
-            "nonce": "0xA1B2C3"
-          },
-          "description": "User approves and initiates bridge transfer; MockToken records nonceUsed[0xA1B2C3] = true and locks 1000 tokens.",
-          "state_predicate": "MockToken.nonceUsed[0xA1B2C3] == true && MockToken.balanceOf[SocketGateway] == 1000e18"
-        },
-        {
-          "step": 2,
-          "chain": "ethereum",
+          "chain": "source",
           "contract": "SocketGateway",
           "function": "performAction",
           "params": {
-            "msgId": "0x01",
-            "srcToken": "MockToken",
-            "dstChainId": 137,
-            "dstToken": "MockToken",
-            "amount": "1000e18",
-            "recipient": "0xVictim",
-            "extraData": "0x"
+            "actionId": 0,
+            "impl": "SwapImplementationStub",
+            "token": "MockToken",
+            "amount": 1000,
+            "receiver": "0xAttacker",
+            "sender": "0xAttacker",
+            "data": "0xdeadbeef"
           },
-          "description": "Gateway emits a cross‑chain message containing the nonce 0xA1B2C3.",
-          "state_predicate": "SocketGateway.outgoingMessages[0x01].nonce == 0xA1B2C3 && SocketGateway.outgoingMessages[0x01].status == 'sent'"
+          "description": "Attacker initiates a withdrawal (edge e3) using a malicious implementation contract. The gateway delegatecalls into SwapImplementationStub."
+        },
+        {
+          "step": 2,
+          "chain": "source",
+          "contract": "SwapImplementationStub",
+          "function": "maliciousSetLock",
+          "params": {
+            "nonce": "0x1",
+            "newTimestamp": "block.timestamp - timeoutPeriod + 1"
+          },
+          "description": "During the delegatecall, the stub writes directly to the gateway's storage, setting lockTimestamp[0x1] to a value that makes the refund immediately eligible."
         },
         {
           "step": 3,
-          "chain": "relay",
-          "contract": "SocketRelay",
-          "function": "relayMessage",
-          "params": {
-            "msgId": "0x01",
-            "payload": "<encoded performAction>"
-          },
-          "mode": "faithful",
-          "description": "Honest relay forwards the message to the destination chain.",
-          "state_predicate": "SocketRelay.delivered[0x01] == true"
-        },
-        {
-          "step": 4,
-          "chain": "polygon",
+          "chain": "source",
           "contract": "SocketGateway",
-          "function": "mint",
+          "function": "refund",
           "params": {
-            "to": "0xVictim",
-            "amount": "1000e18",
-            "nonce": "0xA1B2C3"
+            "nonce": "0x1"
           },
-          "description": "Destination gateway mints 1000 tokens for the recipient. The gateway **fails** to check `nonceUsed` on the source side.",
-          "state_predicate": "MockToken.balanceOf[0xVictim] == 1000e18 && SocketGateway.mintedNonces[0xA1B2C3] == true"
-        },
-        {
-          "step": 5,
-          "chain": "relay",
-          "contract": "SocketRelay",
-          "function": "relayMessage",
-          "params": {
-            "msgId": "0x01",
-            "payload": "<encoded performAction>"
-          },
-          "mode": "replay",
-          "description": "Attacker re‑broadcasts the same message with the same nonce. Relay is configured (or compromised) to allow duplicate delivery.",
-          "state_predicate": "SocketRelay.replayed[0x01] == true"
-        },
-        {
-          "step": 6,
-          "chain": "polygon",
-          "contract": "SocketGateway",
-          "function": "mint",
-          "params": {
-            "to": "0xVictim",
-            "amount": "1000e18",
-            "nonce": "0xA1B2C3"
-          },
-          "description": "Destination gateway mints again because it does not verify that `nonceUsed[0xA1B2C3]` is already true on the source chain, violating the invariant.",
-          "state_predicate": "MockToken.balanceOf[0xVictim] == 2000e18 && SocketGateway.mintedNonces[0xA1B2C3] == true"
+          "description": "Attacker calls the refund function before the official timeout. Because lockTimestamp was tampered, the condition block.timestamp < lockTimestamp[nonce] + timeoutPeriod evaluates to false, so the refund succeeds."
         }
       ],
+      "state_predicates": [
+        "lockTimestamp[0x1] == block.timestamp - timeoutPeriod + 1",
+        "block.timestamp < lockTimestamp[0x1] + timeoutPeriod == false"
+      ],
       "retrieved_exploits": [
-        "nomad_20220801"
+        "bnbbridge_20221007"
       ],
       "waypoints": [
         {
           "waypoint_id": "w1",
           "after_step": 1,
           "predicate": "step_1_executed",
-          "description": "User approves and initiates bridge transfer; MockToken records nonceUsed[0xA1B2C3] = true and locks 1000 tokens."
+          "description": "Attacker initiates a withdrawal (edge e3) using a malicious implementation contract. The gateway delegatecalls into SwapImplementationStub."
         },
         {
           "waypoint_id": "w2",
           "after_step": 2,
           "predicate": "step_2_executed",
-          "description": "Gateway emits a cross‑chain message containing the nonce 0xA1B2C3."
+          "description": "During the delegatecall, the stub writes directly to the gateway's storage, setting lockTimestamp[0x1] to a value that makes the refund immediately eligible."
         },
         {
           "waypoint_id": "w3",
           "after_step": 3,
-          "predicate": "relay.message_count > 0",
-          "description": "Honest relay forwards the message to the destination chain."
-        },
-        {
-          "waypoint_id": "w4",
-          "after_step": 4,
-          "predicate": "step_4_executed",
-          "description": "Destination gateway mints 1000 tokens for the recipient. The gateway **fails** to check `nonceUsed` on the source side."
-        },
-        {
-          "waypoint_id": "w5",
-          "after_step": 5,
-          "predicate": "relay.message_count > 0",
-          "description": "Attacker re‑broadcasts the same message with the same nonce. Relay is configured (or compromised) to allow duplicate delivery."
-        },
-        {
-          "waypoint_id": "w6",
-          "after_step": 6,
-          "predicate": "step_6_executed",
-          "description": "Destination gateway mints again because it does not verify that `nonceUsed[0xA1B2C3]` is already true on the source chain, violating the invariant."
+          "predicate": "destRouter.totalMinted() > 0 && sourceRouter.refunded > 0",
+          "description": "Attacker calls the refund function before the official timeout. Because lockTimestamp was tampered, the condition block.timestamp < lockTimestamp[nonce] + timeoutPeriod evaluates to false, so the refund succeeds."
         }
       ]
     },
     {
-      "scenario_id": "socket_timeliness_refund_bypass_001",
-      "target_invariant": "timeliness_refund_after_timeout",
-      "vulnerability_class": "relay_state_tampering",
-      "confidence": 0.86,
+      "scenario_id": "socket_timelock_timestamp_replay_001",
+      "target_invariant": "timelock_lock_timestamp_monotonic",
+      "vulnerability_class": "relay_tampering",
+      "confidence": 0.85,
       "actions": [
+        {
+          "step": 1,
+          "chain": "source",
+          "contract": "SocketGateway",
+          "function": "performAction",
+          "params": {
+            "actionId": 0,
+            "dstChainId": 2,
+            "dstAddress": "0xUserAddress",
+            "amount": 1000,
+            "nonce": 42,
+            "timestamp": 1700000000,
+            "impl": "0xSwapImplementationStub",
+            "data": "0x"
+          },
+          "description": "User initiates a withdrawal (edge e3). The gateway records lockTimestamp[42] = 1700000000.",
+          "post_state": "SocketGateway.lockTimestamp[42] == 1700000000"
+        },
+        {
+          "step": 2,
+          "chain": "relay",
+          "action": "relayMessage",
+          "mode": "faithful",
+          "params": {
+            "msgId": 100,
+            "nonce": 42,
+            "timestamp": 1700000000,
+            "payload": "withdraw"
+          },
+          "description": "Off‑chain relayer forwards the withdrawal proof to the destination chain.",
+          "post_state": "Relay.processedMessage[100] == true"
+        },
+        {
+          "step": 3,
+          "chain": "destination",
+          "contract": "SocketGateway",
+          "function": "performAction",
+          "params": {
+            "actionId": 1,
+            "dstChainId": 2,
+            "dstAddress": "0xUserAddress",
+            "amount": 1000,
+            "nonce": 42,
+            "timestamp": 1700000600,
+            "impl": "0xSwapImplementationStub",
+            "data": "0x"
+          },
+          "description": "Relay triggers the mint side (edge e4) with a later timestamp. lockTimestamp[42] is updated to 1700000600.",
+          "post_state": "SocketGateway.lockTimestamp[42] == 1700000600"
+        },
+        {
+          "step": 4,
+          "chain": "relay",
+          "action": "relayMessage",
+          "mode": "tampered",
+          "params": {
+            "msgId": 100,
+            "nonce": 42,
+            "timestamp": 1700000000,
+            "payload": "withdraw (replay)"
+          },
+          "description": "Attacker re‑plays the original withdrawal message after the later mint has been processed.",
+          "post_state": "Relay.replayedMessage[100] == true"
+        },
+        {
+          "step": 5,
+          "chain": "destination",
+          "contract": "SocketGateway",
+          "function": "performAction",
+          "params": {
+            "actionId": 1,
+            "dstChainId": 2,
+            "dstAddress": "0xUserAddress",
+            "amount": 1000,
+            "nonce": 42,
+            "timestamp": 1700000000,
+            "impl": "0xSwapImplementationStub",
+            "data": "0x"
+          },
+          "description": "Re‑played mint call overwrites lockTimestamp[42] with the older value 1700000000, decreasing the timestamp and violating the invariant.",
+          "post_state": "SocketGateway.lockTimestamp[42] == 1700000000 && SocketGateway.lockTimestamp[42] < 1700000600"
+        }
+      ],
+      "retrieved_exploits": [
+        "wormhole_20211202",
+        "polynetwork_20210423"
+      ],
+      "waypoints": [
+        {
+          "waypoint_id": "w1",
+          "after_step": 1,
+          "predicate": "step_1_executed",
+          "description": "User initiates a withdrawal (edge e3). The gateway records lockTimestamp[42] = 1700000000."
+        },
+        {
+          "waypoint_id": "w2",
+          "after_step": 2,
+          "predicate": "relay.message_count > 0",
+          "description": "Off‑chain relayer forwards the withdrawal proof to the destination chain."
+        },
+        {
+          "waypoint_id": "w3",
+          "after_step": 3,
+          "predicate": "step_3_executed",
+          "description": "Relay triggers the mint side (edge e4) with a later timestamp. lockTimestamp[42] is updated to 1700000600."
+        },
+        {
+          "waypoint_id": "w4",
+          "after_step": 4,
+          "predicate": "relay.message_count > 0",
+          "description": "Attacker re‑plays the original withdrawal message after the later mint has been processed."
+        },
+        {
+          "waypoint_id": "w5",
+          "after_step": 5,
+          "predicate": "step_5_executed",
+          "description": "Re‑played mint call overwrites lockTimestamp[42] with the older value 1700000000, decreasing the timestamp and violating the invariant."
+        }
+      ]
+    },
+    {
+      "scenario_id": "socket_timelock_zero_exploit_001",
+      "target_invariant": "timelock_timeout_nonzero",
+      "vulnerability_class": "access_control_missing",
+      "confidence": 0.85,
+      "actions": [
+        {
+          "chain": "source",
+          "contract": "SocketGateway",
+          "function": "setTimeout(uint256)",
+          "params": {
+            "newTimeout": 0
+          },
+          "mode": "faithful",
+          "post_state_predicate": "SocketGateway.timeoutPeriod() == 0",
+          "step": 1,
+          "description": "Step 1"
+        },
         {
           "chain": "source",
           "contract": "SocketGateway",
           "function": "performAction(uint32,address,address,uint256,address,address,bytes)",
           "params": {
-            "dstChainId": 101,
-            "from": "0xUserA",
-            "to": "0xAttacker",
-            "amount": 1000000000000000000,
-            "fromToken": "MockToken",
-            "toToken": "MockToken",
+            "actionId": 3,
+            "token": "MockToken",
+            "to": "User",
+            "amount": 1000,
+            "impl": "SwapImplementationStub",
             "data": "0x"
           },
-          "description": "User A locks 1 MockToken on the source chain, creating nonce N. State predicate: `sourceGateway.lockedAmount(N) == 1e18 && sourceGateway.lockTimestamp(N) == block.timestamp`.",
-          "step": 1
+          "mode": "faithful",
+          "post_state_predicate": "SocketGateway.pendingWithdrawal[nonce] == true && SocketGateway.usedNonce[nonce] == false",
+          "step": 2,
+          "description": "Step 2"
         },
         {
           "chain": "relay",
-          "contract": "SocketRelay",
-          "function": "forwardMessage(bytes)",
+          "contract": "RelayHub",
+          "function": "processMessage(uint256)",
           "params": {
-            "message": "<encoded performAction payload>"
+            "msgId": 1
           },
-          "relay_mode": "delayed",
-          "description": "Malicious relay withholds the message for > REFUND_TIMEOUT, causing the destination mint to be absent when the timeout expires.",
-          "step": 2
+          "mode": "faithful",
+          "post_state_predicate": "RelayHub.verifiedRelay[1] == true",
+          "step": 3,
+          "description": "Step 3"
         },
         {
           "chain": "source",
           "contract": "SocketGateway",
-          "function": "setMinted(uint256,bool)",
+          "function": "performAction(uint32,address,address,uint256,address,address,bytes)",
           "params": {
-            "nonce": "N",
-            "minted": true
+            "actionId": 4,
+            "token": "MockToken",
+            "to": "User",
+            "amount": 1000,
+            "impl": "SwapImplementationStub",
+            "data": "0x"
           },
-          "relay_mode": "tampered",
-          "description": "Attacker, masquerading as an authorized relayer, writes `minted[N] = true` on the source contract without any corresponding mint on the destination chain. State predicate: `sourceGateway.minted(N) == true`.",
-          "step": 3
+          "mode": "faithful",
+          "post_state_predicate": "MockToken.balanceOf(User) == previousBalance + 1000 && SocketGateway.usedNonce[nonce] == true",
+          "step": 4,
+          "description": "Step 4"
         },
         {
           "chain": "source",
           "contract": "SocketGateway",
-          "function": "refund(uint256)",
+          "function": "performAction(uint32,address,address,uint256,address,address,bytes)",
           "params": {
-            "nonce": "N"
+            "actionId": 4,
+            "token": "MockToken",
+            "to": "User",
+            "amount": 1000,
+            "impl": "SwapImplementationStub",
+            "data": "0x"
           },
-          "description": "User A attempts to call `refund(N)` after timeout, but the call reverts because `minted[N]` is already true. Predicate: `block.timestamp >= lockTimestamp(N) + REFUND_TIMEOUT && minted(N) == true` → refund unavailable.",
-          "step": 4
-        },
-        {
-          "chain": "destination",
-          "contract": "SocketGateway",
-          "function": "finalizeMint(uint256,address,uint256)",
-          "params": {
-            "nonce": "N",
-            "recipient": "0xAttacker",
-            "amount": 1000000000000000000
-          },
-          "relay_mode": "tampered",
-          "description": "Attacker triggers the mint on the destination chain using the same nonce, receiving the locked tokens that were never actually minted for the legitimate user. State predicate: `MockToken.balanceOf(0xAttacker) == 1e18`.",
-          "step": 5
-        }
-      ],
-      "retrieved_exploits": [
-        "gempad_20240419",
-        "qubit_20220127"
-      ],
-      "waypoints": [
-        {
-          "waypoint_id": "w1",
-          "after_step": 1,
-          "predicate": "step_1_executed",
-          "description": "User A locks 1 MockToken on the source chain, creating nonce N. State predicate: `sourceGateway.lockedAmount(N) == 1e18 && sourceGateway.lockTimestamp(N) == block.timestamp`."
-        },
-        {
-          "waypoint_id": "w2",
-          "after_step": 2,
-          "predicate": "relay.message_count > 0",
-          "description": "Malicious relay withholds the message for > REFUND_TIMEOUT, causing the destination mint to be absent when the timeout expires."
-        },
-        {
-          "waypoint_id": "w3",
-          "after_step": 3,
-          "predicate": "step_3_executed",
-          "description": "Attacker, masquerading as an authorized relayer, writes `minted[N] = true` on the source contract without any corresponding mint on the destination chain. State predicate: `sourceGateway.minted(N) == true`."
-        },
-        {
-          "waypoint_id": "w4",
-          "after_step": 4,
-          "predicate": "step_4_executed",
-          "description": "User A attempts to call `refund(N)` after timeout, but the call reverts because `minted[N]` is already true. Predicate: `block.timestamp >= lockTimestamp(N) + REFUND_TIMEOUT && minted(N) == true` → refund unavailable."
-        },
-        {
-          "waypoint_id": "w5",
-          "after_step": 5,
-          "predicate": "step_5_executed",
-          "description": "Attacker triggers the mint on the destination chain using the same nonce, receiving the locked tokens that were never actually minted for the legitimate user. State predicate: `MockToken.balanceOf(0xAttacker) == 1e18`."
-        }
-      ]
-    },
-    {
-      "scenario_id": "socket_mint_after_refund_replay_001",
-      "target_invariant": "timeliness_no_mint_before_timeout_expired",
-      "vulnerability_class": "logic_bug_refund_mint_race",
-      "confidence": 0.87,
-      "actions": [
-        {
-          "chain": "source",
-          "contract": "SocketGateway",
-          "function": "performAction",
-          "params": {
-            "nonce": 42,
-            "fromToken": "0xAAA111AAA111AAA111AAA111AAA111AAA111AAA1",
-            "toToken": "0xBBB222BBB222BBB222BBB222BBB222BBB222BBB2",
-            "amount": "1000000000000000000000",
-            "recipient": "0xUser1",
-            "extraData": "0x"
-          },
-          "description": "User locks 1,000 MockToken on the source chain, creating a pending outbound with nonce 42.",
-          "predicate": "SocketGateway.pending[42].amount == 1000000000000000000000 && SocketGateway.refunded[42] == false",
-          "step": 1
-        },
-        {
-          "chain": "source",
-          "contract": "SocketGateway",
-          "function": "requestRefund",
-          "params": {
-            "nonce": 42
-          },
-          "description": "Attacker (or the same user) calls the refund path before the destination mint is processed; the gateway marks refunded[42]=true and releases the locked tokens.",
-          "predicate": "SocketGateway.refunded[42] == true && MockToken.balanceOf(address(SocketGateway)) == 0",
-          "step": 2
-        },
-        {
-          "chain": "relay",
-          "relay_action": "relayMessage",
           "mode": "replay",
-          "params": {
-            "srcChain": "source",
-            "dstChain": "destination",
-            "targetContract": "SocketGateway",
-            "function": "mint",
-            "nonce": 42,
-            "recipient": "0xUser1",
-            "amount": "1000000000000000000000"
-          },
-          "description": "A malicious relay re‑sends the original mint instruction after the refund, using replay mode to bypass any timeout validation performed by the relay.",
-          "predicate": "relay.replayed == true",
-          "step": 3
-        },
-        {
-          "chain": "destination",
-          "contract": "MockToken",
-          "function": "mint",
-          "params": {
-            "to": "0xUser1",
-            "amount": "1000000000000000000000"
-          },
-          "description": "Destination token contract mints 1,000 tokens for the user even though refunded[42] is true, violating the invariant.",
-          "predicate": "MockToken.balanceOf(0xUser1) == 1000000000000000000000 && SocketGateway.refunded[42] == true",
-          "step": 4
+          "post_state_predicate": "MockToken.balanceOf(User) == previousBalance + 2000 && SocketGateway.usedNonce[nonce] == true",
+          "step": 5,
+          "description": "Step 5"
         }
       ],
       "retrieved_exploits": [
-        "qubit_20220127",
-        "thorchain_20210629"
+        "harmony_horizon_20220624",
+        "multichain_20230715"
       ],
       "waypoints": [
         {
           "waypoint_id": "w1",
           "after_step": 1,
           "predicate": "step_1_executed",
-          "description": "User locks 1,000 MockToken on the source chain, creating a pending outbound with nonce 42."
+          "description": "Step 1"
         },
         {
           "waypoint_id": "w2",
           "after_step": 2,
           "predicate": "step_2_executed",
-          "description": "Attacker (or the same user) calls the refund path before the destination mint is processed; the gateway marks refunded[42]=true and releases the locked tokens."
+          "description": "Step 2"
         },
         {
           "waypoint_id": "w3",
           "after_step": 3,
           "predicate": "relay.message_count > 0",
-          "description": "A malicious relay re‑sends the original mint instruction after the refund, using replay mode to bypass any timeout validation performed by the relay."
+          "description": "Step 3"
         },
         {
           "waypoint_id": "w4",
           "after_step": 4,
-          "predicate": "destRouter.totalMinted() >= 3000000000000000000000",
-          "description": "Destination token contract mints 1,000 tokens for the user even though refunded[42] is true, violating the invariant."
-        }
-      ]
-    },
-    {
-      "scenario_id": "socket_timeliness_lock_timestamp_regression_001",
-      "target_invariant": "timeliness_lock_timestamp_monotonic",
-      "vulnerability_class": "relay_tampering_and_replay",
-      "confidence": 0.78,
-      "actions": [
-        {
-          "chain": "source",
-          "contract": "SocketGateway",
-          "function": "performAction",
-          "params": {
-            "nonce": 1,
-            "fromToken": "0xMockTokenSrc",
-            "toToken": "0xMockTokenDst",
-            "amount": "1000000000000000000",
-            "from": "0xAttackerEOA",
-            "to": "0xAttackerEOA",
-            "data": "0x"
-          },
-          "description": "Attacker locks 1 MockToken on the source chain; SocketGateway records lockTimestamp[1] = block.timestamp (≈2000).",
-          "waypoint": "sourceGateway.lockTimestamp[1] == 2000",
-          "step": 1
-        },
-        {
-          "chain": "relay",
-          "contract": "SocketRelay",
-          "function": "forwardMessage",
-          "params": {
-            "nonce": 1,
-            "lockTimestamp": 2000,
-            "payload": "0x..."
-          },
-          "relay_mode": "faithful",
-          "description": "Honest relay forwards the lock message to the destination chain.",
-          "step": 2
-        },
-        {
-          "chain": "destination",
-          "contract": "SocketGateway",
-          "function": "processMessage",
-          "params": {
-            "nonce": 1,
-            "lockTimestamp": 2000,
-            "payload": "0x..."
-          },
-          "description": "Destination gateway processes the message and sets lockTimestamp[1] = 2000.",
-          "waypoint": "destinationGateway.lockTimestamp[1] == 2000",
-          "step": 3
-        },
-        {
-          "chain": "relay",
-          "contract": "SocketRelay",
-          "function": "forwardMessage",
-          "params": {
-            "nonce": 1,
-            "lockTimestamp": 1500,
-            "payload": "0x..."
-          },
-          "relay_mode": "tampered",
-          "description": "Attacker tampers with the relayed payload, lowering lockTimestamp to 1500, and replays the same nonce after it has already been processed.",
-          "step": 4
-        },
-        {
-          "chain": "destination",
-          "contract": "SocketGateway",
-          "function": "processMessage",
-          "params": {
-            "nonce": 1,
-            "lockTimestamp": 1500,
-            "payload": "0x..."
-          },
-          "description": "Destination gateway accepts the replayed, tampered message and overwrites lockTimestamp[1] with 1500, violating the monotonicity invariant.",
-          "waypoint": "destinationGateway.lockTimestamp[1] < previousLockTimestamp",
-          "step": 5
-        }
-      ],
-      "retrieved_exploits": [
-        "gempad_20240419",
-        "polynetwork_20210810"
-      ],
-      "waypoints": [
-        {
-          "waypoint_id": "w1",
-          "after_step": 1,
-          "predicate": "step_1_executed",
-          "description": "Attacker locks 1 MockToken on the source chain; SocketGateway records lockTimestamp[1] = block.timestamp (≈2000)."
-        },
-        {
-          "waypoint_id": "w2",
-          "after_step": 2,
-          "predicate": "relay.message_count > 0",
-          "description": "Honest relay forwards the lock message to the destination chain."
-        },
-        {
-          "waypoint_id": "w3",
-          "after_step": 3,
-          "predicate": "step_3_executed",
-          "description": "Destination gateway processes the message and sets lockTimestamp[1] = 2000."
-        },
-        {
-          "waypoint_id": "w4",
-          "after_step": 4,
-          "predicate": "relay.message_count > 0",
-          "description": "Attacker tampers with the relayed payload, lowering lockTimestamp to 1500, and replays the same nonce after it has already been processed."
+          "predicate": "step_4_executed",
+          "description": "Step 4"
         },
         {
           "waypoint_id": "w5",
           "after_step": 5,
           "predicate": "step_5_executed",
-          "description": "Destination gateway accepts the replayed, tampered message and overwrites lockTimestamp[1] with 1500, violating the monotonicity invariant."
-        }
-      ]
-    },
-    {
-      "scenario_id": "socket_timeliness_timeout_bypass_001",
-      "target_invariant": "timeliness_timeout_reset_on_successful_mint",
-      "vulnerability_class": "timeliness_logic_bypass",
-      "confidence": 0.78,
-      "actions": [
-        {
-          "chain": "source",
-          "contract": "SourceBridge",
-          "function": "lock(address,address,uint256,uint256)",
-          "params": {
-            "token": "MockToken",
-            "from": "0xAttacker",
-            "amount": 1000,
-            "nonce": 42
-          },
-          "description": "Attacker initiates a lock of 1,000 MockToken on the source chain, creating nonce 42. This writes lockTimestamp[42] = block.timestamp and minted[42] = false.",
-          "step": 1
-        },
-        {
-          "chain": "relay",
-          "contract": "SocketRelay",
-          "function": "transmitMint(uint256,address,uint256,bytes)",
-          "params": {
-            "nonce": 42,
-            "to": "0xAttacker",
-            "amount": 1000,
-            "extraData": "0x00",
-            "mode": "tampered_skip_timeout_clear"
-          },
-          "description": "Relay forwards a mint message to the destination chain but manipulates the payload (mode = tampered_skip_timeout_clear) so that SocketGateway calls MockToken.mint without invoking the internal timeout‑reset hook. minted[42] becomes true while lockTimestamp[42] remains non‑zero.",
-          "step": 2
-        },
-        {
-          "chain": "source",
-          "contract": "SourceBridge",
-          "function": "refund(uint256)",
-          "params": {
-            "nonce": 42,
-            "mode": "faithful"
-          },
-          "description": "After the timeout period has elapsed, attacker calls refund on the source bridge. Because lockTimestamp[42] was never cleared, the contract’s refund logic (which only checks timeout) succeeds, transferring the locked tokens back to the attacker and setting refunded[42] = true.",
-          "step": 3
-        }
-      ],
-      "retrieved_exploits": [
-        "qubit_20220127",
-        "pnetwork_20210919",
-        "meterio_20220205"
-      ],
-      "waypoints": [
-        {
-          "waypoint_id": "w1",
-          "after_step": 1,
-          "predicate": "step_1_executed",
-          "description": "Attacker initiates a lock of 1,000 MockToken on the source chain, creating nonce 42. This writes lockTimestamp[42] = block.timestamp and minted[42] = false."
-        },
-        {
-          "waypoint_id": "w2",
-          "after_step": 2,
-          "predicate": "relay.message_count > 0",
-          "description": "Relay forwards a mint message to the destination chain but manipulates the payload (mode = tampered_skip_timeout_clear) so that SocketGateway calls MockToken.mint without invoking the internal timeout‑reset hook. minted[42] becomes true while lockTimestamp[42] remains non‑zero."
-        },
-        {
-          "waypoint_id": "w3",
-          "after_step": 3,
-          "predicate": "step_3_executed",
-          "description": "After the timeout period has elapsed, attacker calls refund on the source bridge. Because lockTimestamp[42] was never cleared, the contract’s refund logic (which only checks timeout) succeeds, transferring the locked tokens back to the attacker and setting refunded[42] = true."
-        }
-      ]
-    },
-    {
-      "scenario_id": "socket_deadline_tamper_2024_01",
-      "target_invariant": "timeliness_expired_message_cannot_trigger_mint",
-      "vulnerability_class": "deadline_manipulation",
-      "confidence": 0.87,
-      "actions": [
-        {
-          "chain": "source",
-          "contract": "SocketGateway",
-          "function": "performAction",
-          "params": {
-            "dstChainId": 56,
-            "to": "0xAttackerRecipient",
-            "amount": "1000000000000000000000",
-            "nonce": 1,
-            "deadline": "block.timestamp + 300"
-          },
-          "description": "Lock MockToken on source chain and emit a relay message H with a 5‑minute deadline.",
-          "waypoint": "sourceGateway.pendingMessages[H].deadline == block.timestamp + 300",
-          "step": 1
-        },
-        {
-          "chain": "relay",
-          "action": "tamper",
-          "mode": "tampered",
-          "target_message_hash": "H",
-          "new_deadline": "block.timestamp + 600",
-          "signature": "attackerSigned",
-          "description": "Relay node rewrites the deadline field of message H before signing and forwards it.",
-          "waypoint": "relayMessage.deadline == block.timestamp + 600 && messageDeadline[H] == block.timestamp + 600",
-          "step": 2,
-          "params": {}
-        },
-        {
-          "chain": "destination",
-          "contract": "SocketGateway",
-          "function": "executeMessage",
-          "params": {
-            "messageHash": "H",
-            "to": "0xAttackerRecipient",
-            "amount": "2000000000000000000000"
-          },
-          "description": "Gateway on destination chain processes the tampered message and invokes mint.",
-          "waypoint": "block.timestamp <= messageDeadline[H]",
-          "step": 3
-        },
-        {
-          "chain": "destination",
-          "contract": "MockToken",
-          "function": "mint",
-          "params": {
-            "to": "0xAttackerRecipient",
-            "amount": "2000000000000000000000"
-          },
-          "description": "Mint an inflated amount of MockToken despite the original deadline having passed.",
-          "waypoint": "MockToken.balanceOf(0xAttackerRecipient) >= 2000000000000000000000",
-          "step": 4
-        }
-      ],
-      "retrieved_exploits": [
-        "qubit_20220127",
-        "pnetwork_20210919"
-      ],
-      "waypoints": [
-        {
-          "waypoint_id": "w1",
-          "after_step": 1,
-          "predicate": "step_1_executed",
-          "description": "Lock MockToken on source chain and emit a relay message H with a 5‑minute deadline."
-        },
-        {
-          "waypoint_id": "w2",
-          "after_step": 2,
-          "predicate": "relay.pendingMessage.amount != sourceRouter.deposits(nonce).amount",
-          "description": "Relay node rewrites the deadline field of message H before signing and forwards it."
-        },
-        {
-          "waypoint_id": "w3",
-          "after_step": 3,
-          "predicate": "step_3_executed",
-          "description": "Gateway on destination chain processes the tampered message and invokes mint."
-        },
-        {
-          "waypoint_id": "w4",
-          "after_step": 4,
-          "predicate": "destRouter.totalMinted() >= 5000000000000000000000",
-          "description": "Mint an inflated amount of MockToken despite the original deadline having passed."
+          "description": "Step 5"
         }
       ]
     }

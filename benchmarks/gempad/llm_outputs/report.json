@@ -1,17 +1,17 @@
 {
   "benchmark": "gempad",
   "artifacts": {
-    "atg": "results/gempad_llm/atg.json",
-    "hypotheses": "results/gempad_llm/hypotheses.json"
+    "atg": "results\\gempad_regen\\atg.json",
+    "hypotheses": "results\\gempad_regen\\hypotheses.json"
   },
   "module1": {
     "contracts_processed": 2,
     "entities": 3,
     "edges": 5,
-    "invariants": 20
+    "invariants": 18
   },
   "module2": {
-    "scenarios": 20
+    "scenarios": 18
   },
   "module3": {
     "runs_attempted": 0,

@@ -1,17 +1,17 @@
 {
   "benchmark": "multichain",
   "artifacts": {
-    "atg": "results/multichain_llm/atg.json",
-    "hypotheses": "results/multichain_llm/hypotheses.json"
+    "atg": "results\\multichain_regen\\atg.json",
+    "hypotheses": "results\\multichain_regen\\hypotheses.json"
   },
   "module1": {
     "contracts_processed": 2,
     "entities": 4,
-    "edges": 3,
-    "invariants": 21
+    "edges": 5,
+    "invariants": 24
   },
   "module2": {
-    "scenarios": 21
+    "scenarios": 24
   },
   "module3": {
     "runs_attempted": 0,

@@ -1,17 +1,17 @@
 {
   "benchmark": "socket",
   "artifacts": {
-    "atg": "results/socket_llm/atg.json",
-    "hypotheses": "results/socket_llm/hypotheses.json"
+    "atg": "results\\socket_regen\\atg.json",
+    "hypotheses": "results\\socket_regen\\hypotheses.json"
   },
   "module1": {
     "contracts_processed": 3,
     "entities": 4,
     "edges": 4,
-    "invariants": 19
+    "invariants": 18
   },
   "module2": {
-    "scenarios": 19
+    "scenarios": 18
   },
   "module3": {
     "runs_attempted": 0,

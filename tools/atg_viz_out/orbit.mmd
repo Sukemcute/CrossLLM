@@ -1,0 +1,11 @@
+%% ATG orbit
+flowchart LR
+  n_OrbitVault["OrbitVault"]
+  n_WrappedToken["WrappedToken"]
+  n_MockMultisig["MockMultisig"]
+  n_User["User"]
+  n_User -- "lock" --> n_OrbitVault
+  n_OrbitVault -- "unlock" --> n_User
+  n_User -- "mint" --> n_WrappedToken
+  n_User -- "transfer" --> n_User
+  n_User -- "transferFrom" --> n_User
